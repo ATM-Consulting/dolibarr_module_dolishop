@@ -13,34 +13,5 @@ ParamLabel=Nom du paramètre
 ParamDesc=Une description si besoin
 ParamHelp=Le contenu de l'aide
 
-# MENU
-TopMenudolishop=dolishop
-
-# STATUS
-dolishopStatusDraft=Brouillon (à valider)
-dolishopStatusValidated=Validée (à accepter)
-dolishopStatusRefused=Refusée (fermée)
-dolishopStatusAccepted=Acceptée (fermée)
-
-Draft=Brouillon
-Validate=Validé
-Refused=Refusé
-Accepted=Accepté
-
-# LIST
-dolishopList=Liste dolishop
-Nodolishop=(vide)
-
-# CARD
-Newdolishop=Création dolishop
-dolishopCard=Fiche dolishop
-
-# CARD TPL
-Save=Enregistrer
-CreateDraft=Créer brouillon
-Cancel=Annuler
-Validate=Valider
-Modify=Modifier
-Reopen=Rouvrir
-ToClone=Cloner
-Delete=Supprimer
+DOLISHOP_API_KEY_FROM_PRESTASHOP=Clé du service web Prestashop
+DOLISHOP_API_KEY_FROM_PRESTASHOP_desc=Il s'agit d'une clé webservice que vous devez générer depuis le backoffice de votre boutique
