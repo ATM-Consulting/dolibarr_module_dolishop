@@ -90,7 +90,9 @@ class moddolishop extends DolibarrModules
 		//							'dir' => array('output' => 'othermodulename'),      // To force the default directories names
 		//							'workflow' => array('WORKFLOW_MODULE1_YOURACTIONTYPE_MODULE2'=>array('enabled'=>'! empty($conf->module1->enabled) && ! empty($conf->module2->enabled)', 'picto'=>'yourpicto@dolishop')) // Set here all workflow context managed by module
 		//                        );
-		$this->module_parts = array();
+		$this->module_parts = array(
+			'triggers' => 1
+		);
 
 		// Data directories to create when module is enabled.
 		// Example: this->dirs = array("/dolishop/temp");
@@ -330,12 +332,20 @@ class moddolishop extends DolibarrModules
 	function init($options='')
 	{
 		$sql = array();
+		$pos=0;
 		
 		define('INC_FROM_DOLIBARR',true);
 
 		dol_include_once('/dolishop/config.php');
 		dol_include_once('/dolishop/script/create-maj-base.php');
 
+		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+		$extrafield = new ExtraFields($this->db);
+		$extrafield->addExtraField('ps_id_product', 'ID produit Prestashop', 'int', $this->numero.$pos, 10, 'product', 0, 0, '', '', 0, '', 0);
+		$pos+=10;
+		
+		// TODO faire l'ajout de la tâche planifiée
+		
 		$result=$this->_load_tables('/dolishop/sql/');
 
 		return $this->_init($sql, $options);

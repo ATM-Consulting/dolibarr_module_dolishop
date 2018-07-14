@@ -31,6 +31,7 @@ if (! $res) {
 // Libraries
 require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 require_once '../lib/dolishop.lib.php';
+dol_include_once('/dolishop/class/dolishop.class.php');
 
 // Translations
 $langs->load("dolishop@dolishop");
@@ -74,6 +75,31 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	}
 }
 
+/******/
+$dolishop = new Dolishop($db);
+$dolishop->rsync();
+
+/******/
+
+$dolishop = new Dolishop($db);
+if ($action == 'testConnection')
+{
+	$res = $dolishop->testConnection();
+	if (!$res)
+	{
+		setEventMessage($langs->trans('DolishopTestConnectionFail'), 'errors');
+		if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
+	}
+	else setEventMessage($langs->trans('DolishopTestConnectionSuccess'));
+}
+elseif ($action == 'syncPsLanguages')
+{
+	$res = $dolishop->syncPsLanguages();
+	if (!$res) setEventMessages('', $dolishop->errors, 'errors');
+	else setEventMessage($langs->trans('DolishopSyncPsLanguages'));
+}
+
+
 /*
  * View
  */
@@ -104,19 +130,56 @@ print '<table class="noborder" width="100%">';
 _print_title("Parameters");
 
 // Example with a yes / no select
-_print_on_off('CONSTNAME', 'ParamLabel' , 'ParamDesc');
+//_print_on_off('CONSTNAME', 'ParamLabel' , 'ParamDesc');
 
 // Example with imput
-_print_input_form_part('CONSTNAME', 'ParamLabel');
+_print_input_form_part('DOLISHOP_PS_SHOP_PATH', $langs->trans('DOLISHOP_PS_SHOP_PATH'), '', array('placeholder'=>'https://www.example.com'));
+_print_input_form_part('DOLISHOP_PS_WS_AUTH_KEY', $langs->trans('DOLISHOP_PS_WS_AUTH_KEY'), $langs->trans('DOLISHOP_PS_WS_AUTH_KEY_desc'));
+_print_on_off('DOLISHOP_PS_WS_DEBUG', $langs->trans('DOLISHOP_PS_WS_DEBUG'));
 
+_print_on_off('DOLISHOP_SYNC_PRODUCTS', $langs->trans('DOLISHOP_SYNC_PRODUCTS'));
 // Example with color
-_print_input_form_part('CONSTNAME', 'ParamLabel', 'ParamDesc', array('type'=>'color'),'input','ParamHelp');
+//_print_input_form_part('CONSTNAME', 'ParamLabel', 'ParamDesc', array('type'=>'color'),'input','ParamHelp');
 
 // Example with placeholder
 //_print_input_form_part('CONSTNAME','ParamLabel','ParamDesc',array('placeholder'=>'http://'),'input','ParamHelp');
 
 // Example with textarea
 //_print_input_form_part('CONSTNAME','ParamLabel','ParamDesc',array(),'textarea');
+
+if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISHOP_PS_WS_AUTH_KEY))
+{
+	_print_title("Prestashop");
+	
+	print '<tr '.$bc[$var].'>';
+    print '<td>'.$langs->trans('DOLISHOP_TEST_CONNECTION');
+    print '</td>';
+    print '<td align="center" width="20">&nbsp;</td>';
+    print '<td align="right" width="300">';
+    print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+    print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+    print '<input type="hidden" name="action" value="testConnection">';
+    print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopTestConnection").'">';
+    print '</form>';
+    print '</td></tr>';
+	$var=!$var;
+	
+	print '<tr '.$bc[$var].'>';
+    print '<td>'.$langs->trans('DOLISHOP_SYNC_PS_LANGUAGES');
+	print '<br><small>'.img_warning().' '.$langs->trans('DOLISHOP_SYNC_PS_LANGUAGES_DESC').'</small>';
+    print '</td>';
+    print '<td align="center" width="20">&nbsp;</td>';
+    print '<td align="right" width="300">';
+    print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+    print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+    print '<input type="hidden" name="action" value="syncPsLanguages">';
+	if (!empty($conf->global->DOLISHOP_PS_LANGUAGES)) print $form->textwithpicto('', $dolishop->getFormatedStringTLanguage());
+    print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopSyncPsLanguages").'">';
+	if (empty($conf->global->DOLISHOP_PS_LANGUAGES)) print img_error($langs->trans("DolishopSycPsLanguagesNeeded"));
+    print '</form>';
+    print '</td></tr>';
+	$var=!$var;
+}
 
 
 print '</table>';
@@ -131,8 +194,8 @@ function _print_title($title="")
 {
     global $langs;
     print '<tr class="liste_titre">';
-    print '<td>'.$langs->trans($title).'</td>'."\n";
-    print '<td align="center" width="20">&nbsp;</td>';
+    print '<td width="75%">'.$langs->trans($title).'</td>'."\n";
+    print '<td align="center" width="1%">&nbsp;</td>';
     print '<td align="center" ></td>'."\n";
     print '</tr>';
 }

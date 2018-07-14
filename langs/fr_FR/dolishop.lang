@@ -8,10 +8,39 @@ dolishopAbout = A propos du module dolishop
 
 dolishop=dolishop
 
-# SETUP
+### SETUP
 ParamLabel=Nom du paramètre
 ParamDesc=Une description si besoin
 ParamHelp=Le contenu de l'aide
 
-DOLISHOP_API_KEY_FROM_PRESTASHOP=Clé du service web Prestashop
-DOLISHOP_API_KEY_FROM_PRESTASHOP_desc=Il s'agit d'une clé webservice que vous devez générer depuis le backoffice de votre boutique
+DOLISHOP_PS_SHOP_PATH=Adresse URL de votre boutique Prestashop
+
+DOLISHOP_PS_WS_AUTH_KEY=Clé du service web Prestashop
+DOLISHOP_PS_WS_AUTH_KEY_desc=Il s'agit d'une clé webservice que vous devez générer depuis le backoffice de votre boutique
+
+DOLISHOP_PS_WS_DEBUG=Activer le mode "DEBUG" des appels
+
+DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
+DOLISHOP_SYNC_PRODUCTS_PICTURES=Activer la synchronisation des images produits
+
+DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
+
+DOLISHOP_TEST_CONNECTION=Tester la connexion au service web
+DolishopTestConnection=Tester la connexion
+
+DOLISHOP_SYNC_PS_LANGUAGES=Récupérer la configuration des langues de Prestashop
+DOLISHOP_SYNC_PS_LANGUAGES_DESC=La ressource <b>languages</b> doit être accessible en <b>GET</b>
+DolishopSynPsLanguages=Récupérer les langues
+DolishopSyncPsLanguagesNeeded=Attention : les langues doivent être récupérées pour que le module fonctionne correctement
+
+
+### MESG ERROR
+DolishopTestConnectionFail=Échec du test de connexion
+DolishopErrorWs404=Erreur 404 : aucun service web à l'URL indiquée
+DolishopErrorWsBadAuthKey=Erreur 401 : clé d'authentification invalide
+DolishopErrorWsUnknown=Erreur inconnue : veuillez vérifier que l'URL pointe vers un site existant
+
+
+### MESG SUCCESS
+DolishopTestConnectionSuccess=Test de connexion réussi
+DolishopSyncPsLanguages=Langues de Prestashop récupérées
