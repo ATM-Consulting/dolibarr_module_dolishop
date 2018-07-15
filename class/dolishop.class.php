@@ -13,6 +13,8 @@ class Dolishop
 	public $error;
 	public $errors = array();
 	
+	public $from_cron_job = false;
+	
 	public $result_xml;
 	
 	public $schema_products_blank;
@@ -169,6 +171,8 @@ class Dolishop
 	public function rsync()
 	{
 		global $conf;
+		
+		$this->from_cron_job = true;
 		
 		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
@@ -345,7 +349,7 @@ class Dolishop
 			if ($dol_product->array_options['options_ps_id_product'] != $ps_id_product_return)
 			{
 				$dol_product->array_options['options_ps_id_product'] = $ps_id_product_return;
-				$dol_product->insertExtraFields();
+				$dol_product->updateExtraField('ps_id_product');
 			}
 		}
 	}
