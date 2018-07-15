@@ -5,8 +5,10 @@ require_once __DIR__.'/PSWebServiceLibrary.php';
 
 class Dolishop
 {
-	public static $webService = null;
+	private static $webService = null;
+	
 	public static $TLanguage = null;
+	public static $TTaxe = null;
 	
 	public $error;
 	public $errors = array();
@@ -24,58 +26,39 @@ class Dolishop
 		
 		if (is_null(self::$webService)) self::$webService = new PrestaShopWebservice($conf->global->DOLISHOP_PS_SHOP_PATH, $conf->global->DOLISHOP_PS_WS_AUTH_KEY, (bool) $conf->global->DOLISHOP_PS_WS_DEBUG);
 		if (is_null(self::$TLanguage)) self::$TLanguage = json_decode($conf->global->DOLISHOP_PS_LANGUAGES);
+		if (is_null(self::$TTaxe)) self::$TTaxe = json_decode($conf->global->DOLISHOP_PS_TAXES);
 	}
 	
 	
 	/**
 	 * Test de connectivité avec la boutique Prestashop
 	 * 
-	 * @global type $langs
 	 * @return boolean
 	 */
 	public function testConnection()
 	{
-		global $langs;
-		
-		try
-		{
-			$opt = array('resource' => '');
-			$this->result_xml = self::$webService->get($opt);
-		}
-		catch (PrestaShopWebserviceException $e)
-		{
-			$this->setError($e);
-		}
-		
-		return !empty($this->result_xml->api);
+		$r = $this->getAll('');
+		if ($r !== false) return $r->attributes()->shopName->__toString();
+		return false;
 	}
 	
 	/**
-	 * Methode permettant de récupérer les langues de Prestashop avec leurs ID pour les stocker en conf (DOLISHOP_PS_LANGUAGES)
-	 * (doit être appelée si la configuration des langues évolue sur Prestashop)
+	 * Methode permettant de récupérer des configurations de Prestashop pour le bon fonctionnement du module
+	 *  les langues	: DOLISHOP_PS_LANGUAGES
+	 *  les taxes	: DOLISHOP_PS_TAXES
+	 * (doit être appelée si la configuration évolue sur Prestashop)
 	 * 
-	 * @global type $langs
 	 * @return boolean
 	 */
-	public function syncPsLanguages()
+	public function syncPsConf()
 	{
-		global $langs,$conf;
+		global $conf;
 		
-		try
-		{
-			$opt = array('resource' => 'languages', 'display' => 'full');
-			$this->result_xml = self::$webService->get($opt);
-			$resources = $this->result_xml->children();
-		}
-		catch (PrestaShopWebserviceException $e)
-		{
-			$this->setError($e);
-		}
-		
-		if (empty($this->errors))
+		$languages = $this->getAll('languages', array('display' => 'full'));
+		if ($languages->children()->count() > 0)
 		{
 			$TLang = array();
-			foreach ($resources->children() as $l)
+			foreach ($languages->children() as $l)
 			{
 				$TLang[strtoupper($l->iso_code)] = array(
 					'id' => (int) $l->id
@@ -89,31 +72,75 @@ class Dolishop
 			if ($res > 0)
 			{
 				self::$TLanguage = json_decode($conf->global->DOLISHOP_PS_LANGUAGES);
-				return true;
+				self::$TLanguage = $TLang;
 			}
 			else $this->errors[] = $this->db->lasterror();
 		}
 		
+		$taxes = $this->getAll('taxes', array('display' => 'full'));
+		$tax_rules = $this->getAll('tax_rules', array('display' => 'full'));
+//		$tax_rule_groups = $this->getAll('tax_rule_groups', array('display' => 'full'));
+		
+//		var_dump($tax_rules->children());exit;
+		
+		if ($taxes->children()->count() > 0 && $tax_rules->children()->count() > 0)
+		{
+			$TTaxe = array();
+			foreach ($taxes->children() as $taxe)
+			{
+				$id_tax = (int) $taxe->id;
+				$vat_rate = (float) $taxe->rate; // Cast en float pour retirer les 0 à la fin
+				if (!isset($TTaxe[(string) $vat_rate])) $TTaxe[(string) $vat_rate] = array('TLabel' => array(), 'TId_tax' => array(), 'TId_tax_rules_group' => array());
+				$TTaxe[(string) $vat_rate]['TLabel'][$id_tax] = $taxe->name->language->__toString();
+				$TTaxe[(string) $vat_rate]['TId_tax'][$id_tax] = $id_tax;
+				
+//				var_dump($id_tax);exit;
+				foreach ($tax_rules->children() as $tax_rule)
+				{
+					if ((int) $tax_rule->id_tax == $id_tax)
+					{
+						$TTaxe[(string) $vat_rate]['TId_tax_rules_group'][$id_tax] = (int) $tax_rule->id_tax_rules_group;
+						break;
+					}
+				}
+				
+			}
+			
+			$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_TAXES', json_encode($TTaxe));
+			if ($res > 0)
+			{
+//				self::$TLanguage = json_decode($conf->global->DOLISHOP_PS_TAXES);
+				self::$TTaxe = $TTaxe;
+			}
+			else $this->errors[] = $this->db->lasterror();
+		}
+		
+		
+		
+		if (empty($this->errors)) return true;
 		return false;
 	}
 	
 	
 	/**
-	 * TODO prévoir d'ajouter une restriction du style sur un tag/categ pour éviter d'envoyer toute la base
 	 * Renvoie un tableau contenant les ID produit à synchroniser
 	 * 
 	 * @return array
 	 */
 	public function getTProductIdToSync()
 	{
+		global $conf;
+		
 		$TId = array();
+		
+		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES) && empty($conf->global->DOLISHOP_SYNC_PRODUCTS_RECK_CONF)) return $TId;
+		
 		$sql = 'SELECT DISTINCT p.rowid FROM '.MAIN_DB_PREFIX.'product p';
-//		$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_product = p.rowid)' // TODO restriction par tags/categories
-//		$sql.= ' ...';
-		
-		// TODO remove
-//		$sql.= ' WHERE p.rowid = 4';
-		
+		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS_RECK_CONF))
+		{
+			$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_product = p.rowid)'; // TODO restriction par tags/categories
+			$sql.= ' WHERE cp.fk_categorie IN ('.$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES.')';
+		}
 		
 		$resql = $this->db->query($sql);
 		if ($resql)
@@ -143,40 +170,33 @@ class Dolishop
 	{
 		global $conf;
 		
-		dol_include_once('/dolishop/class/dolishop.class.php');
+		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+		require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 		
 		if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS))
 		{
-			$this->rsyncProducts();
+			$ProductId = $this->getTProductIdToSync();
+			$this->rsyncProducts($ProductId);
 		}
 		
 		// TODO ... à venir
 	}
 	
 	/**
-	 * Synchronise les produits sur la boutique Prestashop
+	 * Synchronise les produits vers la boutique Prestashop
 	 */
-	private function rsyncProducts()
+	public function rsyncProducts($ProductId)
 	{
-		require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
-		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+		if (empty($ProductId)) return 0;
 		
-		$dol_product = new Product($this->db);
-		// Je récupère $optionsArray ici pour le faire qu'une seule fois, autrement la méthode "fetch_optionnals()" referait le travail à chaque itération...
-		$extrafields = new ExtraFields($this->db);
-		if (empty($extrafields->attributes[$dol_product->table_element]['loaded'])) $extrafields->fetch_name_optionals_label($dol_product->table_element);
-		$optionsArray = $extrafields->attributes[$dol_product->table_element]['label'];
-
 		$this->getSchema('products', 'synopsis'); // Load schema pour les add / edit
-	
-		$ProductId = $this->getTProductIdToSync();
+		
 		foreach ($ProductId as $fk_product)
 		{
 			$dol_product = new Product($this->db);
 			if ($dol_product->fetch($fk_product) > 0)
 			{
-				if (empty($dol_product->array_options)) $dol_product->fetch_optionals(null, $optionsArray);
-
+				if (empty($dol_product->array_options)) $dol_product->fetch_optionals();
 				if (!empty($dol_product->array_options['options_ps_id_product']))
 				{
 					$opt = array('resource' => 'products', 'filter[id]' => '['.$dol_product->array_options['options_ps_id_product'].']');
@@ -194,6 +214,8 @@ class Dolishop
 				else $this->savePsProduct($dol_product);
 			}
 		}
+		
+		return 1;
 	}
 	
 	/**
@@ -264,7 +286,24 @@ class Dolishop
 
 		$ps_product->reference = $dol_product->ref;
 		$ps_product->price =  $dol_product->price;
+//		$ps_product->id_tax_rules_group =  $dol_product->tva_tx;
 		$ps_product->state =  1;
+		$ps_product->weight =  $dol_product->weight; // TODO voir pour l'unité de mesure
+		// dans Dolibarr  c'est la notion de LLH et sur Prestashop c'est LHP, à voir s'il y a vraiement une différence
+		$ps_product->width =  $dol_product->length; // TODO voir pour l'unité de mesure
+		$ps_product->height =  $dol_product->height; // TODO voir pour l'unité de mesure
+		$ps_product->depth =  $dol_product->width; // TODO voir pour l'unité de mesure
+
+		$ps_product->active =  $dol_product->status; // 1 = en vente donc à activer sur prestashop
+		$ps_product->available_for_order =  $dol_product->status; // de même pour sa disponibilité sur la boutique
+		$ps_product->show_price =  $dol_product->status; // de même pour afficher le prix sur la boutique
+		$ps_product->redirect_type =  '404';
+		
+		$ps_product->low_stock_threshold = $dol_product->seuil_stock_alerte;
+		
+		// wholesale_price => prix d'achat
+//		var_dump($dol_product);exit;
+//		echo '<pre>'.htmlspecialchars(print_r($dol_product), ENT_QUOTES);exit;
 		
 		foreach ($ps_product->name->children() as $language)
 		{
@@ -281,7 +320,7 @@ class Dolishop
 		{
 			if (!empty($ps_product->id))
 			{
-//				echo '<pre>'.htmlspecialchars($xml_origin->asXML(), ENT_QUOTES);exit;
+//				echo '<pre>'.htmlspecialchars($schema->asXML(), ENT_QUOTES);exit;
 				$opt = array('resource' => 'products',  'putXml' => $schema->asXML(), 'id' => $ps_product->id);
 				$this->result_xml = self::$webService->edit($opt);
 			}
@@ -324,37 +363,81 @@ class Dolishop
 	{
 		global $conf;
 		
-		$error = false;
+		if (empty($this->{'schema_'.$resourcename.'_'.$type})) 
+		{
+			try
+			{
+				$opt = array('url' => $conf->global->DOLISHOP_PS_SHOP_PATH.'/api/'.$resourcename.'?schema='.$type);
+				$this->result_xml = self::$webService->get($opt);
+				$this->{'schema_'.$resourcename.'_'.$type} = $this->result_xml;
+
+				return $this->{'schema_'.$resourcename.'_'.$type};
+			}
+			catch (PrestaShopWebserviceException $e)
+			{
+				$this->setError($e);
+				return false;
+			}
+		}
+		
+		return $this->{'schema_'.$resourcename.'_'.$type};
+	}
+	
+	
+	/**
+	 * Permet de retourner une liste de ressource
+	 * 
+	 * @param string	$resource_name	Nom de la ressource Prestashop
+	 * @param array		$more_opt		Tableau d'option complémentaire pour la requête ('filter', 'display', 'sort', 'limit', 'id_shop', 'id_group_shop')
+	 * @return SimpleXmlElement | boolean
+	 */
+	public function getAll($resource_name, $more_opt=array())
+	{
 		try
 		{
-			// "blank" renvoi une sorte de page blanche prête à l'emploi sans les champs 
-			// , alors que "synopsis" donne plus d'infos (type, filtrable, readOnly, ...)
-			$opt = array('url' => $conf->global->DOLISHOP_PS_SHOP_PATH.'/api/'.$resourcename.'?schema='.$type);
+			$opt = array('resource' => $resource_name, 'display' => 'full');
+			if (!empty($more_opt)) $opt+= $more_opt;
 			$this->result_xml = self::$webService->get($opt);
-			$schema = $this->result_xml;
+			return $this->result_xml->children();
 		}
 		catch (PrestaShopWebserviceException $e)
 		{
-			$error = $this->setError($e);
-		}
-		
-		if (!$error)
-		{
-			// products ...
-			$this->{'schema_'.$resourcename.'_'.$type} = $schema;
-			return true;
+			$this->setError($e);
 		}
 		
 		return false;
 	}
+	
+	/**
+	 * Retourne un objet en particulier via son identifiant
+	 * 
+	 * @param string	$resource_name	Nom de la ressource Prestashop
+	 * @param int		$id				Id de l'objet à charger
+	 * @return SimpleXmlElement | boolean
+	 */
+	public function getOne($resource_name, $id)
+    {
+		try
+		{
+			$this->result_xml = self::$webService->get(array('resource' => $resource_name, 'id' => $id));
+			return $this->result_xml->children();
+		}
+		catch (PrestaShopWebserviceException $e)
+		{
+			$this->setError($e);
+		}
+		
+		return false;
+    }
 	
 	
 	/**
 	 * Méthode qui valorise simplement les attributs "error" et "errors" de l'objet courant 
 	 * si une erreur lors d'un appel au webservice est remontée
 	 * 
-	 * @global type $langs
+	 * @global Translate $langs
 	 * @param PrestaShopWebserviceException $e
+	 * @return boolean
 	 */
 	private function setError(PrestaShopWebserviceException $e)
 	{
@@ -372,26 +455,73 @@ class Dolishop
 	
 	
 	/**
-	 * Renvoie le contenu de self::TLanguage dans un format HTML pour être print
+	 * Renvoie le contenu de self::TLanguage, self::TTaxe dans un format HTML pour être print
 	 * 
+	 * @global Translate $langs
 	 * @return string
 	 */
-	public function getFormatedStringTLanguage()
+	public function getFormatedStringTConf()
 	{
-		$str = '<ul style="margin:0;padding:0;">';
+		global $langs;
+		
+		$str = '';
 		
 		if (!empty(self::$TLanguage))
 		{
+			$str.= '<div class="titre inline-block" style="font-weight:bold;">'.$langs->trans('DolishopPsLanguages').'</div>';
+			$str.= '<table class="noborder" width="100%">';
+			$str.= '<tr class="liste_titre">
+						<th align="center" width="10%">id</th>
+						<th>code</th>
+						<th align="center">iso</th>
+						<th align="center">Active</th>
+					</tr>';
 			foreach (self::$TLanguage as $code => $Tab)
 			{
-				$str.= '<li>'.$code. ' : '.implode('; ', array_map(
-					function ($v, $k) { return sprintf("[%s]=%s", $k, $v); }
-					,(array)$Tab, array_keys((array)$Tab)
-				)) . '</li>';
+				$str.= '<tr class="oddeven">';
+				
+				$str.= '<td align="center">'.$Tab->id.'</td>';
+				$str.= '<td>'.$code.'</td>';
+				$str.= '<td align="center">'.$Tab->iso_code.'</td>';
+				$str.= '<td align="center">'.$Tab->active.'</td>';
+
+				$str.= '</tr>';
 			}
+			$str.= '</table>';
 		}
 		
-		$str.= '</ul>';
+		if (!empty(self::$TTaxe))
+		{
+			if (!empty($str)) $str.= '<br /><br />';
+			$str.= '<div class="titre inline-block" style="font-weight:bold;">'.$langs->trans('DolishopPsTaxes').'</div>';
+			$str.= '<table class="noborder " width="100%">';
+			$str.= '<tr class="liste_titre">
+						<th align="center" width="10%">%</th>
+						<th></th>
+						<th align="center">id_tax</th>
+						<th align="center">id_tax_rules_group</th>
+					</tr>';
+			foreach (self::$TTaxe as $vat_rate => $Tab)
+			{
+				$str.= '<tr class="oddeven">';
+
+				$str.= '<td align="center">'.$vat_rate.'</td>';
+				$str.= '<td>';
+				foreach ($Tab->TLabel as $label) $str.= $label.'<br />';
+				$str.= '</td>';
+				$str.= '<td align="center">';
+				foreach ($Tab->TId_tax as $id_tax) $str.= $id_tax.'<br />';
+				$str.= '</td>';
+				$str.= '<td align="center">';
+				foreach ($Tab->TId_tax_rules_group as $id_tax_rules_group) $str.= $id_tax_rules_group.'<br />';
+				$str.= '</td>';
+				
+				$str.= '</tr>';
+			}
+			$str.= '</table>';
+		}
+		
+		
 		return $str;
 	}
 	

@@ -341,7 +341,7 @@ class moddolishop extends DolibarrModules
 
 		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 		$extrafield = new ExtraFields($this->db);
-		$extrafield->addExtraField('ps_id_product', 'ID produit Prestashop', 'int', $this->numero.$pos, 10, 'product', 0, 0, '', '', 0, '', 0);
+		$extrafield->addExtraField('ps_id_product', 'ID produit Prestashop', 'int', $this->numero.$pos, 10, 'product', 0, 0, '', '', 0, '', 1, 1);
 		$pos+=10;
 		
 		// TODO faire l'ajout de la tâche planifiée

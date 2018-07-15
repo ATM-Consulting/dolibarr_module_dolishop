@@ -113,95 +113,27 @@ class InterfaceDolishoptrigger
      */
     public function runTrigger($action, $object, $user, $langs, $conf)
     {
+		global $db;
         // Put here code you want to execute when a Dolibarr business events occurs.
         // Data and type of action are stored into $object and $action
         // Users
 		
-		if ( in_array($action, array('PRODUCT_CREATE' , 'PRODUCT_MODIFY')) )
+		if ($action == 'PRODUCT_MODIFY')
 		{
             dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
 			
-			dol_include_once('/dolishop/class/PSWebServiceLibrary.php');
+			dol_include_once('/dolishop/class/dolishop.class.php');
 			
-//			try
-//			{
-//				$webService = new PrestaShopWebservice($conf->global->DOLISHOP_PS_SHOP_PATH, $conf->global->DOLISHOP_PS_WS_AUTH_KEY, (bool) $conf->global->DOLISHOP_PS_WS_DEBUG);
-//				$opt = array('resource' => 'products', 'filter[name]' => '[Coussin colibri]');
-//				if (false || isset($_GET['Create']))
-//					$xml = $webService->get(array('url' => $conf->global->DOLISHOP_PS_SHOP_PATH.'/api/products?schema=blank'));
-//				else
-//					$xml = $webService->get($opt);
-//				
-//				$resources = $xml->children()->children();
-//			}
-//			catch (PrestaShopWebserviceException $e)
-//			{
-//				// Here we are dealing with errors
-//				$trace = $e->getTrace();
-//				if ($trace[0]['args'][0] == 404) echo 'Bad ID';
-//				else if ($trace[0]['args'][0] == 401) echo 'Bad auth key';
-//				else echo 'Other error<br />'.$e->getMessage();
-//			}
-//			
-//			if (isset($resources))
-//			{
-////				echo '<table>';
-//				foreach ($resources as $key => $resource)
-//				{
-//					if (!is_object($resources->{$key}))
-//					{
-////						echo '<tr><th>'.$key.'</th><td>';
-////						echo '<input type="text" name="'.$key.'" value="'.$resource.'"/>';
-////						echo '</td></tr>';
-//					}
-//					else
-//					{
-////						var_dump($resource);
-//					}
-////					var_dump($key, isset($resource->language));
-//					
-////					var_dump($key);
-//					
-//				}
-////				echo '</table>';
-//				var_dump($resources);exit;
-//			}
-//			exit;
-//			
-//			
-//			$xml_up = new SimpleXMLElement('<customers></customers>');
-////			$c = &$xml_up->children();
-////			$c->customer = new SimpleXMLElement('<data></data>');
-//			foreach ($resources as $key => $value)
-//			{
-//				$xml_up->customer->{$key} = $value;
-//			}
-//			
-////			$xml_up->customer->id = 2;
-//			$xml_up->customer->firstname = 'Bob';
-////			var_dump($xml_up, 'test');
-////			exit;
-//			
-//			try
-//			{
-//				$webService = new PrestaShopWebservice($conf->global->DOLISHOP_PS_SHOP_PATH, $conf->global->DOLISHOP_PS_WS_AUTH_KEY, (bool) $conf->global->DOLISHOP_PS_WS_DEBUG);
-////				$opt = array('resource' => 'customers', 'display' => 'full');
-//				$opt = array('resource' => 'customers', 'putXml' => $xml_up->asXML(), 'id' => 2);
-//				$xml = $webService->edit($opt);
-//				$resources = $xml->children()->children();
-//			}
-//			catch (PrestaShopWebserviceException $e)
-//			{
-//				// Here we are dealing with errors
-//				$trace = $e->getTrace();
-//				if ($trace[0]['args'][0] == 404) echo 'Bad ID';
-//				else if ($trace[0]['args'][0] == 401) echo 'Bad auth key';
-//				else echo 'Other error<br />'.$e->getMessage();
-//			}
-//			
-//			var_dump($resources, $xml);
-//			
-//			exit;
+			$dolishop = new Dolishop($db);
+			if ($dolishop->rsyncProducts(array($object->id)) > 0)
+			{
+//				if (!empty($dolishop->errors)) $this->error = $dolishop->error;
+//				var_dump('OK');
+			}
+			
+			
+//			exit('fin');
+			
 		}
 		
 		

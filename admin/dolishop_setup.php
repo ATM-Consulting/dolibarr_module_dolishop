@@ -28,6 +28,9 @@ if (! $res) {
     $res = @include("../../../main.inc.php"); // From "custom" directory
 }
 
+
+require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
+
 // Libraries
 require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 require_once '../lib/dolishop.lib.php';
@@ -50,7 +53,11 @@ $action = GETPOST('action', 'alpha');
 if (preg_match('/set_(.*)/',$action,$reg))
 {
 	$code=$reg[1];
-	if (dolibarr_set_const($db, $code, GETPOST($code), 'chaine', 0, '', $conf->entity) > 0)
+	$value=GETPOST($code);
+	
+	if ($code == 'DOLISHOP_SYNC_PRODUCTS_CATEGORIES' && is_array($value)) $value = implode(',', $value);
+	
+	if (dolibarr_set_const($db, $code, $value, 'chaine', 0, '', $conf->entity) > 0)
 	{
 		header("Location: ".$_SERVER["PHP_SELF"]);
 		exit;
@@ -76,27 +83,28 @@ if (preg_match('/del_(.*)/',$action,$reg))
 }
 
 /******/
-$dolishop = new Dolishop($db);
-$dolishop->rsync();
-
+//$dolishop = new Dolishop($db);
+//$xml = $dolishop->getAll('tax_rule_groups');
+//var_dump($xml->children()->children()->children());
+//exit;
 /******/
 
 $dolishop = new Dolishop($db);
 if ($action == 'testConnection')
 {
-	$res = $dolishop->testConnection();
-	if (!$res)
+	$shopName = $dolishop->testConnection();
+	if ($shopName === false)
 	{
 		setEventMessage($langs->trans('DolishopTestConnectionFail'), 'errors');
 		if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
 	}
-	else setEventMessage($langs->trans('DolishopTestConnectionSuccess'));
+	else setEventMessage($langs->trans('DolishopTestConnectionSuccess', $shopName));
 }
-elseif ($action == 'syncPsLanguages')
+elseif ($action == 'syncPsConf')
 {
-	$res = $dolishop->syncPsLanguages();
+	$res = $dolishop->syncPsConf();
 	if (!$res) setEventMessages('', $dolishop->errors, 'errors');
-	else setEventMessage($langs->trans('DolishopSyncPsLanguages'));
+	else setEventMessage($langs->trans('DolishopSyncPsConfSuccess'));
 }
 
 
@@ -121,6 +129,8 @@ dol_fiche_head(
     "dolishop@dolishop"
 );
 
+$img_warning = img_warning().' ';
+
 // Setup page goes here
 $form=new Form($db);
 $var=false;
@@ -137,7 +147,24 @@ _print_input_form_part('DOLISHOP_PS_SHOP_PATH', $langs->trans('DOLISHOP_PS_SHOP_
 _print_input_form_part('DOLISHOP_PS_WS_AUTH_KEY', $langs->trans('DOLISHOP_PS_WS_AUTH_KEY'), $langs->trans('DOLISHOP_PS_WS_AUTH_KEY_desc'));
 _print_on_off('DOLISHOP_PS_WS_DEBUG', $langs->trans('DOLISHOP_PS_WS_DEBUG'));
 
-_print_on_off('DOLISHOP_SYNC_PRODUCTS', $langs->trans('DOLISHOP_SYNC_PRODUCTS'));
+_print_on_off('DOLISHOP_SYNC_PRODUCTS', $langs->trans('DOLISHOP_SYNC_PRODUCTS'), $img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC'));
+
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES');
+print '</td>';
+print '<td align="center" width="20">&nbsp;</td>';
+print '<td align="right" width="300">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_CATEGORIES">';
+$cate_arbo = $form->select_all_categories(Categorie::TYPE_PRODUCT, '', 'parent', 64, 0, 1);
+print $form->multiselectarray('DOLISHOP_SYNC_PRODUCTS_CATEGORIES', $cate_arbo, explode(',',$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES), '', 0, '', 0, '100%');
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+$var=!$var;
+
+
 // Example with color
 //_print_input_form_part('CONSTNAME', 'ParamLabel', 'ParamDesc', array('type'=>'color'),'input','ParamHelp');
 
@@ -165,17 +192,19 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
 	$var=!$var;
 	
 	print '<tr '.$bc[$var].'>';
-    print '<td>'.$langs->trans('DOLISHOP_SYNC_PS_LANGUAGES');
-	print '<br><small>'.img_warning().' '.$langs->trans('DOLISHOP_SYNC_PS_LANGUAGES_DESC').'</small>';
+    print '<td>'.$langs->trans('DOLISHOP_SYNC_PS_CONF');
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_LANGUAGES_DESC').'</small>';
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_TAXES_DESC').'</small>';
     print '</td>';
     print '<td align="center" width="20">&nbsp;</td>';
     print '<td align="right" width="300">';
     print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
     print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-    print '<input type="hidden" name="action" value="syncPsLanguages">';
-	if (!empty($conf->global->DOLISHOP_PS_LANGUAGES)) print $form->textwithpicto('', $dolishop->getFormatedStringTLanguage());
-    print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopSyncPsLanguages").'">';
-	if (empty($conf->global->DOLISHOP_PS_LANGUAGES)) print img_error($langs->trans("DolishopSycPsLanguagesNeeded"));
+    print '<input type="hidden" name="action" value="syncPsConf">';
+	$conf_str = $dolishop->getFormatedStringTConf();
+	if (!empty($conf_str)) print $form->textwithpicto('', $conf_str, 1, 'help', '', 0, 2, 1);
+    print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopSyncPsConf").'">';
+	if (empty($conf->global->DOLISHOP_PS_LANGUAGES) || empty($conf->global->DOLISHOP_PS_TAXES)) print img_error($langs->trans("DolishopSyncPsConfNeeded"));
     print '</form>';
     print '</td></tr>';
 	$var=!$var;

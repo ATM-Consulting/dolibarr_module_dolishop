@@ -21,6 +21,9 @@ DOLISHOP_PS_WS_AUTH_KEY_desc=Il s'agit d'une clé webservice que vous devez gén
 DOLISHOP_PS_WS_DEBUG=Activer le mode "DEBUG" des appels
 
 DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
+DOLISHOP_SYNC_PRODUCTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET / PUT / POST</b>
+DOLISHOP_SYNC_PRODUCTS_CATEGORIES=Synchroniser les produits dans la/les catégorie(s) suivante(s)
+
 DOLISHOP_SYNC_PRODUCTS_PICTURES=Activer la synchronisation des images produits
 
 DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
@@ -28,11 +31,14 @@ DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
 DOLISHOP_TEST_CONNECTION=Tester la connexion au service web
 DolishopTestConnection=Tester la connexion
 
-DOLISHOP_SYNC_PS_LANGUAGES=Récupérer la configuration des langues de Prestashop
-DOLISHOP_SYNC_PS_LANGUAGES_DESC=La ressource <b>languages</b> doit être accessible en <b>GET</b>
-DolishopSynPsLanguages=Récupérer les langues
-DolishopSyncPsLanguagesNeeded=Attention : les langues doivent être récupérées pour que le module fonctionne correctement
+DOLISHOP_SYNC_PS_CONF=Récupérer les configurations des langues/taxes de Prestashop (à relancer si la configuration évolue sur votre boutique)
+DOLISHOP_SYNC_PS_CONF_LANGUAGES_DESC=La ressource <b>languages</b> doit être accessible en <b>GET</b>
+DOLISHOP_SYNC_PS_CONF_TAXES_DESC=Les ressources <b>tax_rule_groups, tax_rules, taxes</b> doivent être accessibles en <b>GET</b>
+DolishopSyncPsConf=Récupérer la conf
+DolishopSyncPsConfNeeded=Attention : des configurations présentes sur votre boutique Prestashop doivent être synchonisées avant utilisation du module
 
+DolishopPsLanguages=Langue(s)
+DolishopPsTaxes=TVA
 
 ### MESG ERROR
 DolishopTestConnectionFail=Échec du test de connexion
@@ -42,5 +48,5 @@ DolishopErrorWsUnknown=Erreur inconnue : veuillez vérifier que l'URL pointe ver
 
 
 ### MESG SUCCESS
-DolishopTestConnectionSuccess=Test de connexion réussi
-DolishopSyncPsLanguages=Langues de Prestashop récupérées
+DolishopTestConnectionSuccess=Connexion à votre boutique [%s] réussie
+DolishopSyncPsConfSuccess=Configuration récupérée
