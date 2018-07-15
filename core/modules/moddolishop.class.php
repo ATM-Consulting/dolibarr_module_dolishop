@@ -42,6 +42,7 @@ class moddolishop extends DolibarrModules
 	{
         global $langs,$conf;
 
+		$langs->load('dolishop@dolishop');
         $this->db = $db;
 
 		$this->editor_name = 'ATM-Consulting';
@@ -331,6 +332,8 @@ class moddolishop extends DolibarrModules
 	 */
 	function init($options='')
 	{
+		global $conf,$langs,$user;
+		
 		$sql = array();
 		$pos=0;
 		
@@ -344,10 +347,31 @@ class moddolishop extends DolibarrModules
 		$extrafield->addExtraField('ps_id_product', 'ID produit Prestashop', 'int', $this->numero.$pos, 10, 'product', 0, 0, '', '', 0, '', -1, 0);
 		$pos+=10;
 		
-		// TODO faire l'ajout de la tâche planifiée
-		
 		$result=$this->_load_tables('/dolishop/sql/');
 
+		
+		// TODO faire l'ajout de la tâche planifiée
+		require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
+		$cronjob = new Cronjob($this->db);
+		// Techniquement il n'y a pas besoin de checker la présence du cronjob car la tâche est delete si on désactive le module (à voir si c'est bien le cas sur les versions < 7.0)
+		$cronjob->fetch_all('DESC', 't.rowid', 0, 0, -1, array('objectname' => 'Dolishop', 'methodename' => 'rsync', 'module_name' => 'dolishop', 'entity' => $conf->entity));
+		if (empty($cronjob->lines))
+		{
+			$cronjob->label = $langs->trans('DolishopCronjob_label');
+			$cronjob->note = '';
+			$cronjob->jobtype = 'method';
+			$cronjob->frequency = 1;
+			$cronjob->unitfrequency = 86400;
+			$cronjob->status = 0;
+			$cronjob->module_name = 'dolishop';
+			$cronjob->classesname = '/dolishop/class/dolishop.class.php';
+			$cronjob->objectname = 'Dolishop';
+			$cronjob->methodename = 'rsync';
+			$cronjob->params = '';
+			$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
+			$cronjob->create($user);
+		}
+		
 		return $this->_init($sql, $options);
 	}
 

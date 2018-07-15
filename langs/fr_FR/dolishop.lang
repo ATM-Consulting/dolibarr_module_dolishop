@@ -40,6 +40,8 @@ DolishopSyncPsConfNeeded=Attention : des configurations présentes sur votre bou
 DolishopPsLanguages=Langue(s)
 DolishopPsTaxes=TVA
 
+DolishopCronjob_label=Synchronisation vers Prestashop
+
 ### MESG ERROR
 DolishopTestConnectionFail=Échec du test de connexion
 DolishopErrorWs404=Erreur 404 : aucun service web à l'URL indiquée
@@ -50,3 +52,9 @@ DolishopErrorWsUnknown=Erreur inconnue : veuillez vérifier que l'URL pointe ver
 ### MESG SUCCESS
 DolishopTestConnectionSuccess=Connexion à votre boutique [%s] réussie
 DolishopSyncPsConfSuccess=Configuration récupérée
+
+
+### CRONJOB
+DolishopCronjob_SyncProductSuccess=[%s] synchronisé avec l'identifiant Prestashop [%s]
+DolishopCronjob_SyncProductFailUpdateExtrafield=Échec : [%s] => identifiant Prestashop retourné [%s]
+DolishopCronjob_SyncProductError=Erreur : message retour [%s]

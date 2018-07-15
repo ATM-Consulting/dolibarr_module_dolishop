@@ -50,6 +50,7 @@ class Dolishop
 	 *  les taxes	: DOLISHOP_PS_TAXES
 	 * (doit être appelée si la configuration évolue sur Prestashop)
 	 * 
+	 * @global Conf $conf
 	 * @return boolean
 	 */
 	public function syncPsConf()
@@ -127,6 +128,7 @@ class Dolishop
 	/**
 	 * Renvoie un tableau contenant les ID produit à synchroniser
 	 * 
+	 * @global Conf $conf
 	 * @return array
 	 */
 	public function getTProductIdToSync()
@@ -166,7 +168,7 @@ class Dolishop
 	 * Synchronise les objets vers Prestashop
 	 * Méthode utilisée par la tâche cron déclarée dans Dolibarr à l'activation du module
 	 * 
-	 * @global type $conf
+	 * @global Conf $conf
 	 */
 	public function rsync()
 	{
@@ -187,7 +189,10 @@ class Dolishop
 	}
 	
 	/**
-	 * Synchronise les produits vers la boutique Prestashop
+	 * * Synchronise les produits vers la boutique Prestashop
+	 * 
+	 * @param array $ProductId
+	 * @return int
 	 */
 	public function rsyncProducts($ProductId)
 	{
@@ -262,13 +267,14 @@ class Dolishop
 	/**
 	 * Méthode qui se charge de faire appel au add() ou edit() du webservice
 	 * 
-	 * @global type $mysoc
-	 * @param type $dol_product
-	 * @param type $xml_origin
+	 * @global Societe		$mysoc
+	 * @global Translate	$langs
+	 * @param	Product				$dol_product
+	 * @param	SimpleXMLElement	$xml_origin
 	 */
 	private function savePsProduct(&$dol_product, $xml_origin=false)
 	{
-		global $mysoc;
+		global $mysoc,$langs;
 		
 		if ($xml_origin !== false) $schema = $xml_origin->children();
 		else $schema = clone $this->schema_products_synopsis;
@@ -344,13 +350,29 @@ class Dolishop
 
 		if (!$error)
 		{
+			$res = 1;
 			$ps_id_product_return = (int) $ps_product_return->id;
-			// Si j'ai fais un update, pas besoin de surcharger avec un save côté extrafields
+			// Si j'ai fais un edit(), pas besoin de surcharger avec un update côté extrafields
 			if ($dol_product->array_options['options_ps_id_product'] != $ps_id_product_return)
 			{
+				$need_insert = false;
+				if (empty($dol_product->array_options)) $need_insert = true;
+		
 				$dol_product->array_options['options_ps_id_product'] = $ps_id_product_return;
-				$dol_product->updateExtraField('ps_id_product');
+				
+				if ($need_insert) $res = $dol_product->insertExtraFields();
+				else $res = $dol_product->updateExtraField('ps_id_product');
 			}
+			
+			if ($this->from_cron_job)
+			{
+				if ($res > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $ps_id_product_return)."\n";
+				else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $ps_id_product_return)."\n";
+			}
+		}
+		else
+		{
+			if ($this->from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductError', $this->error)."\n";
 		}
 	}
 	
@@ -358,7 +380,7 @@ class Dolishop
 	/**
 	 * Load le schema d'une ressource dans un attribut de l'objet courant sous le format : schema_[$resourcename]_[$type]
 	 * 
-	 * @global type $conf
+	 * @global Conf $conf
 	 * @param string	$resourcename	nom de la ressource(products, customers, ... @see admin Prestashop, définition d'une clé webservice (pour la liste complète)
 	 * @param string	$type			blank || synopsis
 	 * @return boolean
@@ -524,7 +546,6 @@ class Dolishop
 			}
 			$str.= '</table>';
 		}
-		
 		
 		return $str;
 	}
