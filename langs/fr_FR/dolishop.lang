@@ -42,16 +42,21 @@ DolishopPsTaxes=TVA
 
 DolishopCronjob_label=Synchronisation vers Prestashop
 
+### MESG WARNING
+DolishopDeletePsProductImagesWarning=Attention : la suppression de votre image sur votre boutique Prestashop a échoué, peut-être que celle-ci a déjà été supprimée
+
 ### MESG ERROR
 DolishopTestConnectionFail=Échec du test de connexion
 DolishopErrorWs404=Erreur 404 : aucun service web à l'URL indiquée
 DolishopErrorWsBadAuthKey=Erreur 401 : clé d'authentification invalide
-DolishopErrorWsUnknown=Erreur inconnue : veuillez vérifier que l'URL pointe vers un site existant
-
+DolishopErrorWsUnknown=Erreur inconnue : veuillez vérifier que l'URL pointe vers un site existant [%s]
+DolishopPostImageError=Erreur sur la mise à jour de l'image Prestashop, message retour : [%s] %s
 
 ### MESG SUCCESS
 DolishopTestConnectionSuccess=Connexion à votre boutique [%s] réussie
 DolishopSyncPsConfSuccess=Configuration récupérée
+DolishopAddPsProductImagesSuccess=Image ajoutée sur votre boutique Prestashop
+DolishopDeletePsProductImagesSuccess=Image supprimée de votre boutique Prestashop
 
 
 ### CRONJOB

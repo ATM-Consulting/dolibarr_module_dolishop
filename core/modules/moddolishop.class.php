@@ -93,6 +93,7 @@ class moddolishop extends DolibarrModules
 		//                        );
 		$this->module_parts = array(
 			'triggers' => 1
+			,'hooks' => array('formfile', 'fileslib')
 		);
 
 		// Data directories to create when module is enabled.

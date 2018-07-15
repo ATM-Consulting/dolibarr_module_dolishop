@@ -1,11 +1,24 @@
 <?php
 
+namespace Dolishop;
+
+
+if (!class_exists('SeedObject'))
+{
+	define('INC_FROM_DOLIBARR', true);
+	require_once __DIR__.'/../config.php';
+}
+
 
 require_once __DIR__.'/PSWebServiceLibrary.php';
 
 class Dolishop
 {
 	private static $webService = null;
+	
+	private $url;
+	private $key;
+	private $debug;
 	
 	public static $TLanguage = null;
 	public static $TTaxe = null;
@@ -19,16 +32,26 @@ class Dolishop
 	
 	public $schema_products_blank;
 	public $schema_products_synopsis;
+	
+	public $TProductCategoryIdSync = array();
 
 	public function __construct($db)
 	{
-		global $conf;
+		global $conf,$langs;
 		
 		$this->db = $db;
 		
-		if (is_null(self::$webService)) self::$webService = new PrestaShopWebservice($conf->global->DOLISHOP_PS_SHOP_PATH, $conf->global->DOLISHOP_PS_WS_AUTH_KEY, (bool) $conf->global->DOLISHOP_PS_WS_DEBUG);
+		$langs->load('dolishop@dolishop');
+		
+		$this->url = $conf->global->DOLISHOP_PS_SHOP_PATH;
+		$this->key = $conf->global->DOLISHOP_PS_WS_AUTH_KEY;
+		$this->debug = (bool) $conf->global->DOLISHOP_PS_WS_DEBUG;
+		
+		if (is_null(self::$webService)) self::$webService = new \Dolishop\PrestaShopWebservice($this->url, $this->key, $this->debug);
 		if (is_null(self::$TLanguage)) self::$TLanguage = json_decode($conf->global->DOLISHOP_PS_LANGUAGES);
 		if (is_null(self::$TTaxe)) self::$TTaxe = json_decode($conf->global->DOLISHOP_PS_TAXES);
+		
+		$this->TProductCategoryIdSync = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES);
 	}
 	
 	
@@ -202,7 +225,7 @@ class Dolishop
 		
 		foreach ($ProductId as $fk_product)
 		{
-			$dol_product = new Product($this->db);
+			$dol_product = new \Product($this->db);
 			if ($dol_product->fetch($fk_product) > 0)
 			{
 				if (empty($dol_product->array_options)) $dol_product->fetch_optionals();
@@ -237,7 +260,7 @@ class Dolishop
 	 * 
 	 * @param array $opt
 	 * @param array $alt_opt
-	 * @return SimpleXMLElement|boolean
+	 * @return \SimpleXMLElement | boolean
 	 */
 	private function findPsProductResource($opt, $alt_opt=array())
 	{
@@ -270,7 +293,7 @@ class Dolishop
 	 * @global Societe		$mysoc
 	 * @global Translate	$langs
 	 * @param	Product				$dol_product
-	 * @param	SimpleXMLElement	$xml_origin
+	 * @param	\SimpleXMLElement	$xml_origin
 	 */
 	private function savePsProduct(&$dol_product, $xml_origin=false)
 	{
@@ -381,7 +404,7 @@ class Dolishop
 	 * Load le schema d'une ressource dans un attribut de l'objet courant sous le format : schema_[$resourcename]_[$type]
 	 * 
 	 * @global Conf $conf
-	 * @param string	$resourcename	nom de la ressource(products, customers, ... @see admin Prestashop, définition d'une clé webservice (pour la liste complète)
+	 * @param string	$resourcename	nom de la ressource("addresses", "carriers", "cart_rules", "carts", "categories", "combinations", "configurations", "contacts", "content_management_system", "countries", "currencies", "customer_messages", "customer_threads", "customers", "customizations", "deliveries", "employees", "groups", "guests", "image_types", "images", "languages", "manufacturers", "messages", "order_carriers", "order_details", "order_histories", "order_invoices", "order_payments", "order_slip", "order_states", "orders", "price_ranges", "product_customization_fields", "product_feature_values", "product_features", "product_option_values", "product_options", "product_suppliers", "products", "search", "shop_groups", "shop_urls", "shops", "specific_price_rules", "specific_prices", "states", "stock_availables", "stock_movement_reasons", "stock_movements", "stocks", "stores", "suppliers", "supply_order_details", "supply_order_histories", "supply_order_receipt_histories", "supply_order_states", "supply_orders", "tags", "tax_rule_groups", "tax_rules", "taxes", "translated_configurations", "warehouse_product_locations", "warehouses", "weight_ranges", "zones")
 	 * @param string	$type			blank || synopsis
 	 * @return boolean
 	 */
@@ -415,7 +438,7 @@ class Dolishop
 	 * 
 	 * @param string	$resource_name	Nom de la ressource Prestashop
 	 * @param array		$more_opt		Tableau d'option complémentaire pour la requête ('filter', 'display', 'sort', 'limit', 'id_shop', 'id_group_shop')
-	 * @return SimpleXmlElement | boolean
+	 * @return \SimpleXMLElement | boolean
 	 */
 	public function getAll($resource_name, $more_opt=array())
 	{
@@ -439,7 +462,7 @@ class Dolishop
 	 * 
 	 * @param string	$resource_name	Nom de la ressource Prestashop
 	 * @param int		$id				Id de l'objet à charger
-	 * @return SimpleXmlElement | boolean
+	 * @return \SimpleXMLElement | boolean
 	 */
 	public function getOne($resource_name, $id)
     {
@@ -456,6 +479,172 @@ class Dolishop
 		return false;
     }
 	
+	/**
+	 * Méthode qui vérifie si le fk_product fait bien partie de/des catégories produits à synchroniser
+	 * 
+	 * @param int		$fk_product
+	 * @return boolean
+	 */
+	public function checkProductCategories($fk_product)
+	{
+		if (!class_exists('Categorie')) require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
+		
+		$category = new \Categorie($this->db);
+		$TCategory = $category->getListForItem($fk_product, \Categorie::TYPE_PRODUCT);
+		if (is_array($TCategory))
+		{
+			foreach ($TCategory as $cat)
+			{
+				if (in_array($cat['id'], $this->TProductCategoryIdSync)) return true;
+			}	
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Méthode qui upload count($TFileName) image(s) vers Prestashop pour un produit Dolibarr déjà synchonisé
+	 * 
+	 * @global User $user
+	 * @param Product	$dol_product
+	 * @param array		$TFileName
+	 * @param string	$dir
+	 * @return int		1 = OK; 0 = RAF; -1 = Erreur, mais l'envoi peut être partiel
+	 */
+	public function addPsProductImages(&$dol_product, $TFileName, $dir)
+	{
+		global $user;
+		
+		if (!$this->checkProductCategories($dol_product->id)) return 0;
+		
+		$xml_images = $this->getAll('images');
+		$TMimeTypeAllowed = explode(', ', $xml_images->children()->products->attributes()->upload_allowed_mimetypes);
+
+		foreach ($TFileName as $name)
+		{
+			$info = pathinfo($name);
+			$filename = dol_sanitizeFileName($info['filename'].'.'.strtolower($info['extension']));
+			$image_path = $dir.'/'.$filename;
+			$mime_type = mime_content_type($image_path);
+			if (in_array($mime_type, $TMimeTypeAllowed))
+			{
+				$ecm = new \Dolishop\EcmFilesDolishop($this->db);
+				$ecm->fetchByFileNamePath($filename, $dol_product->ref);
+
+				$result = $this->postImage($image_path, 'products', $dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
+				if ($result === false) return -1;
+				else
+				{
+					$ps_id_image_return = (int) $result->image->id;
+					if ($ecm->id > 0 && $ps_id_image_return != $ecm->ps_id_image)
+					{
+						$ecm->ps_id_image = $ps_id_image_return;
+						$ecm->update($user);
+					}
+				}
+			}
+		}
+		
+		return 1;
+	}	
+	
+	/**
+	 * Supprimer count($TFileName) image(s) produits de la boutique Prestashop
+	 * 
+	 * @param Product	$dol_product
+	 * @param array		$TFileName
+	 * @return int		1 = OK; 0 = RAF; -1 = Echec de la suppression
+	 */
+	public function deletePsProductImages(&$dol_product, $TFileName)
+	{
+		if ($this->checkProductCategories($dol_product->id))
+		{
+			foreach ($TFileName as $filename)
+			{
+				$ecm = new \Dolishop\EcmFilesDolishop($this->db);
+				$ecm->fetchByFileNamePath($filename, $dol_product->ref);
+
+				if ($ecm->ps_id_image > 0)
+				{
+					$res = $this->delete('images/products/'.$dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
+					if ($res) return 1;
+					else return -1;
+				}	
+			}
+		}
+		
+		return 0;
+	}
+	
+	/**
+	 * Envoi une requête de création ou de mise à jour d'une image
+	 * @see http://doc.prestashop.com/display/PS16/Chapter+9+-+Image+management
+	 * 
+	 * @param string	$image_path		chemin complet de l'image (exemple : /var/www/.../mon_image.png)
+	 * @param string	$resource_name	nom de la resource ("general", "products", "categories", "customizations", "manufacturers", "suppliers", "stores") 
+	 * @param int		$id_resource	id ressource
+	 * @param int		$id_image		id image pour un update
+	 * @return \SimpleXMLElement | boolean
+	 */
+	public function postImage($image_path, $resource_name, $id_resource, $id_image=0)
+	{
+		global $langs;
+		
+		$url = $this->url;
+		if (substr($url, -1, 1) !== '/') $url.= '/api/images/';
+		else $url.= 'api/images/';
+		
+		$url.= $resource_name.'/'.$id_resource;
+		if ($id_image > 0) $url.= '/'.$id_image.'?ps_method=PUT'; // update an existing image
+
+		// php 5.5+ et semble nécessaire pour ne pas avoir un message d'erreur en retour (possiblement dû à ma version PHP7.2, mais cela reste à confirmer)
+		if (function_exists('curl_file_create')) $cFile = curl_file_create($image_path);
+		else $cFile = '@'.realpath($image_path);
+		
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_POST, true);
+		curl_setopt($ch, CURLOPT_USERPWD, $this->key.':');
+		curl_setopt($ch, CURLOPT_POSTFIELDS, array('image' => $cFile));
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		$result = curl_exec($ch);
+		curl_close($ch);
+		
+		$xml_result = new \SimpleXMLElement($result);
+		if (isset($xml_result->children()->errors))
+		{
+			$error = $xml_result->children()->children()[0];
+			$this->error = $langs->trans('DolishopPostImageError', $error->code->__toString(), $error->message->__toString());
+			$this->errors[] = $this->error;
+			return false;
+		}
+		
+		return $xml_result->children();
+	}
+	
+	/**
+	 * Suppression d'une ressource
+	 * 
+	 * @param type $resource_name
+	 * @param type $id
+	 * @param type $opt_alt
+	 * @return boolean
+	 */
+	public function delete($resource_name, $id, $opt_alt=array())
+	{
+		try
+		{
+			$opt = array('resource' => $resource_name, 'id' => $id);
+			if (!empty($opt_alt)) $opt+= $opt_alt;
+			return self::$webService->delete($opt);
+		}
+		catch (PrestaShopWebserviceException $e)
+		{
+			$this->setError($e);
+		}
+		
+		return false;
+	}
 	
 	/**
 	 * Méthode qui valorise simplement les attributs "error" et "errors" de l'objet courant 
@@ -548,6 +737,91 @@ class Dolishop
 		}
 		
 		return $str;
+	}
+	
+	public function debugXml($xml)
+	{
+		print '<pre>'. print_r($xml, true) .'</pre>';
+	}
+}
+
+require_once DOL_DOCUMENT_ROOT.'/ecm/class/ecmfiles.class.php';
+
+class EcmFilesDolishop extends \SeedObject
+{
+	public $table_element = 'ecm_files';
+	public $element = 'ecmfiles';
+	
+	public $ref;					// hash of file path
+	public $label;					// hash of file content (md5_file(dol_osencode($destfull))
+	public $share;					// hash for file sharing, empty by default (example: getRandomPassword(true))
+	public $entity;
+	public $filename;
+	public $filepath;
+	public $fullpath_orig;
+	public $description;
+	public $keywords;
+	public $cover;
+	public $position;
+	public $gen_or_uploaded;       // can be 'generated', 'uploaded', 'unknown'
+	public $extraparams;
+	public $date_c = '';
+	public $date_m = '';
+	public $fk_user_c;
+	public $fk_user_m;
+	public $acl;
+	
+	public $ps_id_image=0;
+	
+	public function __construct($db)
+	{
+		parent::__construct($db);
+		
+		$this->fields=array(
+			'ref'=>array('type'=>'string','length'=>128)
+			,'label'=>array('type'=>'string','length'=>128, 'index'=>true)
+			,'entity'=>array('type'=>'integer')
+			,'filename'=>array('type'=>'string','length'=>255)
+			,'filepath'=>array('type'=>'string','length'=>255)
+			,'description'=>array('type'=>'text')
+			,'keywords'=>array('type'=>'text')
+			,'position'=>array('type'=>'integer')
+
+			// Prestashop
+			,'ps_id_image'=>array('type'=>'integer', 'index'=>true)
+		);
+		
+		$this->init();
+		
+	}
+	
+	public function fetchByFileNamePath($filename, $ref_object)
+	{
+		global $conf;
+		
+		$sql = 'SELECT rowid, ps_id_image FROM '.MAIN_DB_PREFIX.$this->table_element;
+		$sql.= ' WHERE entity = '.$conf->entity;
+		$sql.= ' AND filename = \''.$this->db->escape($filename).'\'';
+		$sql.= ' AND filepath LIKE \'%'.$this->db->escape($ref_object).'\'';
+		
+		$resql = $this->db->query($sql);
+		if ($resql)
+		{
+			if (($obj = $this->db->fetch_object($resql)))
+			{
+				$this->fetch($obj->rowid);
+				$this->ps_id_image = $obj->ps_id_image;
+				return 1;
+			}
+			
+			return 0;
+		}
+		else
+		{
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		
 	}
 	
 }

@@ -83,13 +83,13 @@ if (preg_match('/del_(.*)/',$action,$reg))
 }
 
 /******/
-//$dolishop = new Dolishop($db);
+//$dolishop = new Dolishop\Dolishop($db);
 //$xml = $dolishop->getAll('tax_rule_groups');
 //var_dump($xml->children()->children()->children());
 //exit;
 /******/
 
-$dolishop = new Dolishop($db);
+$dolishop = new \Dolishop\Dolishop($db);
 if ($action == 'testConnection')
 {
 	$shopName = $dolishop->testConnection();

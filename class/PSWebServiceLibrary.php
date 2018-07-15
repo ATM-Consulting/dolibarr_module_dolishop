@@ -26,6 +26,9 @@
 * @package PrestaShopWebservice
 */
 
+namespace Dolishop;
+use Dolishop;
+
 /**
  * @package PrestaShopWebservice
  */
@@ -407,4 +410,4 @@ class PrestaShopWebservice
 /**
  * @package PrestaShopWebservice
  */
-class PrestaShopWebserviceException extends Exception { }
+class PrestaShopWebserviceException extends \Exception { }

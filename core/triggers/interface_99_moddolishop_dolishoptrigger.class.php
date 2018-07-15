@@ -127,7 +127,7 @@ class InterfaceDolishoptrigger
 			if (array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES)))
 			{
 				dol_include_once('/dolishop/class/dolishop.class.php');
-				$dolishop = new Dolishop($db);
+				$dolishop = new Dolishop\Dolishop($db);
 				$dolishop->rsyncProducts(array($object->id));
 				if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
 			}

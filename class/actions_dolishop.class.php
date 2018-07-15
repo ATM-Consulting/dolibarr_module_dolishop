@@ -64,4 +64,76 @@ class Actionsdolishop
 	{
 		return 0;
 	}
+	
+	/**
+	 * Overloading the deleteFile function : replacing the parent's function with the one below
+	 *
+	 * @param   array()         $parameters     Hook metadatas (context, etc...)
+	 * @param   CommonObject    &$object        The object to process (an invoice if you are in invoice module, a propale in propale's module, etc...)
+	 * @param   string          &$action        Current action (if set). Generally create or edit or null
+	 * @param   HookManager     $hookmanager    Hook manager propagated to allow calling another hook
+	 * @return  int                             < 0 on error, 0 on success, 1 to replace standard code
+	 */
+	public function deleteFile($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs;
+		
+		$TContext = explode(':', $parameters['context']);
+		if (in_array('productdocuments', $TContext))
+		{
+			if (is_object($object) && empty($object->array_options)) $object->fetch_optionals();
+			if (!empty($object->array_options['options_ps_id_product']))
+			{
+				dol_include_once('/dolishop/class/dolishop.class.php');
+				
+				$explode = explode('/', $parameters['file']);
+				$filename = $explode[count($explode)-1];
+				
+				$dolishop = new \Dolishop\Dolishop($this->db);
+				$res = $dolishop->deletePsProductImages($object, array($filename));
+				if ($res >= 1) setEventMessage($langs->trans('DolishopDeletePsProductImagesSuccess'));
+				else if ($res <= -1) setEventMessage($langs->trans('DolishopDeletePsProductImagesWarning'), 'warnings');
+				
+				if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
+			}
+		}
+		
+		return 0;
+	}
+	
+	/**
+	 * Overloading the formattachOptions function : replacing the parent's function with the one below
+	 *
+	 * @param   array()         $parameters     Hook metadatas (context, etc...)
+	 * @param   CommonObject    &$object        The object to process (an invoice if you are in invoice module, a propale in propale's module, etc...)
+	 * @param   string          &$action        Current action (if set). Generally create or edit or null
+	 * @param   HookManager     $hookmanager    Hook manager propagated to allow calling another hook
+	 * @return  int                             < 0 on error, 0 on success, 1 to replace standard code
+	 */
+	public function formattachOptions($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs;
+		
+		$TContext = explode(':', $parameters['context']);
+		if (in_array('productdocuments', $TContext))
+		{
+			// Obligé de gérer ça ici, pas de doActions :'(
+			// Vivement que ce soit gérable via la class EcmFiles avec des triggers du style : CREATE_ECM_FILE / MODIFY_ECM_FILE / DELETE_ECM_FILE
+			if (GETPOST('sendit') && !empty($object->array_options['options_ps_id_product']))
+			{
+				global $upload_dir, $upload_dirold;
+				
+				$dir = !empty($upload_dirold) ? $upload_dirold : $upload_dir;
+				$TFileName = $_FILES['userfile']['name'];
+				if (!is_array($TFileName)) $TFileName = array($TFileName);
+					
+				dol_include_once('/dolishop/class/dolishop.class.php');
+				$dolishop = new \Dolishop\Dolishop($this->db);
+				$dolishop->addPsProductImages($object, $TFileName, $dir);
+				if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
+				else setEventMessage($langs->trans('DolishopAddPsProductImagesSuccess'));
+			}
+			
+		}
+	}
 }
