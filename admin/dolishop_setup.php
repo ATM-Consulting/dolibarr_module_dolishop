@@ -151,7 +151,6 @@ _print_on_off('DOLISHOP_PS_WS_DEBUG', $langs->trans('DOLISHOP_PS_WS_DEBUG'));
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS');
 print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC').'</small>';
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC').'</small>';
 print '</td>';
 print '<td align="center" width="20">&nbsp;</td>';
 print '<td align="center" width="300">';
@@ -190,6 +189,20 @@ print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'
 print '</form>';
 print '</td></tr>';
 $var=!$var;
+
+
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC').'</small>';
+print '</td>';
+print '<td align="center" width="20">&nbsp;</td>';
+print '<td align="center" width="300">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_IMAGES">';
+print ajax_constantonoff('DOLISHOP_SYNC_PRODUCTS_IMAGES');
+print '</form>';
+print '</td></tr>';
 
 
 // Example with color

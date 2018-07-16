@@ -569,7 +569,7 @@ class Dolishop
 		global $user;
 		
 		if (
-			empty(self::$ps_configuration->PS_IMAGES_MIME_TYPES->product) 
+			empty(self::$ps_configuration->PS_IMAGES_MIME_TYPES->products) 
 			|| !$this->checkProductCategories($dol_product->id)
 		) return 0;
 		
@@ -579,7 +579,7 @@ class Dolishop
 			$filename = dol_sanitizeFileName($info['filename'].'.'.strtolower($info['extension']));
 			$image_path = $dir.'/'.$filename;
 			$mime_type = mime_content_type($image_path);
-			if (in_array($mime_type, self::$ps_configuration->PS_IMAGES_MIME_TYPES->product))
+			if (in_array($mime_type, self::$ps_configuration->PS_IMAGES_MIME_TYPES->products))
 			{
 				$ecm = new \Dolishop\EcmFilesDolishop($this->db);
 				$ecm->fetchByFileNamePath($filename, $dol_product->ref);

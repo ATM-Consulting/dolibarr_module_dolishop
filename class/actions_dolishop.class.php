@@ -76,10 +76,10 @@ class Actionsdolishop
 	 */
 	public function deleteFile($parameters, &$object, &$action, $hookmanager)
 	{
-		global $langs;
+		global $langs,$conf;
 		
 		$TContext = explode(':', $parameters['context']);
-		if (in_array('productdocuments', $TContext))
+		if (in_array('productdocuments', $TContext) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES))
 		{
 			if (is_object($object) && empty($object->array_options)) $object->fetch_optionals();
 			if (!empty($object->array_options['options_ps_id_product']))
@@ -112,21 +112,21 @@ class Actionsdolishop
 	 */
 	public function formattachOptions($parameters, &$object, &$action, $hookmanager)
 	{
-		global $langs;
+		global $langs,$conf;
 		
 		$TContext = explode(':', $parameters['context']);
 		if (in_array('productdocuments', $TContext))
 		{
 			// Obligé de gérer ça ici, pas de doActions :'(
 			// Vivement que ce soit gérable via la class EcmFiles avec des triggers du style : CREATE_ECM_FILE / MODIFY_ECM_FILE / DELETE_ECM_FILE
-			if (GETPOST('sendit') && !empty($object->array_options['options_ps_id_product']))
+			if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES) && GETPOST('sendit'))
 			{
 				global $upload_dir, $upload_dirold;
 				
 				$dir = !empty($upload_dirold) ? $upload_dirold : $upload_dir;
 				$TFileName = $_FILES['userfile']['name'];
 				if (!is_array($TFileName)) $TFileName = array($TFileName);
-					
+				
 				dol_include_once('/dolishop/class/dolishop.class.php');
 				$dolishop = new \Dolishop\Dolishop($this->db);
 				$dolishop->addPsProductImages($object, $TFileName, $dir);
@@ -135,5 +135,7 @@ class Actionsdolishop
 			}
 			
 		}
+		
+		return 0;
 	}
 }
