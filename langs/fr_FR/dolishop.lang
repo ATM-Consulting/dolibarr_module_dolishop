@@ -22,10 +22,12 @@ DOLISHOP_PS_WS_DEBUG=Activer le mode "DEBUG" des appels
 
 DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
 DOLISHOP_SYNC_PRODUCTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET / PUT / POST</b>
-DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET / PUT / POST</b>
+DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT=Nombre de caractères maximum pour convertir la description de votre fiche produit en tant que description courte sur Prestashop (vide ou 0 = désactivé)
 DOLISHOP_SYNC_PRODUCTS_CATEGORIES=Synchroniser les produits dans la/les catégorie(s) suivante(s)
 
-DOLISHOP_SYNC_PRODUCTS_PICTURES=Activer la synchronisation des images produits
+DOLISHOP_SYNC_PRODUCTS_IMAGES=Activer la synchronisation des images produits
+DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET / PUT / POST</b>
+
 
 DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
 
@@ -59,6 +61,7 @@ DolishopPostImageError=Erreur sur la mise à jour de l'image Prestashop, message
 ### MESG SUCCESS
 DolishopTestConnectionSuccess=Connexion à votre boutique [%s] réussie
 DolishopSyncPsConfSuccess=Configuration récupérée
+DolishopSyncPsProductSuccess=Produit Prestashop mis à jour
 DolishopAddPsProductImagesSuccess=Image ajoutée sur votre boutique Prestashop
 DolishopDeletePsProductImagesSuccess=Image supprimée de votre boutique Prestashop
 

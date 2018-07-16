@@ -87,14 +87,16 @@ class Dolishop
 			$TLang = array();
 			foreach ($languages->children() as $l)
 			{
-				$TLang[strtoupper($l->iso_code)] = array(
+				$TLang[(int) $l->id] = array(
 					'id' => (int) $l->id
-					,'name' => (string) $l->name
-					,'iso_code' => (string) $l->iso_code
+					,'name' => $l->name->__toString()
+					,'iso_code' => $l->iso_code->__toString()
+					,'dol_iso_code' => $l->language_code->__toString().'_'.strtoupper($l->iso_code->__toString())
+					,'language_code' => $l->language_code->__toString()
 					,'active' => (int) $l->active
 				);
 			}
-
+			
 			$ps_configuration->PS_LANGUAGES = $TLang;
 		}
 		else return false;
@@ -216,7 +218,8 @@ class Dolishop
 	}
 	
 	/**
-	 * * Synchronise les produits vers la boutique Prestashop
+	 * Synchronise les produits vers la boutique Prestashop
+	 * Attention : il n'y a pas de vérification sur les catégories associées aux produits (doit être faite avant l'appel à cette méthode)
 	 * 
 	 * @param array $ProductId
 	 * @return int
@@ -294,14 +297,14 @@ class Dolishop
 	/**
 	 * Méthode qui se charge de faire appel au add() ou edit() du webservice
 	 * 
-	 * @global Societe		$mysoc
-	 * @global Translate	$langs
-	 * @param	Product				$dol_product
+	 * @global \Translate	$langs
+	 * @global \Conf		$conf
+	 * @param	\Product				$dol_product
 	 * @param	\SimpleXMLElement	$xml_origin
 	 */
 	private function savePsProduct(&$dol_product, $xml_origin=false)
 	{
-		global $mysoc,$langs;
+		global $langs,$conf;
 		
 		if ($xml_origin !== false) $schema = $xml_origin->children();
 		else $schema = clone $this->schema_products_synopsis;
@@ -323,7 +326,11 @@ class Dolishop
 
 		$ps_product->reference = $dol_product->ref;
 		$ps_product->price =  $dol_product->price;
-//		$ps_product->id_tax_rules_group =  $dol_product->tva_tx;
+		
+		$tva_tx = (float) $dol_product->tva_tx;
+		$id_tax_rules_group = key((array) self::$ps_configuration->PS_TAXES->{$tva_tx}->TId_tax_rules_group);
+		$ps_product->id_tax_rules_group = $id_tax_rules_group;
+		
 		$ps_product->state =  1;
 		$ps_product->weight =  $dol_product->weight; // TODO voir pour l'unité de mesure
 		// dans Dolibarr  c'est la notion de LLH et sur Prestashop c'est LHP, à voir s'il y a vraiement une différence
@@ -342,15 +349,36 @@ class Dolishop
 //		var_dump($dol_product);exit;
 //		echo '<pre>'.htmlspecialchars(print_r($dol_product), ENT_QUOTES);exit;
 		
-		foreach ($ps_product->name->children() as $language)
+		if (!empty($conf->global->MAIN_MULTILANGS) && !empty(self::$ps_configuration->PS_LANGUAGES))
 		{
-			// TODO gérer ici le multi-langs
-			if (self::$ps_configuration->PS_LANGUAGES->{$mysoc->country_code}->id == $language->attributes()->id)
+			// TODO à voir plus tard si j'utilise PRODUCT_USE_OTHER_FIELD_IN_TRANSLATION pour m'en servir comme "description_short"
+			
+			$TProperty = array('name' => 'label', 'description' => 'description', 'description_short' => 'description_short_trunc');
+			foreach ($TProperty as $nodeKey => $dol_index)
 			{
-				$language[0] = $dol_product->label;
+				preg_match('/.*\_(trunc)$/', $dol_index, $reg);
+				foreach ($ps_product->{$nodeKey}->children() as $language)
+				{
+					if (!empty(self::$ps_configuration->PS_LANGUAGES->{$language->attributes()->id}))
+					{
+						$dol_iso_code = self::$ps_configuration->PS_LANGUAGES->{$language->attributes()->id}->dol_iso_code;
+						if (!empty($dol_product->multilangs[$dol_iso_code]))
+						{
+							if (empty($reg)) $language[0] = $dol_product->multilangs[$dol_iso_code][$dol_index];
+							else if ($reg[1] == 'trunc') $language[0] = $this->trunc($dol_product->multilangs[$dol_iso_code]['description'], $conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT, true, false);
+							else {} // prévoir les autres cas si besoin
+						}
+					}
+				}
+				
 			}
 		}
-//		var_dump($ps_product->name->asXML());exit;
+		else
+		{
+			$ps_product->name->children()[0][0] = $dol_product->label;
+			$ps_product->description->children()[0][0] = $dol_product->description;
+			if (!empty($conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT)) $ps_product->description_short->children()[0][0] = $this->trunc($dol_product->description, $conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT, true, false);
+		}
 		
 		$error = false;
 		try
@@ -403,7 +431,28 @@ class Dolishop
 		}
 	}
 	
-	
+	/**
+	 * Tronque la chaine $input en conservant le maximum de mots entier pour le nombre de caractères possible
+	 * 
+	 * @param string	$input
+	 * @param int		$length
+	 * @param string	$ellipses
+	 * @param bool		$strip_html
+	 * @return string
+	 */
+	public function trunc($input, $length=0, $ellipses = true, $strip_html = true)
+	{
+		if ($strip_html) $input = strip_tags($input);
+		if (strlen($input) <= $length) return $input;
+		
+		$last_space = strrpos(substr($input, 0, $length), ' ');
+		$str = substr($input, 0, $last_space);
+		
+		if ($ellipses) $str.= '...';
+
+		return $str;
+	}
+
 	/**
 	 * Load le schema d'une ressource dans un attribut de l'objet courant sous le format : schema_[$resourcename]_[$type]
 	 * 
@@ -690,18 +739,20 @@ class Dolishop
 			$str.= '<div class="titre" style="font-weight:bold;"><i class="fa fa-language"></i> '.$langs->trans('DolishopPsLanguages').'</div>';
 			$str.= '<table class="noborder" width="100%">';
 			$str.= '<tr class="liste_titre">
-						<th align="center" width="10%">id</th>
-						<th>code</th>
-						<th align="center">iso</th>
+						<th align="center" width="10%">id_lang</th>
+						<th align="center" width="25%">language_code</th>
+						<th align="center" width="25%">iso</th>
+						<th align="center" width="25%">code Dolibarr</th>
 						<th align="center">Active</th>
 					</tr>';
-			foreach (self::$ps_configuration->PS_LANGUAGES as $code => $Tab)
+			foreach (self::$ps_configuration->PS_LANGUAGES as $ps_id_lang => $Tab)
 			{
 				$str.= '<tr class="oddeven">';
 				
 				$str.= '<td align="center">'.$Tab->id.'</td>';
-				$str.= '<td>'.$code.'</td>';
+				$str.= '<td align="center">'.$Tab->language_code.'</td>';
 				$str.= '<td align="center">'.$Tab->iso_code.'</td>';
+				$str.= '<td align="center">'.$Tab->dol_iso_code.'</td>';
 				$str.= '<td align="center">'.$Tab->active.'</td>';
 
 				$str.= '</tr>';

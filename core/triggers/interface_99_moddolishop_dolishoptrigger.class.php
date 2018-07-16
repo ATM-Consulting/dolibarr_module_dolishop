@@ -118,18 +118,22 @@ class InterfaceDolishoptrigger
         // Data and type of action are stored into $object and $action
         // Users
 		
-		if ($action == 'PRODUCT_CREATE' || $action == 'PRODUCT_MODIFY')
+		if ($action == 'PRODUCT_CREATE' || $action == 'PRODUCT_MODIFY' || $action == 'PRODUCT_SET_MULTILANGS')
 		{
             dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
 			
-			// La soumission du formulaire de création/édition renseigne les catégories sur le produit après coup, je n'y ai donc pas accés via l'object
+			dol_include_once('/dolishop/class/dolishop.class.php');
+			$dolishop = new Dolishop\Dolishop($db);
+			
+			// Si je proviens du formulaire de création/édition
 			$TCategory = GETPOST('categories');
-			if (array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES)))
-			{
-				dol_include_once('/dolishop/class/dolishop.class.php');
-				$dolishop = new Dolishop\Dolishop($db);
+			if (
+				( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES)) )
+				|| $dolishop->checkProductCategories($object->id)
+			) {
 				$dolishop->rsyncProducts(array($object->id));
 				if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
+				else setEventMessage($langs->trans('DolishopSyncPsProductSuccess'));
 			}
 		}
 		
