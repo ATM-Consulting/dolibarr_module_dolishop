@@ -20,8 +20,7 @@ class Dolishop
 	private $key;
 	private $debug;
 	
-	public static $TLanguage = null;
-	public static $TTaxe = null;
+	public static $ps_configuration = null;
 	
 	public $error;
 	public $errors = array();
@@ -48,8 +47,7 @@ class Dolishop
 		$this->debug = (bool) $conf->global->DOLISHOP_PS_WS_DEBUG;
 		
 		if (is_null(self::$webService)) self::$webService = new \Dolishop\PrestaShopWebservice($this->url, $this->key, $this->debug);
-		if (is_null(self::$TLanguage)) self::$TLanguage = json_decode($conf->global->DOLISHOP_PS_LANGUAGES);
-		if (is_null(self::$TTaxe)) self::$TTaxe = json_decode($conf->global->DOLISHOP_PS_TAXES);
+		if (is_null(self::$ps_configuration)) self::$ps_configuration = json_decode($conf->global->DOLISHOP_PS_CONFIGURATION);
 		
 		$this->TProductCategoryIdSync = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES);
 	}
@@ -69,8 +67,9 @@ class Dolishop
 	
 	/**
 	 * Methode permettant de récupérer des configurations de Prestashop pour le bon fonctionnement du module
-	 *  les langues	: DOLISHOP_PS_LANGUAGES
-	 *  les taxes	: DOLISHOP_PS_TAXES
+	 *  les langues		: self::$ps_configuration->PS_LANGUAGES
+	 *  les taxes		: self::$ps_configuration->PS_TAXES
+	 *  les mime types	: self::$ps_configuration->PS_IMAGES_MIME_TYPES
 	 * (doit être appelée si la configuration évolue sur Prestashop)
 	 * 
 	 * @global Conf $conf
@@ -80,8 +79,10 @@ class Dolishop
 	{
 		global $conf;
 		
+		$ps_configuration = new \stdClass();
+		
 		$languages = $this->getAll('languages', array('display' => 'full'));
-		if ($languages->children()->count() > 0)
+		if ($languages && $languages->children()->count() > 0)
 		{
 			$TLang = array();
 			foreach ($languages->children() as $l)
@@ -94,22 +95,14 @@ class Dolishop
 				);
 			}
 
-			$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_LANGUAGES', json_encode($TLang));
-			if ($res > 0)
-			{
-				self::$TLanguage = json_decode($conf->global->DOLISHOP_PS_LANGUAGES);
-				self::$TLanguage = $TLang;
-			}
-			else $this->errors[] = $this->db->lasterror();
+			$ps_configuration->PS_LANGUAGES = $TLang;
 		}
+		else return false;
 		
-		$taxes = $this->getAll('taxes', array('display' => 'full'));
-		$tax_rules = $this->getAll('tax_rules', array('display' => 'full'));
-//		$tax_rule_groups = $this->getAll('tax_rule_groups', array('display' => 'full'));
+		$taxes = $this->getAll('taxes');
+		$tax_rules = $this->getAll('tax_rules');
 		
-//		var_dump($tax_rules->children());exit;
-		
-		if ($taxes->children()->count() > 0 && $tax_rules->children()->count() > 0)
+		if ($taxes && $tax_rules && $taxes->children()->count() > 0 && $tax_rules->children()->count() > 0)
 		{
 			$TTaxe = array();
 			foreach ($taxes->children() as $taxe)
@@ -120,7 +113,6 @@ class Dolishop
 				$TTaxe[(string) $vat_rate]['TLabel'][$id_tax] = $taxe->name->language->__toString();
 				$TTaxe[(string) $vat_rate]['TId_tax'][$id_tax] = $id_tax;
 				
-//				var_dump($id_tax);exit;
 				foreach ($tax_rules->children() as $tax_rule)
 				{
 					if ((int) $tax_rule->id_tax == $id_tax)
@@ -132,18 +124,30 @@ class Dolishop
 				
 			}
 			
-			$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_TAXES', json_encode($TTaxe));
+			$ps_configuration->PS_TAXES = $TTaxe;
+		}
+		else return false;
+		
+		$images = $this->getAll('images');
+		if ($images && !empty($images->image_types->products->attributes()->upload_allowed_mimetypes))
+		{
+			$ps_configuration->PS_IMAGES_MIME_TYPES = new \stdClass();
+			$ps_configuration->PS_IMAGES_MIME_TYPES->products = explode(', ', $images->image_types->products->attributes()->upload_allowed_mimetypes);
+		}
+		else return false;
+		
+		
+		if (!empty($ps_configuration))
+		{
+			$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_CONFIGURATION', json_encode($ps_configuration));
 			if ($res > 0)
 			{
-//				self::$TLanguage = json_decode($conf->global->DOLISHOP_PS_TAXES);
-				self::$TTaxe = $TTaxe;
+				self::$ps_configuration = json_decode($conf->global->DOLISHOP_PS_CONFIGURATION);
+				return true;
 			}
 			else $this->errors[] = $this->db->lasterror();
 		}
 		
-		
-		
-		if (empty($this->errors)) return true;
 		return false;
 	}
 	
@@ -341,7 +345,7 @@ class Dolishop
 		foreach ($ps_product->name->children() as $language)
 		{
 			// TODO gérer ici le multi-langs
-			if (self::$TLanguage->{$mysoc->country_code}->id == $language->attributes()->id)
+			if (self::$ps_configuration->PS_LANGUAGES->{$mysoc->country_code}->id == $language->attributes()->id)
 			{
 				$language[0] = $dol_product->label;
 			}
@@ -515,19 +519,18 @@ class Dolishop
 	{
 		global $user;
 		
-		if (!$this->checkProductCategories($dol_product->id)) return 0;
+		if (
+			empty(self::$ps_configuration->PS_IMAGES_MIME_TYPES->product) 
+			|| !$this->checkProductCategories($dol_product->id)
+		) return 0;
 		
-		// TODO à vérifier que le getAll me renvoi pas toutes les images de la boutique ou alors sauvegarder
-		$xml_images = $this->getAll('images');
-		$TMimeTypeAllowed = explode(', ', $xml_images->children()->products->attributes()->upload_allowed_mimetypes);
-
 		foreach ($TFileName as $name)
 		{
 			$info = pathinfo($name);
 			$filename = dol_sanitizeFileName($info['filename'].'.'.strtolower($info['extension']));
 			$image_path = $dir.'/'.$filename;
 			$mime_type = mime_content_type($image_path);
-			if (in_array($mime_type, $TMimeTypeAllowed))
+			if (in_array($mime_type, self::$ps_configuration->PS_IMAGES_MIME_TYPES->product))
 			{
 				$ecm = new \Dolishop\EcmFilesDolishop($this->db);
 				$ecm->fetchByFileNamePath($filename, $dol_product->ref);
@@ -671,7 +674,7 @@ class Dolishop
 	
 	
 	/**
-	 * Renvoie le contenu de self::TLanguage, self::TTaxe dans un format HTML pour être print
+	 * Renvoie le contenu de self::$ps_configuration dans un format HTML pour être print
 	 * 
 	 * @global Translate $langs
 	 * @return string
@@ -682,9 +685,9 @@ class Dolishop
 		
 		$str = '';
 		
-		if (!empty(self::$TLanguage))
+		if (!empty(self::$ps_configuration->PS_LANGUAGES))
 		{
-			$str.= '<div class="titre inline-block" style="font-weight:bold;">'.$langs->trans('DolishopPsLanguages').'</div>';
+			$str.= '<div class="titre" style="font-weight:bold;"><i class="fa fa-language"></i> '.$langs->trans('DolishopPsLanguages').'</div>';
 			$str.= '<table class="noborder" width="100%">';
 			$str.= '<tr class="liste_titre">
 						<th align="center" width="10%">id</th>
@@ -692,7 +695,7 @@ class Dolishop
 						<th align="center">iso</th>
 						<th align="center">Active</th>
 					</tr>';
-			foreach (self::$TLanguage as $code => $Tab)
+			foreach (self::$ps_configuration->PS_LANGUAGES as $code => $Tab)
 			{
 				$str.= '<tr class="oddeven">';
 				
@@ -706,10 +709,17 @@ class Dolishop
 			$str.= '</table>';
 		}
 		
-		if (!empty(self::$TTaxe))
+		if (!empty(self::$ps_configuration->PS_IMAGES_MIME_TYPES->products))
 		{
 			if (!empty($str)) $str.= '<br /><br />';
-			$str.= '<div class="titre inline-block" style="font-weight:bold;">'.$langs->trans('DolishopPsTaxes').'</div>';
+			$str.= '<div class="titre" style="font-weight:bold;"><i class="fa fa-image"></i></i> '.$langs->trans('DolishopPsImagesMimeTypes').'</div>';
+			$str.= '<p class="">'.$langs->trans('DolishopPsImagesMimeTypesAllowed', implode(', ', self::$ps_configuration->PS_IMAGES_MIME_TYPES->products)).'</p>';
+		}
+		
+		if (!empty(self::$ps_configuration->PS_TAXES))
+		{
+			if (!empty($str)) $str.= '<br /><br />';
+			$str.= '<div class="titre" style="font-weight:bold;"><i class="fa fa-balance-scale"></i> '.$langs->trans('DolishopPsTaxes').'</div>';
 			$str.= '<table class="noborder " width="100%">';
 			$str.= '<tr class="liste_titre">
 						<th align="center" width="10%">%</th>
@@ -717,7 +727,7 @@ class Dolishop
 						<th align="center">id_tax</th>
 						<th align="center">id_tax_rules_group</th>
 					</tr>';
-			foreach (self::$TTaxe as $vat_rate => $Tab)
+			foreach (self::$ps_configuration->PS_TAXES as $vat_rate => $Tab)
 			{
 				$str.= '<tr class="oddeven">';
 

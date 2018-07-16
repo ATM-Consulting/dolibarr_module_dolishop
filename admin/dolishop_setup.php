@@ -37,7 +37,8 @@ require_once '../lib/dolishop.lib.php';
 dol_include_once('/dolishop/class/dolishop.class.php');
 
 // Translations
-$langs->load("dolishop@dolishop");
+$langs->load('admin');
+$langs->load('dolishop@dolishop');
 
 // Access control
 if (! $user->admin) {
@@ -207,6 +208,7 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
     print '<td>'.$langs->trans('DOLISHOP_SYNC_PS_CONF');
 	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_LANGUAGES_DESC').'</small>';
 	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_TAXES_DESC').'</small>';
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_IMAGES_DESC').'</small>';
     print '</td>';
     print '<td align="center" width="20">&nbsp;</td>';
     print '<td align="right" width="300">';
@@ -216,7 +218,7 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
 	$conf_str = $dolishop->getFormatedStringTConf();
 	if (!empty($conf_str)) print $form->textwithpicto('', $conf_str, 1, 'help', '', 0, 2, 1);
     print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopSyncPsConf").'">';
-	if (empty($conf->global->DOLISHOP_PS_LANGUAGES) || empty($conf->global->DOLISHOP_PS_TAXES)) print img_error($langs->trans("DolishopSyncPsConfNeeded"));
+	if (empty($conf->global->DOLISHOP_PS_CONFIGURATION)) print img_error($langs->trans("DolishopSyncPsConfNeeded"));
     print '</form>';
     print '</td></tr>';
 	$var=!$var;

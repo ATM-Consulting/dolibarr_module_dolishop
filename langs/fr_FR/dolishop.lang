@@ -34,11 +34,14 @@ DolishopTestConnection=Tester la connexion
 
 DOLISHOP_SYNC_PS_CONF=Récupérer les configurations des langues/taxes de Prestashop (à relancer si la configuration évolue sur votre boutique)
 DOLISHOP_SYNC_PS_CONF_LANGUAGES_DESC=La ressource <b>languages</b> doit être accessible en <b>GET</b>
-DOLISHOP_SYNC_PS_CONF_TAXES_DESC=Les ressources <b>tax_rule_groups, tax_rules, taxes</b> doivent être accessibles en <b>GET</b>
+DOLISHOP_SYNC_PS_CONF_TAXES_DESC=Les ressources <b>tax_rules, taxes</b> doivent être accessibles en <b>GET</b>
+DOLISHOP_SYNC_PS_CONF_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET</b>
 DolishopSyncPsConf=Récupérer la conf
 DolishopSyncPsConfNeeded=Attention : des configurations présentes sur votre boutique Prestashop doivent être synchonisées avant utilisation du module
 
 DolishopPsLanguages=Langue(s)
+DolishopPsImagesMimeTypes=Type d'images autorisées
+DolishopPsImagesMimeTypesAllowed=Pour les produits : %s
 DolishopPsTaxes=TVA
 
 DolishopCronjob_label=Synchronisation vers Prestashop
