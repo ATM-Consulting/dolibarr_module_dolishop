@@ -22,6 +22,7 @@ DOLISHOP_PS_WS_DEBUG=Activer le mode "DEBUG" des appels
 
 DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
 DOLISHOP_SYNC_PRODUCTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET / PUT / POST</b>
+DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET / PUT / POST</b>
 DOLISHOP_SYNC_PRODUCTS_CATEGORIES=Synchroniser les produits dans la/les catégorie(s) suivante(s)
 
 DOLISHOP_SYNC_PRODUCTS_PICTURES=Activer la synchronisation des images produits

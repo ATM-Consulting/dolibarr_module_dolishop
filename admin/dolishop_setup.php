@@ -84,8 +84,8 @@ if (preg_match('/del_(.*)/',$action,$reg))
 
 /******/
 //$dolishop = new Dolishop\Dolishop($db);
-//$xml = $dolishop->getAll('tax_rule_groups');
-//var_dump($xml->children()->children()->children());
+//$xml = $dolishop->getAll('stock_availables', array('filter[id_product]' => '[1]'));
+//$dolishop->debugXml($xml);
 //exit;
 /******/
 
@@ -147,7 +147,19 @@ _print_input_form_part('DOLISHOP_PS_SHOP_PATH', $langs->trans('DOLISHOP_PS_SHOP_
 _print_input_form_part('DOLISHOP_PS_WS_AUTH_KEY', $langs->trans('DOLISHOP_PS_WS_AUTH_KEY'), $langs->trans('DOLISHOP_PS_WS_AUTH_KEY_desc'));
 _print_on_off('DOLISHOP_PS_WS_DEBUG', $langs->trans('DOLISHOP_PS_WS_DEBUG'));
 
-_print_on_off('DOLISHOP_SYNC_PRODUCTS', $langs->trans('DOLISHOP_SYNC_PRODUCTS'), $img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC'));
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC').'</small>';
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC').'</small>';
+print '</td>';
+print '<td align="center" width="20">&nbsp;</td>';
+print '<td align="center" width="300">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS">';
+print ajax_constantonoff('DOLISHOP_SYNC_PRODUCTS');
+print '</form>';
+print '</td></tr>';
 
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES');
@@ -229,16 +241,17 @@ function _print_title($title="")
     print '</tr>';
 }
 
-function _print_on_off($confkey, $title = false, $desc ='')
+function _print_on_off($confkey, $title = false, $TDesc ='')
 {
     global $var, $bc, $langs, $conf;
     $var=!$var;
     
     print '<tr '.$bc[$var].'>';
     print '<td>'.($title?$title:$langs->trans($confkey));
-    if(!empty($desc))
+    if(!empty($TDesc))
     {
-        print '<br><small>'.$langs->trans($desc).'</small>';
+		if (!is_array($TDesc)) $TDesc = array($TDesc);
+		foreach ($TDesc as $desc) print '<br><small>'.$langs->trans($desc).'</small>';
     }
     print '</td>';
     print '<td align="center" width="20">&nbsp;</td>';

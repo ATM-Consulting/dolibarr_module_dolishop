@@ -517,6 +517,7 @@ class Dolishop
 		
 		if (!$this->checkProductCategories($dol_product->id)) return 0;
 		
+		// TODO à vérifier que le getAll me renvoi pas toutes les images de la boutique ou alors sauvegarder
 		$xml_images = $this->getAll('images');
 		$TMimeTypeAllowed = explode(', ', $xml_images->children()->products->attributes()->upload_allowed_mimetypes);
 
