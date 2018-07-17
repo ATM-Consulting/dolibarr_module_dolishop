@@ -84,10 +84,11 @@ if (preg_match('/del_(.*)/',$action,$reg))
 }
 
 /******/
-//$dolishop = new Dolishop\Dolishop($db);
+$dolishop = new Dolishop\Dolishop($db);
 //$xml = $dolishop->getAll('stock_availables', array('filter[id_product]' => '[1]'));
-//$dolishop->debugXml($xml);
-//exit;
+$xml = $dolishop->getAll('orders', array());
+$dolishop->debugXml($xml);
+exit;
 /******/
 
 $dolishop = new \Dolishop\Dolishop($db);
@@ -134,111 +135,67 @@ $img_warning = img_warning().' ';
 
 // Setup page goes here
 $form=new Form($db);
-$var=false;
+
 print '<table class="noborder" width="100%">';
 
 
 _print_title("Parameters");
 
-// Example with a yes / no select
-//_print_on_off('CONSTNAME', 'ParamLabel' , 'ParamDesc');
+$var=true;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_PS_SHOP_PATH').'</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_PS_SHOP_PATH">';
+print '<input type="text" name="DOLISHOP_PS_SHOP_PATH" size="40" placeholder="https://www.example.com" value="'.$conf->global->DOLISHOP_PS_SHOP_PATH.'" />';
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
 
-// Example with imput
-_print_input_form_part('DOLISHOP_PS_SHOP_PATH', $langs->trans('DOLISHOP_PS_SHOP_PATH'), '', array('placeholder'=>'https://www.example.com'));
-_print_input_form_part('DOLISHOP_PS_WS_AUTH_KEY', $langs->trans('DOLISHOP_PS_WS_AUTH_KEY'), $langs->trans('DOLISHOP_PS_WS_AUTH_KEY_desc'));
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_PS_WS_AUTH_KEY');
+print '<br /><small>'.$langs->trans('DOLISHOP_PS_WS_AUTH_KEY_desc').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_PS_WS_AUTH_KEY">';
+print '<input type="text" name="DOLISHOP_PS_WS_AUTH_KEY" size="40" value="'.$conf->global->DOLISHOP_PS_WS_AUTH_KEY.'" />';
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+
 _print_on_off('DOLISHOP_PS_WS_DEBUG', $langs->trans('DOLISHOP_PS_WS_DEBUG'));
 
-print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC').'</small>';
-print '</td>';
-print '<td align="center" width="20">&nbsp;</td>';
-print '<td align="center" width="300">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS">';
-print ajax_constantonoff('DOLISHOP_SYNC_PRODUCTS');
-print '</form>';
-print '</td></tr>';
-
-print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT');
-print '</td>';
-print '<td align="center" width="20">&nbsp;</td>';
-print '<td align="right" width="300">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT">';
-print '<input type="text" size="5" name="DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT" value="'.$conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT.'" />';
-print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
-print '</form>';
-print '</td></tr>';
-
-
-print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES');
-print '</td>';
-print '<td align="center" width="20">&nbsp;</td>';
-print '<td align="right" width="300">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_CATEGORIES">';
-$cate_arbo = $form->select_all_categories(Categorie::TYPE_PRODUCT, '', 'parent', 64, 0, 1);
-print $form->multiselectarray('DOLISHOP_SYNC_PRODUCTS_CATEGORIES', $cate_arbo, explode(',',$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES), '', 0, '', 0, '100%');
-print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
-print '</form>';
-print '</td></tr>';
-$var=!$var;
-
-
-print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC').'</small>';
-print '</td>';
-print '<td align="center" width="20">&nbsp;</td>';
-print '<td align="center" width="300">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_IMAGES">';
-print ajax_constantonoff('DOLISHOP_SYNC_PRODUCTS_IMAGES');
-print '</form>';
-print '</td></tr>';
-
-
-// Example with color
-//_print_input_form_part('CONSTNAME', 'ParamLabel', 'ParamDesc', array('type'=>'color'),'input','ParamHelp');
-
-// Example with placeholder
-//_print_input_form_part('CONSTNAME','ParamLabel','ParamDesc',array('placeholder'=>'http://'),'input','ParamHelp');
-
-// Example with textarea
-//_print_input_form_part('CONSTNAME','ParamLabel','ParamDesc',array(),'textarea');
 
 if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISHOP_PS_WS_AUTH_KEY))
 {
-	_print_title("Prestashop");
-	
+	$var=!$var;
 	print '<tr '.$bc[$var].'>';
     print '<td>'.$langs->trans('DOLISHOP_TEST_CONNECTION');
     print '</td>';
-    print '<td align="center" width="20">&nbsp;</td>';
-    print '<td align="right" width="300">';
+    print '<td align="center">&nbsp;</td>';
+    print '<td align="right">';
     print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
     print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
     print '<input type="hidden" name="action" value="testConnection">';
     print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopTestConnection").'">';
     print '</form>';
     print '</td></tr>';
-	$var=!$var;
 	
+	$var=!$var;
 	print '<tr '.$bc[$var].'>';
     print '<td>'.$langs->trans('DOLISHOP_SYNC_PS_CONF');
 	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_LANGUAGES_DESC').'</small>';
 	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_TAXES_DESC').'</small>';
 	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_IMAGES_DESC').'</small>';
     print '</td>';
-    print '<td align="center" width="20">&nbsp;</td>';
-    print '<td align="right" width="300">';
+    print '<td align="center">&nbsp;</td>';
+    print '<td align="right">';
     print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
     print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
     print '<input type="hidden" name="action" value="syncPsConf">';
@@ -248,8 +205,105 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
 	if (empty($conf->global->DOLISHOP_PS_CONFIGURATION)) print img_error($langs->trans("DolishopSyncPsConfNeeded"));
     print '</form>';
     print '</td></tr>';
-	$var=!$var;
 }
+
+$var=!$var;
+_print_title("PsProducts");
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS">';
+print ajax_constantonoff('DOLISHOP_SYNC_PRODUCTS');
+print '</form></div>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT">';
+print '<input type="text" size="5" name="DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT" value="'.$conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT.'" />';
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_CATEGORIES">';
+$cate_arbo = $form->select_all_categories(Categorie::TYPE_PRODUCT, '', 'parent', 64, 0, 1);
+print $form->multiselectarray('DOLISHOP_SYNC_PRODUCTS_CATEGORIES', $cate_arbo, explode(',',$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES), '', 0, '', 0, '75%');
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_IMAGES">';
+print ajax_constantonoff('DOLISHOP_SYNC_PRODUCTS_IMAGES');
+print '</form></div>';
+print '</td></tr>';
+
+
+$var=!$var;
+_print_title("PsStocks");
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_STOCK');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_STOCK_DESC').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_STOCK">';
+print ajax_constantonoff('DOLISHOP_SYNC_STOCK');
+print '</form></div>';
+print '</td></tr>';
+
+
+
+$var=!$var;
+_print_title("PsOrders");
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_STOCK');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_STOCK_DESC').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_STOCK">';
+print ajax_constantonoff('DOLISHOP_SYNC_STOCK');
+print '</form></div>';
+print '</td></tr>';
+
 
 
 print '</table>';
@@ -264,9 +318,9 @@ function _print_title($title="")
 {
     global $langs;
     print '<tr class="liste_titre">';
-    print '<td width="75%">'.$langs->trans($title).'</td>'."\n";
+    print '<td width="65%">'.$langs->trans($title).'</td>'."\n";
     print '<td align="center" width="1%">&nbsp;</td>';
-    print '<td align="center" ></td>'."\n";
+    print '<td align="center"></td>'."\n";
     print '</tr>';
 }
 
@@ -283,13 +337,13 @@ function _print_on_off($confkey, $title = false, $TDesc ='')
 		foreach ($TDesc as $desc) print '<br><small>'.$langs->trans($desc).'</small>';
     }
     print '</td>';
-    print '<td align="center" width="20">&nbsp;</td>';
-    print '<td align="center" width="300">';
-    print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+    print '<td>&nbsp;</td>';
+	print '<td align="right">';
+    print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
     print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
     print '<input type="hidden" name="action" value="set_'.$confkey.'">';
     print ajax_constantonoff($confkey);
-    print '</form>';
+    print '</form></div>';
     print '</td></tr>';
 }
 
@@ -333,8 +387,8 @@ function _print_input_form_part($confkey, $title = false, $desc ='', $metas = ar
     }
     
     print '</td>';
-    print '<td align="center" width="20">&nbsp;</td>';
-    print '<td align="right" width="300">';
+    print '<td align="center">&nbsp;</td>';
+    print '<td align="right">';
     print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
     print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
     print '<input type="hidden" name="action" value="set_'.$confkey.'">';

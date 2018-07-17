@@ -12,6 +12,9 @@ dolishop=dolishop
 ParamLabel=Nom du paramètre
 ParamDesc=Une description si besoin
 ParamHelp=Le contenu de l'aide
+PsProducts=Produits
+PsStock=Stocks
+PsOrders=Commandes
 
 DOLISHOP_PS_SHOP_PATH=Adresse URL de votre boutique Prestashop
 
@@ -43,7 +46,7 @@ DolishopSyncPsConfNeeded=Attention : des configurations présentes sur votre bou
 
 DolishopPsLanguages=Langue(s)
 DolishopPsImagesMimeTypes=Type d'images autorisées
-DolishopPsImagesMimeTypesAllowed=Pour les produits : %s
+DolishopPsImagesMimeTypesAllowed=<b>Pour les produits :</b> %s
 DolishopPsTaxes=TVA
 
 DolishopCronjob_label=Synchronisation vers Prestashop
