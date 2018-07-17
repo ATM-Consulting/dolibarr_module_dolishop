@@ -13,8 +13,12 @@ ParamLabel=Nom du paramètre
 ParamDesc=Une description si besoin
 ParamHelp=Le contenu de l'aide
 PsProducts=Produits
-PsStock=Stocks
-PsOrders=Commandes
+PsOrdersInvoices=Commandes / Factures
+PsStocks=Stocks
+PsOrderStatesAssociations=Associations des statuts de commande
+PsOrderStatesAssociationsHelp=Ce paramétrage vous permet de définir par statut de commande Prestashop, son équivalent dans Dolibarr<br />Vous pouvez sélectionner plusieurs fois un statut Dolibarr
+DolibarrStatusCommande=Statut commande Dolibarr
+DolishopWorkflowCommande=Actions supplémentaires
 
 DOLISHOP_PS_SHOP_PATH=Adresse URL de votre boutique Prestashop
 
@@ -31,6 +35,8 @@ DOLISHOP_SYNC_PRODUCTS_CATEGORIES=Synchroniser les produits dans la/les catégor
 DOLISHOP_SYNC_PRODUCTS_IMAGES=Activer la synchronisation des images produits
 DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET / PUT / POST</b>
 
+DOLISHOP_SYNC_ORDER=Activer la synchronisation des commandes Prestashop
+DOLISHOP_SYNC_ORDER_DESC=Les ressources <b>orders, order_states</b> doivent être accessibles en <b>GET</b>
 
 DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
 
@@ -49,7 +55,8 @@ DolishopPsImagesMimeTypes=Type d'images autorisées
 DolishopPsImagesMimeTypesAllowed=<b>Pour les produits :</b> %s
 DolishopPsTaxes=TVA
 
-DolishopCronjob_label=Synchronisation vers Prestashop
+DolishopCronjobProducts_label=Synchronisation des produits vers Prestashop
+DolishopCronjobOrders_label=Synchronisation des commandes Prestashop vers Dolibarr
 
 ### MESG WARNING
 DolishopDeletePsProductImagesWarning=Attention : la suppression de votre image sur votre boutique Prestashop a échoué, peut-être que celle-ci a déjà été supprimée

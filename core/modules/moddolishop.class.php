@@ -358,7 +358,7 @@ class moddolishop extends DolibarrModules
 		$cronjob->fetch_all('DESC', 't.rowid', 0, 0, -1, array('objectname' => 'Dolishop', 'methodename' => 'rsync', 'module_name' => 'dolishop', 'entity' => $conf->entity));
 		if (empty($cronjob->lines))
 		{
-			$cronjob->label = $langs->trans('DolishopCronjob_label');
+			$cronjob->label = $langs->trans('DolishopCronjobProducts_label');
 			$cronjob->note = '';
 			$cronjob->jobtype = 'method';
 			$cronjob->frequency = 1;
@@ -366,12 +366,26 @@ class moddolishop extends DolibarrModules
 			$cronjob->status = 0;
 			$cronjob->module_name = 'dolishop';
 			$cronjob->classesname = '/dolishop/class/dolishop.class.php';
-			$cronjob->objectname = 'Dolishop';
+			$cronjob->objectname = '\Dolishop\Dolishop';
 			$cronjob->methodename = 'rsync';
 			$cronjob->params = '';
 			$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
 			$cronjob->create($user);
 		}
+		
+		$cronjob->label = $langs->trans('DolishopCronjobOrders_label');
+		$cronjob->note = '';
+		$cronjob->jobtype = 'method';
+		$cronjob->frequency = 15;
+		$cronjob->unitfrequency = 60;
+		$cronjob->status = 0;
+		$cronjob->module_name = 'dolishop';
+		$cronjob->classesname = '/dolishop/class/dolishop.class.php';
+		$cronjob->objectname = '\Dolishop\Dolishop';
+		$cronjob->methodename = 'rsyncOrders';
+		$cronjob->params = '';
+		$cronjob->datestart = strtotime(date('Y-m-d 12:00:00'));
+		$cronjob->create($user);
 		
 		return $this->_init($sql, $options);
 	}
