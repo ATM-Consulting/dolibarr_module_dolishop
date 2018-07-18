@@ -80,3 +80,6 @@ DolishopDeletePsProductImagesSuccess=Image supprimée de votre boutique Prestash
 DolishopCronjob_SyncProductSuccess=[%s] synchronisé avec l'identifiant Prestashop [%s]
 DolishopCronjob_SyncProductFailUpdateExtrafield=Échec : [%s] => identifiant Prestashop retourné [%s]
 DolishopCronjob_SyncProductError=Erreur : message retour [%s]
+
+DolishopMissingPsOrderStatesConf=Aucune association entre les statuts de commande Prestashop et Dolibarr, configuration à revoir
+DolishopParameterUserIdNotFound=L'identifiant passé en paramètre ne correspond pas à un utilisateur connu ou actif

@@ -78,7 +78,7 @@ class Dolishop
 	{
 		global $conf;
 		
-		$ps_configuration = new \stdClass();
+		if (empty(self::$ps_configuration)) self::$ps_configuration = array();
 		
 		$languages = $this->getAll('languages', array('display' => 'full'));
 		if ($languages && $languages->children()->count() > 0)
@@ -96,7 +96,7 @@ class Dolishop
 				);
 			}
 			
-			$ps_configuration['PS_LANGUAGES'] = $TLang;
+			self::$ps_configuration['PS_LANGUAGES'] = $TLang;
 		}
 		else return false;
 		
@@ -125,31 +125,32 @@ class Dolishop
 				
 			}
 			
-			$ps_configuration['PS_TAXES'] = $TTaxe;
+			self::$ps_configuration['PS_TAXES'] = $TTaxe;
 		}
 		else return false;
 		
 		$images = $this->getAll('images');
 		if ($images && !empty($images->image_types->products->attributes()->upload_allowed_mimetypes))
 		{
-			$ps_configuration['PS_IMAGES_MIME_TYPES'] = new \stdClass();
-			$ps_configuration['PS_IMAGES_MIME_TYPES']->products = explode(', ', $images->image_types->products->attributes()->upload_allowed_mimetypes);
+			self::$ps_configuration['PS_IMAGES_MIME_TYPES'] = array();
+			self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products'] = explode(', ', $images->image_types->products->attributes()->upload_allowed_mimetypes);
 		}
 		else return false;
 		
 		
-		if (!empty($ps_configuration))
+		$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_CONFIGURATION', json_encode(self::$ps_configuration));
+		if ($res > 0)
 		{
-			$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_CONFIGURATION', json_encode($ps_configuration));
-			if ($res > 0)
-			{
-				self::$ps_configuration = json_decode($conf->global->DOLISHOP_PS_CONFIGURATION, true);
-				return true;
-			}
-			else $this->errors[] = $this->db->lasterror();
+			self::$ps_configuration = json_decode($conf->global->DOLISHOP_PS_CONFIGURATION, true);
+			return true;
+		}
+		else
+		{
+			$this->errors[] = $this->db->lasterror();
+			return false;
 		}
 		
-		return false;
+		return true;
 	}
 	
 	
@@ -192,23 +193,128 @@ class Dolishop
 	}
 	
 	
-	public function rsyncOrders()
+	public function rsyncOrders($fk_user=0)
 	{
+		global $langs,$user;
+		
 		$this->from_cron_job = true;
 		
-		$orders = $this->getAll('orders', array());
-		if ($orders)
+		if ($fk_user > 0)
 		{
-//			foreach ($orders->children() as $order)
-//			{
-//				$this->debugXml($order);
-//			}
-//			var_dump($xml);exit;
-			
-//			exit;
+			$user = new \User($this->db);
+			if ($user->fetch($fk_user) <= 0 || $user->statut == 0)
+			{
+				$this->output = $langs->trans('DolishopParameterUserIdNotFound');
+				return 1;
+			}
+			$user->getrights();
 		}
 		
-		return 1;
+		if (empty(self::$ps_configuration['PS_ORDER_STATES']))
+		{
+			$this->output = $langs->trans('DolishopMissingPsOrderStatesConf');
+			return 1;
+		}
+		
+		require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
+//		var_dump(self::$ps_configuration['PS_ORDER_STATES'], array_keys(self::$ps_configuration['PS_ORDER_STATES']));
+//		exit;
+//		$s = $this->getSchema('orders');
+//		var_dump($s->children()->children()->current_state);exit;
+		$ids = implode('|', array_keys(self::$ps_configuration['PS_ORDER_STATES']));
+		$ps_orders = $this->getAll('orders', array('filter[current_state]' => '['.$ids.']', 'sort' => 'id_DESC'));
+		if ($ps_orders)
+		{
+			foreach ($ps_orders->children() as $ps_order)
+			{
+				if ($ps_order->reference != 'QGPYHNYGB') continue; // TODO REMOVE
+				$this->createDolOrder($ps_order);
+
+			}
+			
+		}
+		$this->output='OK';
+		return 0;
+	}
+	
+	
+	public function createDolOrder($ps_order)
+	{
+		global $user;
+		
+		$commande = new \Commande($this->db);
+//		$commande->ref_ext = $ps_order->reference;
+		$commande->ref_client = $ps_order->reference;
+		$commande->socid = DolishopTools::getSociete($ps_order->id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
+		
+//		var_dump($ps_order->date_add, $commande->fk_soc);exit;
+		
+		$commande->date_commande = strtotime($ps_order->date_add);
+		$commande->note_private = ''; // TODO à voir avec la ressource "messages"
+		$commande->note_public = '';
+		
+//		$commande->cond_reglement_id = GETPOST('cond_reglement_id');
+//		$commande->mode_reglement_id = GETPOST('mode_reglement_id');
+//		$commande->fk_account = GETPOST('fk_account', 'int'); // TODO peut être une conf global
+//		$commande->availability_id = GETPOST('availability_id'); // Delai de livraison
+//		$commande->demand_reason_id = GETPOST('demand_reason_id'); // Channel => dictionnaire llx_c_input_reason (Origines des propales/commandes)
+		
+		if ($ps_order->delivery_date > '1000-00-00 00:00:00') $commande->date_livraison = strtotime($ps_order->delivery_date);
+		
+//		$commande->shipping_method_id = GETPOST('shipping_method_id', 'int');
+//		$commande->warehouse_id = GETPOST('warehouse_id', 'int'); // TODO conf global ? ->id_warehouse
+//		$commande->fk_delivery_address = GETPOST('fk_address');
+//		$commande->contactid = GETPOST('contactid');
+		
+//		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
+		$commande->multicurrency_tx = $ps_order->conversion_rate;
+		
+		$r=$commande->create($user); // TODO gestion d'erreur à faire
+//		var_dump($r,$commande->db);exit;
+		$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.$ps_order->id.']'));
+//		$this->debugXml($order_details);
+//		var_dump($order_details->children()->children()->associations->taxes->tax);
+//		exit;
+//		$this->debugXml($order_details);
+		foreach ($order_details->children() as $order_detail)
+		{
+			
+//			var_dump($order_detail);exit;
+			$fk_product = DolishopTools::getProduct($order_detail->product_id, $order_detail->product_reference, $order_detail->id_shop); // TOTO si pas d'id en retour alors ce sera une ligne libre
+			if ($fk_product > 0) $desc = '';
+			else $desc = $order_detail->product_name;
+			
+			$r=$commande->addline(
+				$desc
+				,$order_detail->unit_price_tax_excl
+				,$order_detail->product_quantity
+				,$order_detail->carrier_tax_rate
+				,0 // $txlocaltax1
+				,0 // $txlocaltax2
+				,$fk_product
+				,0 // $remise_percent
+				,0 // $info_bits
+				,0 // $fk_remise_except
+				,'HT'
+				,0 // PU TTC
+				,'' // date_start
+				,'' // date_end
+				,0 // type
+				,-1 // rang
+				,0
+				,0
+				,null
+				,0 // pa_ht
+				,'' // label
+				,array() // array_options
+			);
+//			var_dump($r,$commande->db);exit;
+		}
+		
+		
+//		$this->debugXml($ps_order);
+//		exit;
+		
 	}
 	
 	
@@ -234,6 +340,9 @@ class Dolishop
 		}
 		
 		// TODO ... à venir
+		
+		
+		return 0;
 	}
 	
 	/**
@@ -378,9 +487,9 @@ class Dolishop
 				preg_match('/.*\_(trunc)$/', $dol_index, $reg);
 				foreach ($ps_product->{$nodeKey}->children() as $language)
 				{
-					if (!empty(self::$ps_configuration['PS_LANGUAGES'][$language->attributes()->id]))
+					if (!empty(self::$ps_configuration['PS_LANGUAGES'][(int) $language->attributes()->id]))
 					{
-						$dol_iso_code = self::$ps_configuration['PS_LANGUAGES'][$language->attributes()->id]['dol_iso_code'];
+						$dol_iso_code = self::$ps_configuration['PS_LANGUAGES'][(int) $language->attributes()->id]['dol_iso_code'];
 						if (!empty($dol_product->multilangs[$dol_iso_code]))
 						{
 							if (empty($reg)) $language[0] = $dol_product->multilangs[$dol_iso_code][$dol_index];
@@ -389,7 +498,6 @@ class Dolishop
 						}
 					}
 				}
-				
 			}
 		}
 		else
@@ -905,4 +1013,36 @@ class EcmFilesDolishop extends \SeedObject
 		
 	}
 	
+}
+
+
+class DolishopTools
+{
+	public static function getSociete($ps_id_customer, $only_fk_soc=true)
+	{
+		// TODO à contruire lorsque la synchro client sera faite
+		
+		return 7; // id d'un client existant en base TODO REMOVE
+	}
+	
+	public static function getVatRate($id_tax=0, $id_tax_rules_group=0)
+	{
+		if (($id_tax == 0 && $id_tax_rules_group == 0) || empty(\Dolishop\Dolishop::$ps_configuration['PS_TAXES'])) return 0;
+		
+		foreach (\Dolishop\Dolishop::$ps_configuration['PS_TAXES'] as $rate => $Tab)
+		{
+			if ($id_tax > 1) {
+				if (in_array($id_tax_rules_group, $Tab['TId_tax_rules_group'])) return $rate;
+			} else {
+				if (in_array($id_tax_rules_group, $Tab['TId_tax'])) return $rate;
+			}
+		}
+	}
+	
+	public static function getProduct($id_product, $product_reference='', $id_shop=0)
+	{
+		// TODO sql pour rechercher sur l'extrafield ps_id_product, ou sur la reference (id_shop servira pour le filtrage d'entité)
+		
+		return 17; // id produit existant en base pour test TODO REMOVE
+	}
 }

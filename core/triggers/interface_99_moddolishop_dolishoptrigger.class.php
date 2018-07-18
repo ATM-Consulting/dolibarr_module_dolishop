@@ -118,7 +118,7 @@ class InterfaceDolishoptrigger
         // Data and type of action are stored into $object and $action
         // Users
 		
-		if ($action == 'PRODUCT_CREATE' || $action == 'PRODUCT_MODIFY' || $action == 'PRODUCT_SET_MULTILANGS')
+		if ($action == 'PRODUCT_CREATE' || $action == 'PRODUCT_MODIFY' || ($action == 'PRODUCT_SET_MULTILANGS' && GETPOST('action') == 'vedit') )
 		{
             dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
 			
@@ -129,7 +129,7 @@ class InterfaceDolishoptrigger
 			$TCategory = GETPOST('categories');
 			if (
 				( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES)) )
-				|| $dolishop->checkProductCategories($object->id)
+				|| ( empty($TCategory) && $dolishop->checkProductCategories($object->id) )
 			) {
 				$dolishop->rsyncProducts(array($object->id));
 				if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
