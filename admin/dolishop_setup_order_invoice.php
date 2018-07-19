@@ -163,6 +163,20 @@ print ajax_constantonoff('DOLISHOP_SYNC_ORDER');
 print '</form></div>';
 print '</td></tr>';
 
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE">';
+$form->select_produits($conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE, 'DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE', '', 20, 0, 1, 2, '', 1);
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form></div>';
+print '</td></tr>';
+
 
 
 print '</table>';

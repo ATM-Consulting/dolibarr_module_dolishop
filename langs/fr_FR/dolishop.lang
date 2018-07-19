@@ -37,6 +37,7 @@ DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessi
 
 DOLISHOP_SYNC_ORDER=Activer la synchronisation des commandes Prestashop
 DOLISHOP_SYNC_ORDER_DESC=Les ressources <b>orders, order_states</b> doivent être accessibles en <b>GET</b>
+DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE=Produit/Service à utiliser pour les frais de livraison (si vide, alors une ligne libre sera ajoutée)
 
 DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
 
@@ -55,8 +56,9 @@ DolishopPsImagesMimeTypes=Type d'images autorisées
 DolishopPsImagesMimeTypesAllowed=<b>Pour les produits :</b> %s
 DolishopPsTaxes=TVA
 
-DolishopCronjobProducts_label=Synchronisation des produits vers Prestashop
-DolishopCronjobOrders_label=Synchronisation des commandes Prestashop vers Dolibarr
+DolishopCronjobProducts_label=[DOLISHOP] Synchronisation des produits vers Prestashop
+DolishopCronjobOrders_label=[DOLISHOP] Synchronisation des commandes Prestashop vers Dolibarr
+DolishopCronjobOrders_desc=Il est possible de passer jusqu'à 3 paramètres ($fk_user=0, $minutes=30, $date_min='')\n - fk_user => pour la création des commandes (attention, il doit avoir les droits nécessaires)\n - minutes => chaque exécution ira chercher les commandes des 30 dernières minutes par défaut\n - date_min => une date au format YYYY-MM-DD HH-mm-ss pour remonter les commandes depuis cette date
 
 ### MESG WARNING
 DolishopDeletePsProductImagesWarning=Attention : la suppression de votre image sur votre boutique Prestashop a échoué, peut-être que celle-ci a déjà été supprimée
@@ -83,3 +85,7 @@ DolishopCronjob_SyncProductError=Erreur : message retour [%s]
 
 DolishopMissingPsOrderStatesConf=Aucune association entre les statuts de commande Prestashop et Dolibarr, configuration à revoir
 DolishopParameterUserIdNotFound=L'identifiant passé en paramètre ne correspond pas à un utilisateur connu ou actif
+DolishopParameterDateWithWrongFormat=Le paramètre date n'a pas le bon format [Y-m-d H:i:s] (exemple : 2018-07-19 12:30:00)
+DolishopErrorOrderCreate=Erreur : impossible de créer la commande %s (message = %s)
+DolishopNewOrderCreated=Nouvelle commande %s créée portant la référence Prestashop %s
+DolishopShippingCosts=Frais d'expédition

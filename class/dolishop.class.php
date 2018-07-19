@@ -193,7 +193,7 @@ class Dolishop
 	}
 	
 	
-	public function rsyncOrders($fk_user=0)
+	public function rsyncOrders($fk_user=0, $minutes=30, $date_min='')
 	{
 		global $langs,$user;
 		
@@ -216,38 +216,51 @@ class Dolishop
 			return 1;
 		}
 		
+		if (!empty($date_min))
+		{
+			if (!\DateTime::createFromFormat("Y-m-d H:i:s", $date_min))
+			{
+				$this->output = $langs->trans('DolishopParameterDateWithWrongFormat');
+				return 1;
+			}
+		}
+		else
+		{
+			// Autremement de récupère uniquement les commandes de la demi heure passée
+			if (!is_numeric($minutes)) $minutes = 30;
+			$date_min = date('Y-m-d H:i:s', strtotime('-'.$minutes.' minutes'));
+		}
+		
 		require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
-//		var_dump(self::$ps_configuration['PS_ORDER_STATES'], array_keys(self::$ps_configuration['PS_ORDER_STATES']));
-//		exit;
-//		$s = $this->getSchema('orders');
-//		var_dump($s->children()->children()->current_state);exit;
+		
+		$now = date('Y-m-d H:i:s');
 		$ids = implode('|', array_keys(self::$ps_configuration['PS_ORDER_STATES']));
-		$ps_orders = $this->getAll('orders', array('filter[current_state]' => '['.$ids.']', 'sort' => 'id_DESC'));
+		
+		$ps_orders = $this->getAll('orders', array('filter[current_state]' => '['.$ids.']', 'sort' => 'id_DESC', 'date'=>1, 'filter[date_add]' => '['.$date_min.','.$now.']'));
 		if ($ps_orders)
 		{
 			foreach ($ps_orders->children() as $ps_order)
 			{
-				if ($ps_order->reference != 'QGPYHNYGB') continue; // TODO REMOVE
-				$this->createDolOrder($ps_order);
-
+				if (!DolishopTools::checkOrderExist($ps_order->reference))
+				{
+					$this->createDolOrder($ps_order);
+				}
 			}
 			
 		}
-		$this->output='OK';
+		
+		$this->output.='FIN';
 		return 0;
 	}
 	
 	
 	public function createDolOrder($ps_order)
 	{
-		global $user;
+		global $user,$langs,$conf;
 		
 		$commande = new \Commande($this->db);
-//		$commande->ref_ext = $ps_order->reference;
 		$commande->ref_client = $ps_order->reference;
 		$commande->socid = DolishopTools::getSociete($ps_order->id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
-		
-//		var_dump($ps_order->date_add, $commande->fk_soc);exit;
 		
 		$commande->date_commande = strtotime($ps_order->date_add);
 		$commande->note_private = ''; // TODO à voir avec la ressource "messages"
@@ -268,27 +281,32 @@ class Dolishop
 		
 //		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
 		$commande->multicurrency_tx = $ps_order->conversion_rate;
+//$this->db->begin();
+		if ($commande->create($user) < 0) // TODO gestion d'erreur à faire
+		{
+			$this->errors[] = $langs->trans('DolishopErrorOrderCreate', $ps_order->reference, $commande->db->lasterror());
+			return -1;
+		}
 		
-		$r=$commande->create($user); // TODO gestion d'erreur à faire
-//		var_dump($r,$commande->db);exit;
+		$this->output.= $langs->trans('DolishopNewOrderCreated', $commande->ref, $commande->ref_client)."\n";
+		
 		$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.$ps_order->id.']'));
-//		$this->debugXml($order_details);
-//		var_dump($order_details->children()->children()->associations->taxes->tax);
-//		exit;
-//		$this->debugXml($order_details);
 		foreach ($order_details->children() as $order_detail)
 		{
-			
-//			var_dump($order_detail);exit;
 			$fk_product = DolishopTools::getProduct($order_detail->product_id, $order_detail->product_reference, $order_detail->id_shop); // TOTO si pas d'id en retour alors ce sera une ligne libre
 			if ($fk_product > 0) $desc = '';
 			else $desc = $order_detail->product_name;
+			
+//			var_dump($order_detail->id_tax_rules_group);exit;
+//			$id_tax = !empty($order_detail->associations->taxes->tax->id) ? (int) $order_detail->associations->taxes->tax->id : 0;
+//			$id_tax_rules_group = !empty($order_detail->associations->taxes->tax->id) ? (int) $order_detail->associations->taxes->tax->id : 0;
+			
 			
 			$r=$commande->addline(
 				$desc
 				,$order_detail->unit_price_tax_excl
 				,$order_detail->product_quantity
-				,$order_detail->carrier_tax_rate
+				,DolishopTools::getVatRate((int) $order_detail->associations->taxes->tax->id)
 				,0 // $txlocaltax1
 				,0 // $txlocaltax2
 				,$fk_product
@@ -308,12 +326,23 @@ class Dolishop
 				,'' // label
 				,array() // array_options
 			);
-//			var_dump($r,$commande->db);exit;
+			
 		}
 		
-		
-//		$this->debugXml($ps_order);
-//		exit;
+		if (!empty($ps_order->total_shipping))
+		{
+			$fk_product = !empty($conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE) ? $conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE : 0;
+			$desc = ($fk_product > 0) ? '' : $langs->trans('DolishopShippingCosts');
+			$r=$commande->addline(
+				$desc
+				,$ps_order->total_shipping_tax_excl
+				,1
+				,$ps_order->carrier_tax_rate
+				,0 // $txlocaltax1
+				,0 // $txlocaltax2
+				,$fk_product
+			);
+		}
 		
 	}
 	
@@ -842,7 +871,9 @@ class Dolishop
 		if ($trace[0]['args'][0] == 404) $this->error = $langs->trans('DolishopErrorWs404');
 		else if ($trace[0]['args'][0] == 401) $this->error = $langs->trans('DolishopErrorWsBadAuthKey');
 		else $this->error = $langs->trans('DolishopErrorWsUnknown', $e->getMessage());
-
+		
+		var_dump($this->result_xml, true);
+		exit;
 		$this->errors[] = $this->error;
 		
 		return true;
@@ -1031,18 +1062,44 @@ class DolishopTools
 		
 		foreach (\Dolishop\Dolishop::$ps_configuration['PS_TAXES'] as $rate => $Tab)
 		{
-			if ($id_tax > 1) {
-				if (in_array($id_tax_rules_group, $Tab['TId_tax_rules_group'])) return $rate;
+			if ($id_tax > 0) {
+				if (in_array($id_tax, $Tab['TId_tax_rules_group'])) return $rate;
 			} else {
 				if (in_array($id_tax_rules_group, $Tab['TId_tax'])) return $rate;
 			}
 		}
 	}
 	
-	public static function getProduct($id_product, $product_reference='', $id_shop=0)
+	public static function getProduct($ps_id_product, $ps_product_reference='', $ps_id_shop=0)
 	{
+		global $db;
 		// TODO sql pour rechercher sur l'extrafield ps_id_product, ou sur la reference (id_shop servira pour le filtrage d'entité)
 		
-		return 17; // id produit existant en base pour test TODO REMOVE
+		$sql = 'SELECT p.rowid FROM '.MAIN_DB_PREFIX.'product p INNER JOIN '.MAIN_DB_PREFIX.'product_extrafields pe ON (pe.fk_object = p.rowid)';
+		$sql.= ' WHERE 1';
+		$sql.= ' AND pe.ps_id_product = '.$ps_id_product.' OR p.ref = \''.$db->escape($ps_product_reference).'\'';
+		
+		$resql = $db->query($sql);
+		if ($resql)
+		{
+			$obj = $db->fetch_object($resql);
+			if (!empty($obj->rowid)) return $obj->rowid;
+		}
+		else exit($db->lasterror());
+		
+		return 0;
+//		return 17; // id produit existant en base pour test TODO REMOVE
+	}
+	
+	public function checkOrderExist($ps_order_reference, $ps_id_shop=0)
+	{
+		global $db;
+		
+		$resql = $db->query('SELECT rowid FROM '.MAIN_DB_PREFIX.'commande WHERE ref_client = \''.$db->escape($ps_order_reference).'\'');
+		if ($resql)
+		{
+			return $db->num_rows($resql);
+		}
+		else exit($db->lasterror());
 	}
 }

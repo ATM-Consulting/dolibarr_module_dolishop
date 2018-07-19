@@ -374,7 +374,7 @@ class moddolishop extends DolibarrModules
 		}
 		
 		$cronjob->label = $langs->trans('DolishopCronjobOrders_label');
-		$cronjob->note = '';
+		$cronjob->note = $langs->trans('DolishopCronjobOrders_desc');;
 		$cronjob->jobtype = 'method';
 		$cronjob->frequency = 15;
 		$cronjob->unitfrequency = 60;
