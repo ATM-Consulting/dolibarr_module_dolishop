@@ -258,6 +258,13 @@ class Dolishop
 	{
 		global $user,$langs,$conf;
 		
+		$current_state = (int) $ps_order->current_state;
+		if (empty(self::$ps_configuration['PS_ORDER_STATES'][$current_state])) return 0;
+		
+		$error = 0;
+		
+		$this->db->begin();
+		
 		$commande = new \Commande($this->db);
 		$commande->ref_client = $ps_order->reference;
 		$commande->socid = DolishopTools::getSociete($ps_order->id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
@@ -281,9 +288,10 @@ class Dolishop
 		
 //		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
 		$commande->multicurrency_tx = $ps_order->conversion_rate;
-//$this->db->begin();
+		
 		if ($commande->create($user) < 0) // TODO gestion d'erreur à faire
 		{
+			$error++;
 			$this->errors[] = $langs->trans('DolishopErrorOrderCreate', $ps_order->reference, $commande->db->lasterror());
 			return -1;
 		}
@@ -294,13 +302,13 @@ class Dolishop
 		foreach ($order_details->children() as $order_detail)
 		{
 			$fk_product = DolishopTools::getProduct($order_detail->product_id, $order_detail->product_reference, $order_detail->id_shop); // TOTO si pas d'id en retour alors ce sera une ligne libre
+			if (!empty($conf->global->DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS))
+			{
+				$TProductId = $this->createProductFromPsProductId(array($order_detail->product_id));
+				$fk_product = array_pop($TProductId);
+			}
 			if ($fk_product > 0) $desc = '';
 			else $desc = $order_detail->product_name;
-			
-//			var_dump($order_detail->id_tax_rules_group);exit;
-//			$id_tax = !empty($order_detail->associations->taxes->tax->id) ? (int) $order_detail->associations->taxes->tax->id : 0;
-//			$id_tax_rules_group = !empty($order_detail->associations->taxes->tax->id) ? (int) $order_detail->associations->taxes->tax->id : 0;
-			
 			
 			$r=$commande->addline(
 				$desc
@@ -326,7 +334,7 @@ class Dolishop
 				,'' // label
 				,array() // array_options
 			);
-			
+			if ($r < 0) $error++;
 		}
 		
 		if (!empty($ps_order->total_shipping))
@@ -342,11 +350,114 @@ class Dolishop
 				,0 // $txlocaltax2
 				,$fk_product
 			);
+			if ($r < 0) $error++;
+		}
+		
+		// TODO gestion d'erreur
+		$this->setOrderState($commande, $current_state);
+		
+		if ($error)
+		{
+			$this->db->rollback();
+			return -1;
+		}
+		
+		$this->db->commit();
+		return $commande->id;
+	}
+	
+	private function setOrderState(Commande &$commande, $current_state)
+	{
+		global $user;
+		
+		$dol_status_const = self::$ps_configuration['PS_ORDER_STATES'][$current_state]['dol_status_const'];
+		
+		switch ($dol_status_const) {
+			case 'STATUS_CANCELED': // -1
+				$commande->valid($user);
+				$commande->cancel();
+				break;
+			case 'STATUS_DRAFT': // 0
+				// nothing to do
+				break;
+			case 'STATUS_VALIDATED': // 1
+				$commande->valid($user);
+				break;
+			case 'STATUS_ACCEPTED': // 2
+			case 'STATUS_SHIPMENTONPROCESS': // 2
+				$commande->valid($user);
+				// TODO créer une expédition => passera le statut de la commande à 2
+				// ...
+				break;
+			case 'STATUS_CLOSED': // 3
+				$commande->valid($user);
+				// TODO créer une expédition
+				// ...
+				// TODO classer livrée => passera le statut à 3
+				$commande->cloture($user);
+				break;
 		}
 		
 	}
 	
-	
+	private function createProductFromPsProductId($TPsProductId)
+	{
+		global $user,$conf,$langs;
+		
+		$TProductId = array();
+		$ps_products = $this->getAll('products', array('filter[id]'=> '['.implode('|', $TPsProductId).']'));
+		if ($ps_products)
+		{
+			$default_iso_code = $langs->getDefaultLang();
+			
+			foreach ($ps_products->children() as $ps_product)
+			{
+				$dol_product = new \Product($this->db);
+				$dol_product->ref = $ps_product->reference;
+				
+				if (!empty($conf->global->MAIN_MULTILANGS) && !empty(self::$ps_configuration['PS_LANGUAGES']))
+				{
+					$TProperty = array('name' => 'label', 'description' => 'description');
+					foreach ($TProperty as $nodeKey => $dol_index)
+					{
+						foreach ($ps_product->{$nodeKey}->children() as $language)
+						{
+							if (!empty(self::$ps_configuration['PS_LANGUAGES'][(int) $language->attributes()->id]))
+							{
+								$dol_iso_code = self::$ps_configuration['PS_LANGUAGES'][(int) $language->attributes()->id]['dol_iso_code'];
+								if ($dol_iso_code == $default_iso_code) $dol_product->{$dol_index} = $language[0]->__toString();
+								if (empty($dol_product->multilangs[$dol_iso_code])) $dol_product->multilangs[$dol_iso_code] = array('other'=>'');
+								$dol_product->multilangs[$dol_iso_code][$dol_index] = $language[0]->__toString();
+							}
+						}
+					}
+				}
+				else
+				{
+					$dol_product->label = $ps_product->name->language[0]->__toString();
+					$dol_product->description = $ps_product->description->language[0]->__toString();
+				}
+				
+				$dol_product->price=$ps_product->price;
+				$dol_product->tva_tx = DolishopTools::getVatRate(0, $ps_product->id_tax_rules_group);
+				$dol_product->status = $ps_product->active;
+				$dol_product->seuil_stock_alerte = $ps_product->low_stock_threshold;
+				
+				$fk_product=$dol_product->create($user);
+				if ($fk_product < 0)
+				{
+					$this->error = $dol_product->error;
+					$this->errors[] = $this->error;
+				}
+				
+				$TProductId[] = $fk_product;
+			}
+		}
+		
+		return $TProductId;
+	}
+
+
 	/**
 	 * Synchronise les objets vers Prestashop
 	 * Méthode utilisée par la tâche cron déclarée dans Dolibarr à l'activation du module
