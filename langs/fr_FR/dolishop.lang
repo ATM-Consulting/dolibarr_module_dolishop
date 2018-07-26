@@ -40,6 +40,7 @@ DOLISHOP_SYNC_ORDER_DESC=Les ressources <b>orders, order_states</b> doivent êtr
 DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE=Produit/Service à utiliser pour les frais de livraison (si vide, alors une ligne libre sera ajoutée)
 DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS=Créer une fiche produit dans Dolibarr plutôt que de créer une ligne libre lors de la récupération de la commande
 DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET</b>
+DOLISHOP_DEFAULT_ID_WAREHOUSE=Entrepôt par défaut à utiliser pour les commandes impliquant la création d'une expédition
 
 DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
 

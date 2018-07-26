@@ -353,6 +353,8 @@ class Dolishop
 			if ($r < 0) $error++;
 		}
 		
+		
+//		$this->debugXml($ps_order);
 		// TODO gestion d'erreur
 		$this->setOrderState($commande, $current_state);
 		
@@ -363,10 +365,13 @@ class Dolishop
 		}
 		
 		$this->db->commit();
+// TODO REMOVE
+//exit;
+		
 		return $commande->id;
 	}
 	
-	private function setOrderState(Commande &$commande, $current_state)
+	private function setOrderState(\Commande &$commande, $current_state)
 	{
 		global $user;
 		
@@ -388,6 +393,10 @@ class Dolishop
 				$commande->valid($user);
 				// TODO créer une expédition => passera le statut de la commande à 2
 				// ...
+				
+//				$this->createExpedition($commande);
+				
+				
 				break;
 			case 'STATUS_CLOSED': // 3
 				$commande->valid($user);
@@ -398,6 +407,50 @@ class Dolishop
 				break;
 		}
 		
+	}
+	
+	
+	private function createExpedition(\Commande &$commande)
+	{
+		global $conf;
+		
+		if (empty($conf->global->DOLISHOP_DEFAULT_ID_WAREHOUSE) || $conf->global->DOLISHOP_DEFAULT_ID_WAREHOUSE <= 0) return 0;
+		
+		$expedition = new \Expedition($this->db);
+		
+//		$expedition->note				= GETPOST('note','alpha');
+		$expedition->origin				= $commande->element;
+		$expedition->origin_id			= $commande->id;
+//		$expedition->fk_project         = GETPOST('projectid','int');
+//		$expedition->weight				= GETPOST('weight','int')==''?"NULL":GETPOST('weight','int');
+//		$expedition->sizeH				= GETPOST('sizeH','int')==''?"NULL":GETPOST('sizeH','int');
+//		$expedition->sizeW				= GETPOST('sizeW','int')==''?"NULL":GETPOST('sizeW','int');
+//		$expedition->sizeS				= GETPOST('sizeS','int')==''?"NULL":GETPOST('sizeS','int');
+//		$expedition->size_units			= GETPOST('size_units','int');
+//		$expedition->weight_units		= GETPOST('weight_units','int');
+//
+//		$date_delivery = dol_mktime(GETPOST('date_deliveryhour','int'), GETPOST('date_deliverymin','int'), 0, GETPOST('date_deliverymonth','int'), GETPOST('date_deliveryday','int'), GETPOST('date_deliveryyear','int'));
+//
+//		$expedition->socid					= $commande->socid;
+//		$expedition->ref_customer			= GETPOST('ref_customer','alpha');
+//		$expedition->model_pdf				= GETPOST('model');
+//		$expedition->date_delivery			= $date_delivery;	    // Date delivery planed
+//		$expedition->fk_delivery_address	= $commande->fk_delivery_address;
+//		$expedition->shipping_method_id		= GETPOST('shipping_method_id','int');
+//		$expedition->tracking_number		= GETPOST('tracking_number','alpha');
+//		$expedition->ref_int				= GETPOST('ref_int','alpha');
+//		$expedition->note_private			= GETPOST('note_private','none');
+//		$expedition->note_public			= GETPOST('note_public','none');
+//		$expedition->fk_incoterms 			= GETPOST('incoterm_id', 'int');
+//		$expedition->location_incoterms 	= GETPOST('location_incoterms', 'alpha');
+		
+		exit;
+		
+		$entrepot_id = $conf->global->DOLISHOP_DEFAULT_ID_WAREHOUSE;
+		foreach ($commande->lines as &$line)
+		{
+			if (!empty($line->fk_product)) $expedition->addline($entrepot_id, $line->id, $line->qty);
+		}
 	}
 	
 	private function createProductFromPsProductId($TPsProductId)

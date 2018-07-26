@@ -36,6 +36,7 @@ require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 dol_include_once('/dolishop/lib/dolishop.lib.php');
 dol_include_once('/dolishop/class/dolishop.class.php');
 require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
+require_once DOL_DOCUMENT_ROOT.'/product/class/html.formproduct.class.php';
 
 // Translations
 $langs->load('admin');
@@ -143,6 +144,7 @@ $img_warning = img_warning().' ';
 
 // Setup page goes here
 $form=new Form($db);
+$formproduct = new FormProduct($db);
 
 print '<table class="noborder" width="100%">';
 
@@ -189,6 +191,20 @@ print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS">';
 print ajax_constantonoff('DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS');
 print '</form></div>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_DEFAULT_ID_WAREHOUSE');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_DEFAULT_ID_WAREHOUSE">';
+print $formproduct->selectWarehouses($conf->global->DOLISHOP_DEFAULT_ID_WAREHOUSE, 'DOLISHOP_DEFAULT_ID_WAREHOUSE', '', 1, 0, 0, '', 0, 0, array(), 'minwidth200');
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
 print '</td></tr>';
 
 
