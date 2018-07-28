@@ -80,7 +80,7 @@ class Actionsdolishop
 		global $langs,$conf;
 		
 		$TContext = explode(':', $parameters['context']);
-		if (in_array('productdocuments', $TContext) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES))
+		if (in_array('productdocuments', $TContext) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES))
 		{
 			if (is_object($object) && empty($object->array_options)) $object->fetch_optionals();
 			if (!empty($object->array_options['options_ps_id_product']))
@@ -120,7 +120,7 @@ class Actionsdolishop
 		{
 			// Obligé de gérer ça ici, pas de doActions :'(
 			// Vivement que ce soit gérable via la class EcmFiles avec des triggers du style : CREATE_ECM_FILE / MODIFY_ECM_FILE / DELETE_ECM_FILE
-			if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES) && GETPOST('sendit'))
+			if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES) && GETPOST('sendit'))
 			{
 				global $upload_dir, $upload_dirold;
 				
@@ -129,10 +129,13 @@ class Actionsdolishop
 				if (!is_array($TFileName)) $TFileName = array($TFileName);
 				
 				dol_include_once('/dolishop/class/webservice.class.php');
-				$dolishop = new \Dolishop\Webservice($this->db);
-				$dolishop->saveImages($object, $TFileName, $dir);
-				if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
-				else setEventMessage($langs->trans('DolishopAddPsProductImagesSuccess'));
+				if (DolishopTools::checkProductCategories($dol_product->id))
+				{
+					$dolishop = new \Dolishop\Webservice($this->db);
+					$dolishop->saveImages($object, $TFileName, $dir);
+					if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
+					else setEventMessage($langs->trans('DolishopAddPsProductImagesSuccess'));
+				}
 			}
 			
 		}

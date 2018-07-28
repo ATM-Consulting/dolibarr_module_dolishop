@@ -119,22 +119,26 @@ class InterfaceDolishoptrigger
         // Data and type of action are stored into $object and $action
         // Users
 		
+		// TODO voir si je retire l'automatisation de la synchro pour le faire via un bouton sur la fiche produit
 		if ($action == 'PRODUCT_CREATE' || $action == 'PRODUCT_MODIFY' || ($action == 'PRODUCT_SET_MULTILANGS' && GETPOST('action') == 'vedit') )
 		{
-            dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
-			
-			dol_include_once('/dolishop/class/webservice.class.php');
-			$dolishop = new Dolishop\Webservice($db);
-			
-			// Si je proviens du formulaire de création/édition
-			$TCategory = GETPOST('categories');
-			if (
-				( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES)) )
-				|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategories($object->id) )
-			) {
-				$dolishop->updateWebProducts(array($object->id));
-				if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
-				else setEventMessage($langs->trans('DolishopSyncPsProductSuccess'));
+			if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS))
+			{
+				dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
+
+				dol_include_once('/dolishop/class/webservice.class.php');
+				$dolishop = new Dolishop\Webservice($db);
+
+				// Si je proviens du formulaire de création/édition
+				$TCategory = GETPOST('categories');
+				if (
+					( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES)) )
+					|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategories($object->id) )
+				) {
+					$dolishop->updateWebProducts(array($object->id));
+					if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
+					else setEventMessage($langs->trans('DolishopSyncPsProductSuccess'));
+				}
 			}
 		}
 		

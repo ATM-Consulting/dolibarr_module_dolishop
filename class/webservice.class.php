@@ -53,7 +53,7 @@ class Webservice
 	public $schema_products_blank;
 	public $schema_products_synopsis;
 	
-	public $TProductCategoryIdSync = array();
+	public static $TProductCategoryIdSync = array();
 
 	public function __construct($db)
 	{
@@ -66,7 +66,7 @@ class Webservice
 		$this->key = $conf->global->DOLISHOP_PS_WS_AUTH_KEY;
 		$this->debug = (bool) $conf->global->DOLISHOP_PS_WS_DEBUG;
 		
-		$this->TProductCategoryIdSync = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES);
+		self::$TProductCategoryIdSync = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES);
 		if (!empty($conf->global->DOLISHOP_API_NAME)) $this->api_name = $conf->global->DOLISHOP_API_NAME;
 		
 		switch ($this->api_name) {
@@ -243,7 +243,7 @@ class Webservice
 	 * @param int		$id_image		id image pour un update
 	 * @return \SimpleXMLElement | boolean
 	 */
-	public function postImage($image_path, $resource_name, $id_resource, $id_image=0)
+	private function postImage($image_path, $resource_name, $id_resource, $id_image=0)
 	{
 		global $langs;
 		
@@ -297,10 +297,7 @@ class Webservice
 	{
 		global $user;
 		
-		if (
-			empty(self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products']) 
-			|| !DolishopTools::checkProductCategories($dol_product->id)
-		) return 0;
+		if (empty(self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products'])) return 0;
 		
 		foreach ($TFileName as $name)
 		{
@@ -312,17 +309,19 @@ class Webservice
 			{
 				$ecm = new EcmFilesDolishop($this->db);
 				$ecm->fetchByFileNamePath($filename, $dol_product->ref);
-
+				
 				$result = $this->postImage($image_path, 'products', $dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
-				if ($result === false) return -1;
-				else
+				if ($result === false)
 				{
-					$ps_id_image_return = (int) $result->image->id;
-					if ($ecm->id > 0 && $ps_id_image_return != $ecm->ps_id_image)
-					{
-						$ecm->ps_id_image = $ps_id_image_return;
-						$ecm->update($user);
-					}
+					if ($ecm->ps_id_image > 0) $result = $result = $this->postImage($image_path, 'products', $dol_product->array_options['options_ps_id_product']);
+					if ($result === false) return -1;
+				}
+				
+				$ps_id_image_return = (int) $result->image->id;
+				if ($ecm->id > 0 && $ps_id_image_return != $ecm->ps_id_image)
+				{
+					$ecm->ps_id_image = $ps_id_image_return;
+					$ecm->update($user);
 				}
 			}
 		}
@@ -463,9 +462,9 @@ class Webservice
 	 * 
 	 * @global Conf $conf
 	 */
-	public function rsyncProducts($fk_user, $direction)
+	public function rsyncProducts($fk_user, $direction, $sync_images=false)
 	{
-		global $conf;
+		global $conf,$langs;
 		
 		$this->from_cron_job = true;
 		
@@ -474,26 +473,36 @@ class Webservice
 		
 		if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS))
 		{
+			$user = new \User($this->db);
+			if ($user->fetch($fk_user) <= 0 || $user->statut == 0)
+			{
+				$this->output = $langs->trans('DolishopParameterUserIdNotFound');
+				return 1;
+			}
+			$user->getrights();
+		
 			if ($direction == 'dolibarr2website')
 			{
-				$ProductId = DolishopTools::getTProductIdToSync();
-				$this->updateWebProducts($ProductId);
+				if ($sync_images) require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+				$TProductId = DolishopTools::getTProductIdToSync();
+				$this->updateWebProducts($TProductId, $sync_images);
 			}
 			else // website2dolibarr
 			{
-				$TWebProducts = $this->getAll('products');
-				if ($TWebProducts)
+				if ($this->api_name == 'prestashop')
 				{
-					foreach ($TWebProducts->children() as $web_product)
+					$ps_products = $this->getAll('products');
+					if ($ps_products)
 					{
-						$this->createProductFromWebProduct($web_product);
-					}	
+						foreach ($ps_products->children() as $ps_product)
+						{
+							$this->createProductFromWebProduct($ps_product);
+						}	
+					}
 				}
+				//...
 			}
 		}
-		
-		// TODO ... à venir
-		
 		
 		return 0;
 	}
@@ -505,7 +514,7 @@ class Webservice
 	 * @param array $ProductId
 	 * @return int
 	 */
-	public function updateWebProducts($TProductId)
+	public function updateWebProducts($TProductId, $sync_images=false)
 	{
 		if (empty($TProductId)) return 0;
 		
@@ -514,9 +523,8 @@ class Webservice
 			$this->getSchema('products', 'synopsis'); // sert d'init
 			foreach ($TProductId as $fk_product)
 			{
-				$res = $this->syncProductToPrestashop($fk_product);
+				$this->syncProductToPrestashop($fk_product, $sync_images);
 			}
-			
 		}
 		
 		return 0;
@@ -529,7 +537,7 @@ class Webservice
 	 * @param array $ProductId
 	 * @return int
 	 */
-	private function syncProductToPrestashop($fk_product)
+	private function syncProductToPrestashop($fk_product, $sync_images=false)
 	{
 		$dol_product = new \Product($this->db);
 		if ($dol_product->fetch($fk_product) > 0)
@@ -548,11 +556,20 @@ class Webservice
 
 			$xml_origin = $this->findPsProductResource($opt, $alt_opt);
 
-			if ($xml_origin !== false) $this->savePsProduct($dol_product, $xml_origin);
-			else $this->savePsProduct($dol_product);
+			if ($xml_origin !== false) $res = $this->savePsProduct($dol_product, $xml_origin);
+			else $res = $this->savePsProduct($dol_product);
+			
+			if ($sync_images && $res > 0)
+			{
+				$dir = DolishopTools::getProductDirScan($dol_product);
+				$TFileInfo = \dol_dir_list($dir, 'files', 0, '', '(\.meta|_preview.*\.png)$', 'position_name', SORT_ASC, 0);
+				foreach ($TFileInfo as $info) $TFileName[] = $info['name'];
+				
+				$res = $this->saveImages($dol_product, $TFileName, $dir);
+			}
 		}
 		
-		return 1;
+		return $res;
 	}
 	
 	/**
@@ -713,11 +730,15 @@ class Webservice
 				if ($res > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $ps_id_product_return)."\n";
 				else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $ps_id_product_return)."\n";
 			}
+			
+			return $ps_id_product_return;
 		}
 		else
 		{
 			if ($this->from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductError', $this->error)."\n";
 		}
+		
+		return 0;
 	}
 	
 	private function createProductFromWebProduct($web_product)
@@ -1282,7 +1303,7 @@ class DolishopTools
 		{
 			foreach ($TCategory as $cat)
 			{
-				if (in_array($cat['id'], $this->TProductCategoryIdSync)) return true;
+				if (in_array($cat['id'], Webservice::$TProductCategoryIdSync)) return true;
 			}	
 		}
 		
@@ -1347,5 +1368,21 @@ class DolishopTools
 		if ($ellipses) $str.= '...';
 
 		return $str;
+	}
+	
+	public static function getProductDirScan(&$object)
+	{
+		global $conf;
+		
+		if (! empty($conf->product->enabled)) $upload_dir = $conf->product->multidir_output[$object->entity].'/'.get_exdir(0, 0, 0, 0, $object, 'product').dol_sanitizeFileName($object->ref);
+		elseif (! empty($conf->service->enabled)) $upload_dir = $conf->service->multidir_output[$object->entity].'/'.get_exdir(0, 0, 0, 0, $object, 'product').dol_sanitizeFileName($object->ref);
+
+		if (! empty($conf->global->PRODUCT_USE_OLD_PATH_FOR_PHOTO))    // For backward compatiblity, we scan also old dirs
+		{
+			if (! empty($conf->product->enabled)) $upload_dirold = $conf->product->multidir_output[$object->entity].'/'.substr(substr("000".$object->id, -2),1,1).'/'.substr(substr("000".$object->id, -2),0,1).'/'.$object->id."/photos";
+			else $upload_dirold = $conf->service->multidir_output[$object->entity].'/'.substr(substr("000".$object->id, -2),1,1).'/'.substr(substr("000".$object->id, -2),0,1).'/'.$object->id."/photos";
+		}
+		
+		return !empty($upload_dirold) ? $upload_dirold : $upload_dir;
 	}
 }

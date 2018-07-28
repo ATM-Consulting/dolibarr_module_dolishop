@@ -86,8 +86,11 @@ if (preg_match('/del_(.*)/',$action,$reg))
 
 /******/
 //$dolishop = new Dolishop\Webservice($db);
-//$xml = $dolishop->getAll('shops', array());
-//var_dump($xml);
+//$xml = $dolishop->getAll('weight_ranges', array());
+//$xml = $dolishop->getAll('products', array('filter[id]'=>'[3]'));
+//$xml = $dolishop->getAll('stock_availables', array('filter[id]'=>'[32]'));
+//var_dump($xml->products[0]->product->associations->stock_availables);
+//$dolishop->debugXml($xml);
 //exit;
 /******/
 
