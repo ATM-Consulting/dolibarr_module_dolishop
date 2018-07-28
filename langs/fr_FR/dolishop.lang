@@ -59,7 +59,7 @@ DolishopPsImagesMimeTypes=Type d'images autorisées
 DolishopPsImagesMimeTypesAllowed=<b>Pour les produits :</b> %s
 DolishopPsTaxes=TVA
 
-DolishopCronjobProducts_label=[DOLISHOP] Synchronisation des produits vers Prestashop ou inversement
+DolishopCronjobProducts_label=[DOLISHOP] Synchronisation des produits Dolibarr vers Prestashop ou inversement (pour init)
 DolishopCronjobProducts_desc=Prend 2 paramètres : "fk_user" et "direction" (dolibarr2website ou website2dolibarr)
 DolishopCronjobOrders_label=[DOLISHOP] Synchronisation des commandes Prestashop vers Dolibarr
 DolishopCronjobOrders_desc1=Il est possible de passer jusqu'à 3 paramètres ($fk_user, $minutes=30, $date_min='')

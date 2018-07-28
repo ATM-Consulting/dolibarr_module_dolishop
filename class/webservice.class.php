@@ -476,7 +476,7 @@ class Webservice
 		{
 			if ($direction == 'dolibarr2website')
 			{
-				$ProductId = $this->getTProductIdToSync();
+				$ProductId = DolishopTools::getTProductIdToSync();
 				$this->updateWebProducts($ProductId);
 			}
 			else // website2dolibarr
@@ -610,7 +610,7 @@ class Webservice
 		// Pour comprendre pourquoi tant de children(), faire un print $schema->asXML()
 		$ps_product = $schema->children()->children();
 		
-		$this->unsetUselessFields($ps_product, $this->schema_products_synopsis);
+		$this->removeUselessFields($ps_product, $this->schema_products_synopsis);
 		
 //		var_dump($ps_product);exit;
 
@@ -1272,9 +1272,11 @@ class DolishopTools
 	 */
 	public static function checkProductCategories($fk_product)
 	{
+		global $db;
+		
 		if (!class_exists('Categorie')) require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 		
-		$category = new \Categorie($this->db);
+		$category = new \Categorie($db);
 		$TCategory = $category->getListForItem($fk_product, \Categorie::TYPE_PRODUCT);
 		if (is_array($TCategory))
 		{
@@ -1295,7 +1297,7 @@ class DolishopTools
 	 */
 	public static function getTProductIdToSync()
 	{
-		global $conf;
+		global $conf,$db;
 		
 		$TId = array();
 		
@@ -1308,18 +1310,18 @@ class DolishopTools
 			$sql.= ' WHERE cp.fk_categorie IN ('.$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES.')';
 		}
 		
-		$resql = $this->db->query($sql);
+		$resql = $db->query($sql);
 		if ($resql)
 		{
-			while ($arr = $this->db->fetch_array($resql))
+			while ($arr = $db->fetch_array($resql))
 			{
 				$TId[] = $arr['rowid'];
 			}
 		}
 		else
 		{
-			$this->error = $this->db->lasterror();
-			$this->errors[] = $this->error;
+			$this->error = $db->lasterror();
+			$this->errors[] = $db->error;
 		}
 		
 		return $TId;
