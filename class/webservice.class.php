@@ -363,7 +363,7 @@ class Webservice
 	{
 		if ($this->api_name == 'prestashop')
 		{
-			$this->syncPsConf();
+			return $this->syncPsConf();
 		}
 	}
 	

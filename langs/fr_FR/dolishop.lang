@@ -59,10 +59,11 @@ DolishopPsImagesMimeTypes=Type d'images autorisées
 DolishopPsImagesMimeTypesAllowed=<b>Pour les produits :</b> %s
 DolishopPsTaxes=TVA
 
-DolishopCronjobProducts_label=[DOLISHOP] Synchronisation des produits vers Prestashop
+DolishopCronjobProducts_label=[DOLISHOP] Synchronisation des produits vers Prestashop ou inversement
+DolishopCronjobProducts_desc=Prend 2 paramètres : "fk_user" et "direction" (dolibarr2website ou website2dolibarr)
 DolishopCronjobOrders_label=[DOLISHOP] Synchronisation des commandes Prestashop vers Dolibarr
-DolishopCronjobOrders_desc1=Il est possible de passer jusqu'à 3 paramètres ($fk_user=0, $minutes=30, $date_min='')
-DolishopCronjobOrders_desc2=- fk_user => pour la création des commandes (attention, il doit avoir les droits nécessaires)
+DolishopCronjobOrders_desc1=Il est possible de passer jusqu'à 3 paramètres ($fk_user, $minutes=30, $date_min='')
+DolishopCronjobOrders_desc2=- fk_user => pour la création des commandes (obligatoire et il doit avoir les droits nécessaires pour créer/valider les commandes)
 DolishopCronjobOrders_desc3=- minutes => chaque exécution ira chercher les commandes des 30 dernières minutes par défaut
 DolishopCronjobOrders_desc4=- date_min => une date au format YYYY-MM-DD HH-mm-ss pour remonter les commandes depuis cette date
 
