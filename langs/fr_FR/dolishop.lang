@@ -54,6 +54,9 @@ DOLISHOP_SYNC_PS_CONF_IMAGES_DESC=La ressource <b>images</b> doit être accessib
 DolishopSyncPsConf=Récupérer la conf
 DolishopSyncPsConfNeeded=Attention : des configurations présentes sur votre boutique Prestashop doivent être synchonisées avant utilisation du module
 
+DOLISHOP_SYNC_PS_SHOP_ID=Synchroniser l'entité courante avec la boutique :
+DOLISHOP_SYNC_PS_SHOP_ID_DESC=La ressource <b>shops</b> doit être accessible en <b>GET</b>
+
 DolishopPsLanguages=Langue(s)
 DolishopPsImagesMimeTypes=Type d'images autorisées
 DolishopPsImagesMimeTypesAllowed=<b>Pour les produits :</b> %s

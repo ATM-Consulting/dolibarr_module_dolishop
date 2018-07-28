@@ -86,10 +86,8 @@ if (preg_match('/del_(.*)/',$action,$reg))
 
 /******/
 //$dolishop = new Dolishop\Webservice($db);
-//$xml = $dolishop->getAll('order_states', array());
-//foreach ($xml->children() as $order_state) var_dump($order_state->name->language[0]);
-//$dolishop->debugXml($xml->children()->children()->name->language[0]);
-//var_dump($dolishop->errors);
+//$xml = $dolishop->getAll('shops', array());
+//var_dump($xml);
 //exit;
 /******/
 
@@ -216,6 +214,30 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
 	if (!empty($conf_str)) print $form->textwithpicto('', $conf_str, 1, 'help', '', 0, 2, 1);
     print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopSyncPsConf").'">';
 	if (empty($conf->global->DOLISHOP_PS_CONFIGURATION)) print img_error($langs->trans("DolishopSyncPsConfNeeded"));
+    print '</form>';
+    print '</td></tr>';
+	
+	$var=!$var;
+	print '<tr '.$bc[$var].'>';
+    print '<td>'.$langs->trans('DOLISHOP_SYNC_PS_SHOP_ID');
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_SHOP_ID_DESC').'</small>';
+	print '</td>';
+    print '<td align="center">&nbsp;</td>';
+    print '<td align="right">';
+    print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+    print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+    print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PS_SHOP_ID">';
+	$TShop = array();
+	$ps_shops = $dolishop->getAll('shops', array());
+	if ($ps_shops)
+	{
+		foreach ($ps_shops->children() as $ps_shop)
+		{
+			$TShop[(int) $ps_shop->id] = $ps_shop->name->__toString();
+		}
+	}
+	print $form->selectarray('DOLISHOP_SYNC_PS_SHOP_ID', $TShop, $conf->global->DOLISHOP_SYNC_PS_SHOP_ID, 1, 0, 0, '', 0, 0, 0, '', 'minwidth200', 1);
+    print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
     print '</form>';
     print '</td></tr>';
 }
