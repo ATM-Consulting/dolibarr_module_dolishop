@@ -1,6 +1,7 @@
 <?php
-/* <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2015 ATM Consulting <support@atm-consulting.fr>
+/* 
+ * Copyright (C) 2018		ATM Consulting			<support@atm-consulting.fr>
+ * Copyright (C) 2018		Pierre-Henry Favre		<phf@atm-consulting.fr>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -122,16 +123,16 @@ class InterfaceDolishoptrigger
 		{
             dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
 			
-			dol_include_once('/dolishop/class/dolishop.class.php');
-			$dolishop = new Dolishop\Dolishop($db);
+			dol_include_once('/dolishop/class/webservice.class.php');
+			$dolishop = new Dolishop\Webservice($db);
 			
 			// Si je proviens du formulaire de création/édition
 			$TCategory = GETPOST('categories');
 			if (
 				( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES)) )
-				|| ( empty($TCategory) && $dolishop->checkProductCategories($object->id) )
+				|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategories($object->id) )
 			) {
-				$dolishop->rsyncProducts(array($object->id));
+				$dolishop->updateWebProducts(array($object->id));
 				if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
 				else setEventMessage($langs->trans('DolishopSyncPsProductSuccess'));
 			}

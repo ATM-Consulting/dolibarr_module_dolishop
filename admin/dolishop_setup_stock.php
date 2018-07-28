@@ -1,6 +1,7 @@
 <?php
-/* <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2015 ATM Consulting <support@atm-consulting.fr>
+/* 
+ * Copyright (C) 2018		ATM Consulting			<support@atm-consulting.fr>
+ * Copyright (C) 2018		Pierre-Henry Favre		<phf@atm-consulting.fr>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +35,7 @@ require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 // Libraries
 require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 dol_include_once('/dolishop/lib/dolishop.lib.php');
-dol_include_once('/dolishop/class/dolishop.class.php');
+dol_include_once('/dolishop/class/webservice.class.php');
 
 // Translations
 $langs->load('admin');

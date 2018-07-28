@@ -1,6 +1,7 @@
 <?php
-/* <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2015 ATM Consulting <support@atm-consulting.fr>
+/* 
+ * Copyright (C) 2018		ATM Consulting			<support@atm-consulting.fr>
+ * Copyright (C) 2018		Pierre-Henry Favre		<phf@atm-consulting.fr>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +35,7 @@ require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 // Libraries
 require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 dol_include_once('/dolishop/lib/dolishop.lib.php');
-dol_include_once('/dolishop/class/dolishop.class.php');
+dol_include_once('/dolishop/class/webservice.class.php');
 
 // Translations
 $langs->load('admin');
@@ -92,23 +93,7 @@ if (preg_match('/del_(.*)/',$action,$reg))
 //exit;
 /******/
 
-$dolishop = new \Dolishop\Dolishop($db);
-if ($action == 'testConnection')
-{
-	$shopName = $dolishop->testConnection();
-	if ($shopName === false)
-	{
-		setEventMessage($langs->trans('DolishopTestConnectionFail'), 'errors');
-		if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
-	}
-	else setEventMessage($langs->trans('DolishopTestConnectionSuccess', $shopName));
-}
-elseif ($action == 'syncPsConf')
-{
-	$res = $dolishop->syncPsConf();
-	if (!$res) setEventMessages('', $dolishop->errors, 'errors');
-	else setEventMessage($langs->trans('DolishopSyncPsConfSuccess'));
-}
+$dolishop = new \Dolishop\Webservice($db);
 
 
 /*

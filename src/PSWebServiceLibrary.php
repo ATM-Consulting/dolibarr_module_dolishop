@@ -26,8 +26,7 @@
 * @package PrestaShopWebservice
 */
 
-namespace Dolishop;
-use Dolishop;
+namespace Dolishop\PSWebServiceLibrary;
 
 /**
  * @package PrestaShopWebservice

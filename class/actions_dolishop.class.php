@@ -1,6 +1,7 @@
 <?php
-/* <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2015 ATM Consulting <support@atm-consulting.fr>
+/* 
+ * Copyright (C) 2018		ATM Consulting			<support@atm-consulting.fr>
+ * Copyright (C) 2018		Pierre-Henry Favre		<phf@atm-consulting.fr>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,13 +85,13 @@ class Actionsdolishop
 			if (is_object($object) && empty($object->array_options)) $object->fetch_optionals();
 			if (!empty($object->array_options['options_ps_id_product']))
 			{
-				dol_include_once('/dolishop/class/dolishop.class.php');
+				dol_include_once('/dolishop/class/webservice.class.php');
 				
 				$explode = explode('/', $parameters['file']);
 				$filename = $explode[count($explode)-1];
 				
-				$dolishop = new \Dolishop\Dolishop($this->db);
-				$res = $dolishop->deletePsProductImages($object, array($filename));
+				$dolishop = new \Dolishop\Webservice($this->db);
+				$res = $dolishop->deleteImages($object, array($filename));
 				if ($res >= 1) setEventMessage($langs->trans('DolishopDeletePsProductImagesSuccess'));
 				else if ($res <= -1) setEventMessage($langs->trans('DolishopDeletePsProductImagesWarning'), 'warnings');
 				
@@ -127,9 +128,9 @@ class Actionsdolishop
 				$TFileName = $_FILES['userfile']['name'];
 				if (!is_array($TFileName)) $TFileName = array($TFileName);
 				
-				dol_include_once('/dolishop/class/dolishop.class.php');
-				$dolishop = new \Dolishop\Dolishop($this->db);
-				$dolishop->addPsProductImages($object, $TFileName, $dir);
+				dol_include_once('/dolishop/class/webservice.class.php');
+				$dolishop = new \Dolishop\Webservice($this->db);
+				$dolishop->saveImages($object, $TFileName, $dir);
 				if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
 				else setEventMessage($langs->trans('DolishopAddPsProductImagesSuccess'));
 			}
