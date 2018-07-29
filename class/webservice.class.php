@@ -937,7 +937,7 @@ class Webservice
 			foreach ($order_details->children() as $order_detail)
 			{
 				$fk_product = DolishopTools::getProduct($order_detail->product_id, $order_detail->product_reference, $order_detail->id_shop); // TOTO si pas d'id en retour alors ce sera une ligne libre
-				if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS))
+				if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
 				{
 					$TProductId = $this->createProductFromWebProductId(array($order_detail->product_id));
 					$fk_product = array_pop($TProductId);

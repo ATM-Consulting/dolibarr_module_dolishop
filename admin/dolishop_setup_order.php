@@ -182,15 +182,28 @@ print '</td></tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS_DESC').'</small>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS_DESC').'</small>';
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
 print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS">';
-print ajax_constantonoff('DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS');
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS">';
+print ajax_constantonoff('DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS');
+print '</form></div>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING">';
+print ajax_constantonoff('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
 print '</form></div>';
 print '</td></tr>';
 

@@ -38,8 +38,8 @@ DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessi
 DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes Prestashop
 DOLISHOP_SYNC_ORDERS_DESC=Les ressources <b>orders, order_details, order_states</b> doivent être accessibles en <b>GET</b>
 DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE=Produit/Service à utiliser pour les frais de livraison (si vide, alors une ligne libre sera ajoutée)
-DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS=Créer une fiche produit dans Dolibarr plutôt que de créer une ligne libre lors de la récupération de la commande
-DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET</b>
+DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS=Créer une fiche produit dans Dolibarr plutôt que de créer une ligne libre lors de la récupération de la commande
+DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET</b>
 
 
 DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
