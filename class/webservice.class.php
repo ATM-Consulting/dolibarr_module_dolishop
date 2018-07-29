@@ -899,6 +899,8 @@ class Webservice
 		
 		if ($this->api_name == 'prestashop')
 		{
+			$commande->array_options['options_web_id_order'] = (int) $web_order->id;
+			
 			$current_state = (int) $web_order->current_state;
 			if (!in_array($current_state, $TState)) return 0;
 		
@@ -924,14 +926,15 @@ class Webservice
 
 	//		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
 			$commande->multicurrency_tx = $web_order->conversion_rate;
-
+			
 			if ($commande->create($user) < 0) // TODO gestion d'erreur à faire
 			{
 				$error++;
-				$this->errors[] = $langs->trans('DolishopErrorOrderCreate', $web_order->reference, $commande->db->lasterror());
+				$this->error = $langs->trans('DolishopErrorOrderCreate', $web_order->reference, $commande->db->lasterror());
+				$this->errors[] = $this->error;
 				return -1;
 			}
-
+			
 			$this->output.= $langs->trans('DolishopNewOrderCreated', $commande->ref, $commande->ref_client)."\n";
 
 			$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.$web_order->id.']'));

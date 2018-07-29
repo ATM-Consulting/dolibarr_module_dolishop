@@ -348,6 +348,10 @@ class moddolishop extends DolibarrModules
 		$extrafield->addExtraField('ps_id_product', 'ID produit Prestashop', 'int', $this->numero.$pos, 10, 'product', 0, 0, '', '', 0, '', -1, 0);
 		$pos+=10;
 		
+		$pos = 0;
+		$extrafield->addExtraField('web_id_order', 'ID commande boutique', 'int', $this->numero.$pos, 10, 'commande', 0, 0, '', '', 0, '', -1, 0);
+		$pos+=10;
+		
 		$result=$this->_load_tables('/dolishop/sql/');
 
 		
@@ -376,7 +380,7 @@ class moddolishop extends DolibarrModules
 		$cronjob->unitfrequency = 60;
 		$cronjob->status = 0;
 		$cronjob->module_name = 'dolishop';
-		$cronjob->classesname = '/dolishop/class/dolishop.class.php';
+		$cronjob->classesname = '/dolishop/class/webservice.class.php';
 		$cronjob->objectname = '\Dolishop\Webservice';
 		$cronjob->methodename = 'rsyncOrders';
 		$cronjob->params = $user->id;
