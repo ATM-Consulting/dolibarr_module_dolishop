@@ -468,40 +468,43 @@ class Webservice
 		
 		$this->from_cron_job = true;
 		
+		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS))
+		{
+			$this->outpout = $langs->trans('DolishopSyncProductsIsDisabled');
+			return 0;
+		}
+		
 		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 		
-		if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS))
+		$user = new \User($this->db);
+		if ($user->fetch($fk_user) <= 0 || $user->statut == 0)
 		{
-			$user = new \User($this->db);
-			if ($user->fetch($fk_user) <= 0 || $user->statut == 0)
+			$this->output = $langs->trans('DolishopParameterUserIdNotFound');
+			return 1;
+		}
+		$user->getrights();
+
+		if ($direction == 'dolibarr2website')
+		{
+			if ($sync_images) require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+			$TProductId = DolishopTools::getTProductIdToSync();
+			$this->updateWebProducts($TProductId, $sync_images);
+		}
+		else // website2dolibarr
+		{
+			if ($this->api_name == 'prestashop')
 			{
-				$this->output = $langs->trans('DolishopParameterUserIdNotFound');
-				return 1;
-			}
-			$user->getrights();
-		
-			if ($direction == 'dolibarr2website')
-			{
-				if ($sync_images) require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
-				$TProductId = DolishopTools::getTProductIdToSync();
-				$this->updateWebProducts($TProductId, $sync_images);
-			}
-			else // website2dolibarr
-			{
-				if ($this->api_name == 'prestashop')
+				$ps_products = $this->getAll('products');
+				if ($ps_products)
 				{
-					$ps_products = $this->getAll('products');
-					if ($ps_products)
+					foreach ($ps_products->children() as $ps_product)
 					{
-						foreach ($ps_products->children() as $ps_product)
-						{
-							$this->createProductFromWebProduct($ps_product);
-						}	
+						$this->createProductFromWebProduct($ps_product);
 					}
 				}
-				//...
 			}
+			//...
 		}
 		
 		return 0;
@@ -818,9 +821,15 @@ class Webservice
 	
 	public function rsyncOrders($fk_user, $minutes=30, $date_min='')
 	{
-		global $langs,$user;
+		global $langs,$user,$conf;
 		
 		$this->from_cron_job = true;
+		
+		if (empty($conf->global->DOLISHOP_SYNC_ORDERS))
+		{
+			$this->outpout = $langs->trans('DolishopSyncOrdersIsDisabled');
+			return 0;
+		}
 		
 		$user = new \User($this->db);
 		if ($user->fetch($fk_user) <= 0 || $user->statut == 0)
@@ -928,11 +937,12 @@ class Webservice
 			foreach ($order_details->children() as $order_detail)
 			{
 				$fk_product = DolishopTools::getProduct($order_detail->product_id, $order_detail->product_reference, $order_detail->id_shop); // TOTO si pas d'id en retour alors ce sera une ligne libre
-				if (!empty($conf->global->DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS))
+				if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS))
 				{
 					$TProductId = $this->createProductFromWebProductId(array($order_detail->product_id));
 					$fk_product = array_pop($TProductId);
 				}
+				
 				if ($fk_product > 0) $desc = '';
 				else $desc = $order_detail->product_name;
 

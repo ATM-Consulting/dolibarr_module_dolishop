@@ -13,7 +13,7 @@ ParamLabel=Nom du paramètre
 ParamDesc=Une description si besoin
 ParamHelp=Le contenu de l'aide
 PsProducts=Produits
-PsOrdersInvoices=Commandes / Factures
+PsOrders=Commandes
 PsStocks=Stocks
 PsOrderStatesAssociations=Associations des statuts de commande
 PsOrderStatesAssociationsHelp=Ce paramétrage vous permet de définir par statut de commande Prestashop, son équivalent dans Dolibarr<br />Vous pouvez sélectionner plusieurs fois un statut Dolibarr
@@ -35,12 +35,12 @@ DOLISHOP_SYNC_PRODUCTS_CATEGORIES=Synchroniser les produits dans la/les catégor
 DOLISHOP_SYNC_PRODUCTS_IMAGES=Activer la synchronisation des images produits
 DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET / PUT / POST</b>
 
-DOLISHOP_SYNC_ORDER=Activer la synchronisation des commandes Prestashop
-DOLISHOP_SYNC_ORDER_DESC=Les ressources <b>orders, order_states</b> doivent être accessibles en <b>GET</b>
+DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes Prestashop
+DOLISHOP_SYNC_ORDERS_DESC=Les ressources <b>orders, order_details, order_states</b> doivent être accessibles en <b>GET</b>
 DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE=Produit/Service à utiliser pour les frais de livraison (si vide, alors une ligne libre sera ajoutée)
 DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS=Créer une fiche produit dans Dolibarr plutôt que de créer une ligne libre lors de la récupération de la commande
 DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET</b>
-DOLISHOP_DEFAULT_ID_WAREHOUSE=Entrepôt par défaut à utiliser pour les commandes impliquant la création d'une expédition
+
 
 DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
 
@@ -99,3 +99,5 @@ DolishopParameterDateWithWrongFormat=Le paramètre date n'a pas le bon format [Y
 DolishopErrorOrderCreate=Erreur : impossible de créer la commande %s (message = %s)
 DolishopNewOrderCreated=Nouvelle commande %s créée portant la référence Prestashop %s
 DolishopShippingCosts=Frais d'expédition
+DolishopSyncProductsIsDisabled=La configuration de synchronisation des produits est désactivée
+DolishopSyncOrdersIsDisabled=La configuration de synchronisation des commandes est désactivée

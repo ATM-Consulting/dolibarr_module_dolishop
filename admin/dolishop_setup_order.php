@@ -135,7 +135,7 @@ print_fiche_titre($langs->trans($page_name), $linkback);
 $head = dolishopAdminPrepareHead();
 dol_fiche_head(
     $head,
-    'orders_invoices',
+    'orders',
     $langs->trans("Module104071Name"),
     0,
     "dolishop@dolishop"
@@ -154,15 +154,15 @@ _print_title("Parameters");
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_ORDER');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_ORDER_DESC').'</small>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_ORDERS');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_ORDERS_DESC').'</small>';
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
 print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_ORDER">';
-print ajax_constantonoff('DOLISHOP_SYNC_ORDER');
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_ORDERS">';
+print ajax_constantonoff('DOLISHOP_SYNC_ORDERS');
 print '</form></div>';
 print '</td></tr>';
 
@@ -193,21 +193,6 @@ print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PS_PRODUCT_IF
 print ajax_constantonoff('DOLISHOP_SYNC_PS_PRODUCT_IF_NOT_EXISTS');
 print '</form></div>';
 print '</td></tr>';
-
-$var=!$var;
-print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_DEFAULT_ID_WAREHOUSE');
-print '</td>';
-print '<td align="center">&nbsp;</td>';
-print '<td align="right">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_DEFAULT_ID_WAREHOUSE">';
-print $formproduct->selectWarehouses($conf->global->DOLISHOP_DEFAULT_ID_WAREHOUSE, 'DOLISHOP_DEFAULT_ID_WAREHOUSE', '', 1, 0, 0, '', 0, 0, array(), 'minwidth200');
-print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
-print '</form>';
-print '</td></tr>';
-
 
 
 print '</table>';

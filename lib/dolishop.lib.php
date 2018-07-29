@@ -41,9 +41,9 @@ function dolishopAdminPrepareHead()
     $head[$h][1] = $langs->trans("PsProducts");
     $head[$h][2] = 'products';
     $h++;
-    $head[$h][0] = dol_buildpath("/dolishop/admin/dolishop_setup_order_invoice.php", 1);
-    $head[$h][1] = $langs->trans("PsOrdersInvoices");
-    $head[$h][2] = 'orders_invoices';
+    $head[$h][0] = dol_buildpath("/dolishop/admin/dolishop_setup_order.php", 1);
+    $head[$h][1] = $langs->trans("PsOrders");
+    $head[$h][2] = 'orders';
     $h++;
     $head[$h][0] = dol_buildpath("/dolishop/admin/dolishop_setup_stock.php", 1);
     $head[$h][1] = $langs->trans("PsStocks");
