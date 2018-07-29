@@ -492,7 +492,7 @@ class Webservice
 		{
 			if ($this->api_name == 'prestashop')
 			{
-				$ps_products = $this->getAll('products');
+				$ps_products = $this->getAll('products', array('filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']'));
 				if ($ps_products)
 				{
 					foreach ($ps_products->children() as $ps_product)
@@ -856,11 +856,16 @@ class Webservice
 		require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 		
 		$now = date('Y-m-d H:i:s');
-		$ids = $conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES; // already separate by |
 		
 		if ($this->api_name == 'prestashop')
 		{
-			$web_orders = $this->getAll('orders', array('filter[current_state]' => '['.$ids.']', 'sort' => 'id_DESC', 'date'=>1, 'filter[date_add]' => '['.$date_min.','.$now.']'));
+			$web_orders = $this->getAll('orders', array(
+				'filter[id_shop]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']'
+				,'filter[current_state]' => '['.$conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES.']'
+				,'sort' => 'id_DESC'
+				,'date' => 1
+				,'filter[date_add]' => '['.$date_min.','.$now.']')
+			);
 		}
 		
 		if ($web_orders)
