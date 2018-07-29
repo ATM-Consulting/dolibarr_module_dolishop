@@ -52,8 +52,6 @@ class Webservice
 	
 	public $schema_products_blank;
 	public $schema_products_synopsis;
-	
-	public static $TProductCategoryIdSync = array();
 
 	public function __construct($db)
 	{
@@ -66,7 +64,6 @@ class Webservice
 		$this->key = $conf->global->DOLISHOP_PS_WS_AUTH_KEY;
 		$this->debug = (bool) $conf->global->DOLISHOP_PS_WS_DEBUG;
 		
-		self::$TProductCategoryIdSync = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES);
 		if (!empty($conf->global->DOLISHOP_API_NAME)) $this->api_name = $conf->global->DOLISHOP_API_NAME;
 		
 		switch ($this->api_name) {
@@ -633,7 +630,7 @@ class Webservice
 		$this->removeUselessFields($ps_product, $this->schema_products_synopsis);
 		
 //		var_dump($ps_product);exit;
-
+		
 		$ps_product->reference = $dol_product->ref;
 		$ps_product->price =  $dol_product->price;
 		
@@ -754,7 +751,8 @@ class Webservice
 		
 		if ($this->api_name == 'prestashop')
 		{
-			$dol_product->ref = $web_product->reference;
+			$dol_product->array_options['options_ps_id_product'] = (int) $web_product->id;
+			$dol_product->ref = $web_product->reference->__toString();
 
 			if (!empty($conf->global->MAIN_MULTILANGS) && !empty(self::$ps_configuration['PS_LANGUAGES']))
 			{
@@ -779,10 +777,10 @@ class Webservice
 				$dol_product->description = $web_product->description->language[0]->__toString();
 			}
 
-			$dol_product->price=$web_product->price;
-			$dol_product->tva_tx = DolishopTools::getVatRate(0, $web_product->id_tax_rules_group);
-			$dol_product->status = $web_product->active;
-			$dol_product->seuil_stock_alerte = $web_product->low_stock_threshold;
+			$dol_product->price=$web_product->price->__toString();
+			$dol_product->tva_tx = DolishopTools::getVatRate(0, (int) $web_product->id_tax_rules_group);
+			$dol_product->status = $web_product->active->__toString();
+			$dol_product->seuil_stock_alerte = $web_product->low_stock_threshold->__toString();
 		}
 		
 		$fk_product=$dol_product->create($user);
@@ -796,24 +794,19 @@ class Webservice
 		return $fk_product;
 	}
 	
-	private function createProductFromWebProductId($TWebProductId)
+	private function createProductFromWebProductId($web_id_product)
 	{
-		$TProductId = array();
-		
 		if ($this->api_name == 'prestashop')
 		{
-			$ps_products = $this->getAll('products', array('filter[id]'=> '['.implode('|', $TWebProductId).']'));
-			if ($ps_products)
+			$ps_product = $this->getOne('products', $web_id_product);
+			if ($ps_product)
 			{
-				foreach ($ps_products->children() as $ps_product)
-				{
-					$res = $this->createProductFromWebProduct($ps_product);
-					if ($res > 0) $TProductId[] = $res;
-				}
-			}	
+				$res = $this->createProductFromWebProduct($ps_product->product);
+				if ($res > 0) return $res;
+			}
 		}
 		
-		return $TProductId;
+		return 0;
 	}
 	
 	
@@ -874,7 +867,7 @@ class Webservice
 		{
 			foreach ($web_orders->children() as $web_order)
 			{
-				if (!DolishopTools::checkOrderExist($web_order->reference))
+				if (!DolishopTools::checkOrderExist($web_order->reference->__toString(), (int) $web_order->id_shop))
 				{
 					$this->createDolOrder($web_order);
 				}
@@ -905,9 +898,9 @@ class Webservice
 			if (!in_array($current_state, $TState)) return 0;
 		
 			$commande->ref_client = $web_order->reference;
-			$commande->socid = DolishopTools::getSociete($web_order->id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
+			$commande->socid = DolishopTools::getSociete((int) $web_order->id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
 
-			$commande->date_commande = strtotime($web_order->date_add);
+			$commande->date_commande = strtotime($web_order->date_add->__toString());
 			$commande->note_private = ''; // TODO à voir avec la ressource "messages"
 			$commande->note_public = '';
 
@@ -917,7 +910,7 @@ class Webservice
 	//		$commande->availability_id = GETPOST('availability_id'); // Delai de livraison
 	//		$commande->demand_reason_id = GETPOST('demand_reason_id'); // Channel => dictionnaire llx_c_input_reason (Origines des propales/commandes)
 
-			if ($web_order->delivery_date > '1000-00-00 00:00:00') $commande->date_livraison = strtotime($web_order->delivery_date);
+			if ($web_order->delivery_date > '1000-00-00 00:00:00') $commande->date_livraison = strtotime($web_order->delivery_date->__toString());
 
 	//		$commande->shipping_method_id = GETPOST('shipping_method_id', 'int');
 	//		$commande->warehouse_id = GETPOST('warehouse_id', 'int'); // TODO conf global ? ->id_warehouse
@@ -925,7 +918,7 @@ class Webservice
 	//		$commande->contactid = GETPOST('contactid');
 
 	//		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
-			$commande->multicurrency_tx = $web_order->conversion_rate;
+			$commande->multicurrency_tx = (double) $web_order->conversion_rate;
 			
 			if ($commande->create($user) < 0) // TODO gestion d'erreur à faire
 			{
@@ -934,26 +927,23 @@ class Webservice
 				$this->errors[] = $this->error;
 				return -1;
 			}
-			
-			$this->output.= $langs->trans('DolishopNewOrderCreated', $commande->ref, $commande->ref_client)."\n";
 
-			$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.$web_order->id.']'));
+			$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $web_order->id).']'));
 			foreach ($order_details->children() as $order_detail)
 			{
-				$fk_product = DolishopTools::getProduct($order_detail->product_id, $order_detail->product_reference, $order_detail->id_shop); // TOTO si pas d'id en retour alors ce sera une ligne libre
+				$fk_product = DolishopTools::getProduct((int) $order_detail->product_id, $order_detail->product_reference->__toString());
 				if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
 				{
-					$TProductId = $this->createProductFromWebProductId(array($order_detail->product_id));
-					$fk_product = array_pop($TProductId);
+					$fk_product = $this->createProductFromWebProductId((int) $order_detail->product_id);
 				}
 				
 				if ($fk_product > 0) $desc = '';
-				else $desc = $order_detail->product_name;
+				else $desc = $order_detail->product_name->__toString();
 
 				$r=$commande->addline(
 					$desc
-					,$order_detail->unit_price_tax_excl
-					,$order_detail->product_quantity
+					,(double) $order_detail->unit_price_tax_excl
+					,(double) $order_detail->product_quantity
 					,DolishopTools::getVatRate((int) $order_detail->associations->taxes->tax->id)
 					,0 // $txlocaltax1
 					,0 // $txlocaltax2
@@ -1003,6 +993,8 @@ class Webservice
 			$this->db->rollback();
 			return -1;
 		}
+		
+		$this->output.= $langs->trans('DolishopNewOrderCreated', $commande->ref, $commande->ref_client)."\n";
 		
 		$this->db->commit();
 
@@ -1222,14 +1214,13 @@ class DolishopTools
 		}
 	}
 	
-	public static function getProduct($ps_id_product, $ps_product_reference='', $ps_id_shop=0)
+	public static function getProduct($ps_id_product, $ps_product_reference='')
 	{
-		global $db;
-		// TODO sql pour rechercher sur l'extrafield ps_id_product, ou sur la reference (id_shop servira pour le filtrage d'entité)
+		global $db,$conf;
 		
-		$sql = 'SELECT p.rowid FROM '.MAIN_DB_PREFIX.'product p INNER JOIN '.MAIN_DB_PREFIX.'product_extrafields pe ON (pe.fk_object = p.rowid)';
-		$sql.= ' WHERE 1';
-		$sql.= ' AND pe.ps_id_product = '.$ps_id_product.' OR p.ref = \''.$db->escape($ps_product_reference).'\'';
+		$sql = 'SELECT p.rowid FROM '.MAIN_DB_PREFIX.'product p LEFT JOIN '.MAIN_DB_PREFIX.'product_extrafields pe ON (pe.fk_object = p.rowid)';
+		$sql.= ' WHERE p.entity = '.$conf->entity;
+		$sql.= ' AND (pe.ps_id_product = '.$ps_id_product.' OR p.ref = \''.$db->escape($ps_product_reference).'\')';
 		
 		$resql = $db->query($sql);
 		if ($resql)
@@ -1240,14 +1231,13 @@ class DolishopTools
 		else exit($db->lasterror());
 		
 		return 0;
-//		return 17; // id produit existant en base pour test TODO REMOVE
 	}
 	
-	public static function checkOrderExist($web_order_reference, $ps_id_shop=0)
+	public static function checkOrderExist($web_order_reference)
 	{
-		global $db;
+		global $db,$conf;
 		
-		$resql = $db->query('SELECT rowid FROM '.MAIN_DB_PREFIX.'commande WHERE ref_client = \''.$db->escape($web_order_reference).'\'');
+		$resql = $db->query('SELECT rowid FROM '.MAIN_DB_PREFIX.'commande WHERE entity = '.$conf->entity.' AND ref_client = \''.$db->escape($web_order_reference).'\'');
 		if ($resql)
 		{
 			return $db->num_rows($resql);
@@ -1263,17 +1253,18 @@ class DolishopTools
 	 */
 	public static function checkProductCategories($fk_product)
 	{
-		global $db;
+		global $db,$conf;
 		
 		if (!class_exists('Categorie')) require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 		
+		$TCatFilter = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES);
 		$category = new \Categorie($db);
 		$TCategory = $category->getListForItem($fk_product, \Categorie::TYPE_PRODUCT);
 		if (is_array($TCategory))
 		{
 			foreach ($TCategory as $cat)
 			{
-				if (in_array($cat['id'], Webservice::$TProductCategoryIdSync)) return true;
+				if (in_array($cat['id'], $TCatFilter)) return true;
 			}	
 		}
 		
