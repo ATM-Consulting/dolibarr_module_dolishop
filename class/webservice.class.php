@@ -839,7 +839,7 @@ class Webservice
 		}
 		$user->getrights();
 		
-		if (empty(self::$ps_configuration['PS_ORDER_STATES']))
+		if (empty($conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES))
 		{
 			$this->output = $langs->trans('DolishopMissingPsOrderStatesConf');
 			return 1;
@@ -863,7 +863,7 @@ class Webservice
 		require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 		
 		$now = date('Y-m-d H:i:s');
-		$ids = implode('|', array_keys(self::$ps_configuration['PS_ORDER_STATES']));
+		$ids = $conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES; // already separate by |
 		
 		if ($this->api_name == 'prestashop')
 		{
@@ -894,12 +894,13 @@ class Webservice
 		
 		$this->db->begin();
 		
+		$TState = explode('|', $conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES);
 		$commande = new \Commande($this->db);
 		
 		if ($this->api_name == 'prestashop')
 		{
 			$current_state = (int) $web_order->current_state;
-			if (empty(self::$ps_configuration['PS_ORDER_STATES'][$current_state])) return 0;
+			if (!in_array($current_state, $TState)) return 0;
 		
 			$commande->ref_client = $web_order->reference;
 			$commande->socid = DolishopTools::getSociete($web_order->id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
@@ -990,10 +991,9 @@ class Webservice
 			}
 		}
 		
-		
 //		$this->debugXml($web_order);
-		// TODO gestion d'erreur
-		if ($commande->id > 0) $this->setOrderState($commande, $current_state);
+		$res = $commande->valid($user);
+		if ($res < 0) $error++;
 		
 		if ($error)
 		{
@@ -1002,52 +1002,9 @@ class Webservice
 		}
 		
 		$this->db->commit();
-// TODO REMOVE
-//exit;
-		
+
 		return $commande->id;
 	}
-	
-	
-	
-	
-	private function setOrderState(\Commande &$commande, $current_state)
-	{
-		global $user;
-		
-		$dol_status_const = self::$ps_configuration['PS_ORDER_STATES'][$current_state]['dol_status_const'];
-		
-		switch ($dol_status_const) {
-			case 'STATUS_CANCELED': // -1
-				$commande->valid($user);
-				$commande->cancel();
-				break;
-			case 'STATUS_DRAFT': // 0
-				// nothing to do
-				break;
-			case 'STATUS_VALIDATED': // 1
-				$commande->valid($user);
-				break;
-			case 'STATUS_ACCEPTED': // 2
-			case 'STATUS_SHIPMENTONPROCESS': // 2
-				$commande->valid($user);
-				
-				// TODO retirer la possibilité de paramétrer sur ce statut, car cela nécessite de créer une expédition 
-				//      et les exp doivent être gérés par Dolibarr
-				
-				break;
-			case 'STATUS_CLOSED': // 3
-				$commande->valid($user);
-				// TODO créer une expédition
-				// ...
-				// TODO classer livrée => passera le statut à 3
-				$commande->cloture($user);
-				break;
-		}
-		
-	}
-	
-	
 	
 	/**
 	 * Méthode qui valorise simplement les attributs "error" et "errors" de l'objet courant 

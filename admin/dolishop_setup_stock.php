@@ -57,8 +57,6 @@ if (preg_match('/set_(.*)/',$action,$reg))
 	$code=$reg[1];
 	$value=GETPOST($code);
 	
-	if ($code == 'DOLISHOP_SYNC_PRODUCTS_CATEGORIES' && is_array($value)) $value = implode(',', $value);
-	
 	if (dolibarr_set_const($db, $code, $value, 'chaine', 0, '', $conf->entity) > 0)
 	{
 		header("Location: ".$_SERVER["PHP_SELF"]);

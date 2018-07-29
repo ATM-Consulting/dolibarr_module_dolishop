@@ -59,7 +59,7 @@ if (preg_match('/set_(.*)/',$action,$reg))
 	$code=$reg[1];
 	$value=GETPOST($code);
 	
-	if ($code == 'DOLISHOP_SYNC_PRODUCTS_CATEGORIES' && is_array($value)) $value = implode(',', $value);
+	if ($code == 'DOLISHOP_SYNC_WEB_ORDER_STATES' && is_array($value)) $value = implode('|', $value);
 	
 	if (dolibarr_set_const($db, $code, $value, 'chaine', 0, '', $conf->entity) > 0)
 	{
@@ -89,29 +89,15 @@ if (preg_match('/del_(.*)/',$action,$reg))
 
 $dolishop = new Dolishop\Webservice($db);
 
-if ($action == 'save_order_states')
+$TOrderState = array();
+$order_states = $dolishop->getAll('order_states', array());
+if ($order_states)
 {
-	$reflection = new ReflectionClass('Commande');
-	$dolishop::$ps_configuration['PS_ORDER_STATES'] = array();
-	$ps_order_states = GETPOST('ps_order_states', 'array');
-	foreach ($ps_order_states as $id_order_state => $order_status_cont)
+	foreach ($order_states->children() as $order_state)
 	{
-		if ($order_status_cont != -1 && !empty($order_status_cont))
-		{
-			$dolishop::$ps_configuration['PS_ORDER_STATES'][$id_order_state] = array(
-				'ps_id_order_state' => $id_order_state
-				,'dol_status_const' => $order_status_cont
-				,'dol_status' => $reflection->getConstant($order_status_cont)
-			);
-		}
+		$TOrderState[(int) $order_state->id] = $order_state->name->language[0]->__toString();
 	}
-	
-	$res = dolibarr_set_const($db, 'DOLISHOP_PS_CONFIGURATION', json_encode($dolishop::$ps_configuration));
-	if ($res > 0) $dolishop::$ps_configuration = json_decode($conf->global->DOLISHOP_PS_CONFIGURATION, true);
-	else setEventMessage($db->lasterror(), 'errors');
 }
-
-
 /******/
 //$xml=$dolishop->getAll('orders', array());
 //$xml=$dolishop->getAll('orders', array());
@@ -168,6 +154,22 @@ print '</td></tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_WEB_ORDER_STATES');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_WEB_ORDER_STATES_DESC').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_WEB_ORDER_STATES">';
+print $form->multiselectarray('DOLISHOP_SYNC_WEB_ORDER_STATES', $TOrderState, explode('|', $conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES), 0, 0, 'minwidth200 maxwidth300');
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE');
 print '</td>';
 print '<td align="center">&nbsp;</td>';
@@ -197,72 +199,22 @@ print '</td></tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC').'</small>';
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
-print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 print '<input type="hidden" name="action" value="set_DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING">';
-print ajax_constantonoff('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
-print '</form></div>';
+print $form->selectarray('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING', $TOrderState, $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING, 1, 0, 0, '', 0, 0, 0, '', 'minwidth200 maxwidth300', 1);
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
 print '</td></tr>';
 
 
 print '</table>';
-print '<br /><br /><br />';
-
-$TStatus = array(
-	'STATUS_DRAFT' => $langs->trans('Draft')
-	,'STATUS_VALIDATED'=> $langs->trans('Validate')
-	,'STATUS_SHIPMENTONPROCESS' => $langs->trans('Accepted')
-	,'STATUS_CLOSED' => $langs->trans('Closed')
-	,'STATUS_CANCELED' => $langs->trans('Canceled')
-);
-
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="save_order_states" />';
-print '<table class="noborder" width="100%">';
-
-print '<tr class="liste_titre">';
-print '<td colspan="2">'.$form->textwithpicto($langs->trans('PsOrderStatesAssociations'), $langs->trans('PsOrderStatesAssociationsHelp')).'</td>'."\n";
-print '<td>'.$langs->trans('DolibarrStatusCommande').'</td>'."\n";
-print '<td>'.$langs->trans('DolishopWorkflowCommande').'</td>'."\n";
-print '<td>&nbsp;</td>'."\n";
-print '</tr>';
-	
-$order_states = $dolishop->getAll('order_states', array());
-if ($order_states)
-{
-	foreach ($order_states->children() as $order_state)
-	{
-		$var=!$var;
-		print '<tr '.$bc[$var].'>';
-		print '<td width="2%" align="center">'.$order_state->id.'</td>';
-		print '<td width="20%">'.$order_state->name->language[0].'</td>';
-		print '<td width="20%">';
-		$selected = '';
-//		var_dump($dolishop::$ps_configuration['PS_ORDER_STATES']);exit;
-		if (!empty($dolishop::$ps_configuration['PS_ORDER_STATES'][(int) $order_state->id])) $selected = $dolishop::$ps_configuration['PS_ORDER_STATES'][(int) $order_state->id]['dol_status_const'];
-		print $form->selectarray('ps_order_states['.$order_state->id.']', $TStatus, $selected, 1);
-		print '</td>';
-		print '<td>'.$form->multiselectarray('workflow['.$order_state->id.']', array('CreateShipping' => 'Créer expédition', 'CreateInvoice' => 'Créer facture')).'</td>';
-		print '<td>&nbsp;</td>';
-		print '</tr>';
-	}
-}
-else
-{
-	
-}
-
-print '</table>';
-print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
-print '</form>';
-
 
 llxFooter();
-
 $db->close();
 
 
