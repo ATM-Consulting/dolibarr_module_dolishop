@@ -107,7 +107,13 @@ if ($order_states)
 /******/
 //$xml=$dolishop->getAll('orders', array());
 //$xml=$dolishop->getOne('orders', 6);
-//$dolishop->debugXml($xml);
+//$dolishop->debugXml($xml);exit;
+//$xml=$dolishop->getOne('customers', 1);
+//$dolishop->debugXml($xml);exit;
+//$xml=$dolishop->getOne('addresses', 1);
+//$dolishop->debugXml($xml->address);exit;
+//$r=$dolishop->createDolCustomer(1, 1, 1);
+//var_dump($r);
 //exit;
 /******/
 

@@ -918,8 +918,10 @@ class Webservice
 			if (!in_array($current_state, $TState)) return 0;
 		
 			$commande->ref_client = $web_order->reference;
-			$commande->socid = DolishopTools::getSociete((int) $web_order->id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
-
+			
+			list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_invoice) = $this->saveDolCustomerAddress((int) $web_order->id_customer, (int) $web_order->id_address_delivery, (int) $web_order->id_address_invoice);
+			
+			$commande->socid = $fk_soc;
 			$commande->date_commande = strtotime($web_order->date_add->__toString());
 			$commande->note_private = ''; // TODO à voir avec la ressource "messages"
 			$commande->note_public = '';
@@ -948,6 +950,8 @@ class Webservice
 				return -1;
 			}
 
+			// TODO add contacts livraison et facturation
+			
 			$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $web_order->id).']'));
 			foreach ($order_details->children() as $order_detail)
 			{
@@ -1019,6 +1023,84 @@ class Webservice
 		$this->db->commit();
 
 		return $commande->id;
+	}
+	
+	
+	/**
+	 * TODO à revoir et à renommer en saveDolCustomer => car côté Prestashop le client peut mettre à jour ses données
+	 */
+	public function saveDolCustomerAddress($web_id_customer, $web_id_address_delivery, $web_id_address_invoice)
+	{
+		global $user,$conf;
+		
+		if ($this->api_name == 'prestashop')
+		{
+			// TODO faire un get sql pour check si pas déjà existant
+			$fk_soc = DolishopTools::getSociete($web_id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
+			$ps_customer = $this->getOne('customers', $web_id_customer);
+			if ($ps_customer)
+			{
+				$ps_customer = $ps_customer->customer;
+				$societe = new \Societe($this->db);
+				$societe->particulier = 1;
+				$societe->name = dolGetFirstLastname($ps_customer->firstname->__toString(), $ps_customer->lastname->__toString());
+				$societe->name_bis = $ps_customer->lastname->__toString();
+				$societe->firstname = $ps_customer->firstname->__toString();
+				if ((int) $ps_customer->id_gender == 1) $societe->civility_id = 'MR';
+				else $societe->civility_id = 'MME';
+				$societe->email = $ps_customer->email->__toString();
+				$societe->entity = $conf->entity;
+				$societe->status = 1;
+				$societe->client = 1;
+				$societe->code_client = 'auto';
+				$societe->fournisseur = 0;
+				$societe->tva_assuj = 1;
+				$societe->typent_id = 8; // Particulier
+				$societe->typent_code = dol_getIdFromCode($this->db, $societe->typent_id, 'c_typent', 'id', 'code');	// Force typent_code too so check in verify() will be done on new type
+				
+				$societe->default_lang = ''; // en_US, fr_FR ...
+				$societe->create($user);
+			}
+			
+			// TODO de même ici, check en bdd si pas déjà existant
+			$ps_delivery_address = $this->getOne('addresses', $web_id_address_delivery);
+			if ($ps_delivery_address)
+			{
+				$ps_delivery_address = $ps_delivery_address->address;
+
+				// Contact livraison
+				$contact_delivery=new \Contact($this->db);
+
+				$contact_delivery->name              = $ps_delivery_address->lastname->__toString();
+				$contact_delivery->firstname         = $ps_delivery_address->firstname->__toString();
+				$contact_delivery->civility_id       = $societe->civility_id;
+				$contact_delivery->socid             = $societe->id;	// fk_soc
+				$contact_delivery->statut            = 1;
+				$contact_delivery->priv              = 0;
+//					$contact_delivery->country_id        = $societe->country_id;
+//					$contact_delivery->state_id          = $societe->state_id;
+				$contact_delivery->address           = implode("\n", array($ps_delivery_address->address1->__toString(), $ps_delivery_address->address2->__toString()));
+				$contact_delivery->email             = $societe->email;
+				$contact_delivery->zip               = $ps_delivery_address->postcode->__toString();
+				$contact_delivery->town              = $ps_delivery_address->city->__toString();
+				$contact_delivery->phone_pro         = $ps_delivery_address->phone->__toString();
+				$contact_delivery->birthday			= strtotime($ps_customer->birthday->__toString().' 12:00:00');
+				$result = $contact_delivery->create($user);
+			}
+
+
+			// Contact facturation
+			// ....
+			if ($web_id_address_delivery == $web_id_address_invoice) $fk_socpeople_invoice = $contact_delivery->id;
+			else
+			{
+				// check bdd + create or update
+			}
+
+			return array($societe->id, $contact_delivery->id, $fk_socpeople_invoice);
+		}
+		
+		return false;
 	}
 	
 	/**
