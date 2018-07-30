@@ -41,6 +41,12 @@ DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS=Créer une fiche produit dans Dolibarr p
 DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET</b>
 DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING=Valider une expédition Dolibarr passera la commande de votre boutique au statut (vide pour désactiver) :
 DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC=La ressource <b>order_states</b> doit être accessible en <b>GET</b>
+WebCarriersAssociations=Associations des méthodes d'expédition
+WebCarriersAssociationsHelp=La ressource <b>carriers</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les méthodes d'expédition de votre boutique avec celles de Dolibarr
+DolibarrShippingMethod=Méthode Dolibarr
+WebPaymentsAssociations=Associations des méthodes de paiement
+DolibarrPaymentMethod=Méthode Dolibarr
+WebPaymentsAssociationsHelp=La ressource <b>order_payments</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les méthodes de paiement de votre boutique avec celles de Dolibarr
 
 DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
 

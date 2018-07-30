@@ -448,10 +448,25 @@ class Webservice
 			$this->errors[] = $this->db->lasterror();
 			return false;
 		}
-		
-		return true;
 	}
 	
+	public function setCarriersAssociation($TCarrierAssociation)
+	{
+		self::$ps_configuration['WEB_SHIPPING_ASSOC'] = array();
+		
+		foreach ($TCarrierAssociation as $web_id_carrier => $fk_shipping_method)
+		{
+			self::$ps_configuration['WEB_SHIPPING_ASSOC'][$web_id_carrier] = $fk_shipping_method;
+		}
+		
+		$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_CONFIGURATION', json_encode(self::$ps_configuration));
+		if ($res > 0) return true;
+		else
+		{
+			$this->errors[] = $this->db->lasterror();
+			return false;
+		}
+	}
 	
 	/**
 	 * Synchronise les objets vers Prestashop
@@ -917,7 +932,7 @@ class Webservice
 
 			if ($web_order->delivery_date > '1000-00-00 00:00:00') $commande->date_livraison = strtotime($web_order->delivery_date->__toString());
 
-	//		$commande->shipping_method_id = GETPOST('shipping_method_id', 'int');
+			if (!empty(self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $web_order->id_carrier])) $commande->shipping_method_id = self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $web_order->id_carrier];
 	//		$commande->warehouse_id = GETPOST('warehouse_id', 'int'); // TODO conf global ? ->id_warehouse
 	//		$commande->fk_delivery_address = GETPOST('fk_address');
 	//		$commande->contactid = GETPOST('contactid');

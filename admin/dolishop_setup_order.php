@@ -86,8 +86,14 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	}
 }
 
-
 $dolishop = new Dolishop\Webservice($db);
+
+if ($action == 'save_carriers')
+{
+	$TCarrierAssociation = GETPOST('TCarrierAssociation', 'array');
+	$dolishop->setCarriersAssociation($TCarrierAssociation);
+}
+
 
 $TOrderState = array();
 $order_states = $dolishop->getAll('order_states', array());
@@ -100,9 +106,8 @@ if ($order_states)
 }
 /******/
 //$xml=$dolishop->getAll('orders', array());
-//$xml=$dolishop->getAll('orders', array());
+//$xml=$dolishop->getOne('orders', 6);
 //$dolishop->debugXml($xml);
-//var_dump($dolishop->errors);
 //exit;
 /******/
 
@@ -211,8 +216,90 @@ print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'
 print '</form>';
 print '</td></tr>';
 
-
 print '</table>';
+
+dol_fiche_end();
+
+print '<div class="fichehalfleft">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="save_carriers" />';
+print '<table class="noborder" width="100%">';
+print '<tr class="liste_titre">';
+print '<td colspan="2">'.$langs->trans('WebCarriersAssociations').'</td>'."\n";
+print '<td>'.$langs->trans('DolibarrShippingMethod').'</td>'."\n";
+print '</tr>';
+
+$carriers = $dolishop->getAll('carriers', array());
+if ($carriers)
+{
+	foreach ($carriers->children() as $carrier)
+	{
+		$var=!$var;
+		print '<tr '.$bc[$var].'>';
+		print '<td width="2%" align="center">'.$carrier->id.'</td>';
+		print '<td width="20%">'.$carrier->name.'</td>';
+		print '<td width="20%">';
+		$selected = '';
+		if (!empty($dolishop::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $carrier->id])) $selected = $dolishop::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $carrier->id];
+		$form->selectShippingMethod($selected, 'TCarrierAssociation['.$carrier->id.']', '', 1);
+		print '</td>';
+		print '</tr>';
+	}
+}
+else
+{
+	print '<td colspan="3" align="center">'.$langs->trans('WebCarriersAssociationsHelp').'</td>';
+}
+print '</table>';
+print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
+print '</form>';
+print '</div>';
+
+/* TODO à voir comment faire le matching avec le mode de paiement (si c'est utile car 99% du temps ça sera Carte bancaire / paypal)
+print '<div class="fichehalfright">';
+print '<div class="ficheaddleft">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="save_carriers" />';
+print '<table class="noborder" width="100%">';
+print '<tr class="liste_titre">';
+print '<td colspan="2">'.$langs->trans('WebPaymentsAssociations').'</td>'."\n";
+print '<td>'.$langs->trans('DolibarrPaymentMethod').'</td>'."\n";
+print '</tr>';
+
+$payments = $dolishop->getAll('order_payments', array());
+if ($payments)
+{
+	foreach ($payments->children() as $payment)
+	{
+		$var=!$var;
+		print '<tr '.$bc[$var].'>';
+		print '<td width="2%" align="center">'.$payment->id.'</td>';
+		print '<td width="20%">'.$payment->name.'</td>';
+		print '<td width="20%">';
+		$selected = '';
+		if (!empty($dolishop::$ps_configuration['WEB_PAYMENTS_ASSOC'][(int) $payment->id])) $selected = $dolishop::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $payment->id];
+		$form->select_types_paiements($selected, 'TPaymentAssociation['.$payment->id.']', '', 0, 1);
+		print '</td>';
+		print '</tr>';
+	}
+}
+else
+{
+	print '<td colspan="3" align="center">'.$langs->trans('WebPaymentsAssociationsHelp').'</td>';
+}
+print '</table>';
+print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
+print '</form>';
+
+print '</div>'; // ficheaddleft
+print '</div>'; // fichehalfright
+*/
+
+print '<div style="clear:both;"></div>';
+
+
 
 llxFooter();
 $db->close();
