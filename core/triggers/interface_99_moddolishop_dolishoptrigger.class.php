@@ -142,6 +142,36 @@ class InterfaceDolishoptrigger
 			}
 		}
 		
+		if ($action == 'SHIPPING_VALIDATE' && !empty($conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING))
+		{
+			dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
+			
+			if ($object->origin == 'commande' && $object->origin_id > 0)
+			{
+				$commande = new Commande($this->db);
+				$commande->fetch($object->origin_id);
+				if ($commande->array_options['options_web_id_order'] > 0)
+				{
+					dol_include_once('/dolishop/class/webservice.class.php');
+					$dolishop = new Dolishop\Webservice($db);
+					$res = $dolishop->setWebOrderAsShipped($commande->array_options['options_web_id_order'], $object);
+					if ($res > 0) setEventMessage($langs->trans('DolishopWebOrderSetAsShipped'));
+				}
+			}
+		}
+		else if ($action == 'ORDER_CLOSE' && !empty($conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED))
+		{
+			dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
+			
+			if (empty($object->array_options)) $object->fetch_optionals();
+			if ($object->array_options['options_web_id_order'] > 0)
+			{
+				dol_include_once('/dolishop/class/webservice.class.php');
+				$dolishop = new Dolishop\Webservice($db);
+				$res = $dolishop->setWebOrderAsDelivered($object->array_options['options_web_id_order']);
+				if ($res > 0) setEventMessage($langs->trans('DolishopWebOrderSetAsDelivered'));
+			}
+		}
 		
         if ($action == 'USER_LOGIN') {
             dol_syslog(

@@ -35,12 +35,11 @@ DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessi
 DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes Prestashop
 DOLISHOP_SYNC_ORDERS_DESC=Les ressources <b>orders, order_details, order_states</b> doivent être accessibles en <b>GET</b>
 DOLISHOP_SYNC_WEB_ORDER_STATES=Statuts des commandes à synchroniser
-DOLISHOP_SYNC_WEB_ORDER_STATES_DESC=La ressource <b>order_states</b> doit être accessible en <b>GET</b>
 DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE=Produit/Service à utiliser pour les frais de livraison (si vide, alors une ligne libre sera ajoutée)
 DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS=Créer une fiche produit dans Dolibarr plutôt que de créer une ligne libre lors de la récupération de la commande
 DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET</b>
 DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING=Valider une expédition Dolibarr passera la commande de votre boutique au statut (vide pour désactiver) :
-DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC=La ressource <b>order_states</b> doit être accessible en <b>GET</b>
+DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED=Classer une commande Dolibarr comme livrée, passera la commande de votre voutique au statut (vide pour désactiver) :
 WebCarriersAssociations=Associations des méthodes d'expédition
 WebCarriersAssociationsHelp=La ressource <b>carriers</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les méthodes d'expédition de votre boutique avec celles de Dolibarr
 DolibarrShippingMethod=Méthode Dolibarr
@@ -92,7 +91,8 @@ DolishopSyncPsConfSuccess=Configuration récupérée
 DolishopSyncPsProductSuccess=Produit Prestashop mis à jour
 DolishopAddPsProductImagesSuccess=Image ajoutée sur votre boutique Prestashop
 DolishopDeletePsProductImagesSuccess=Image supprimée de votre boutique Prestashop
-
+DolishopWebOrderSetAsShipped=Commande boutique mis à jour comme expédié
+DolishopWebOrderSetAsDelivered=Commande boutique mis à jour comme livrée
 
 ### CRONJOB
 DolishopCronjob_SyncProductSuccess=[%s] synchronisé avec l'identifiant Prestashop [%s]

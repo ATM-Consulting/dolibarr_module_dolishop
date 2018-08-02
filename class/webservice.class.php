@@ -48,8 +48,6 @@ class Webservice
 	
 	public $from_cron_job = false;
 	
-	public $result_xml;
-	
 	public $schema_products_blank;
 	public $schema_products_synopsis;
 
@@ -115,8 +113,8 @@ class Webservice
 				try
 				{
 					$opt = array('url' => $conf->global->DOLISHOP_PS_SHOP_PATH.'/api/'.$resourcename.'?schema='.$type);
-					$this->result_xml = self::$webService->get($opt);
-					$this->{'schema_'.$resourcename.'_'.$type} = $this->result_xml;
+					$result_xml = self::$webService->get($opt);
+					$this->{'schema_'.$resourcename.'_'.$type} = $result_xml;
 
 					return $this->{'schema_'.$resourcename.'_'.$type};
 				}
@@ -184,14 +182,17 @@ class Webservice
 	 * @param int		$id				Id de l'objet à charger
 	 * @return \SimpleXMLElement | boolean
 	 */
-	public function getOne($resource_name, $id)
+	public function getOne($resource_name, $id, $more_opt=array(), $children=true)
     {
 		if ($this->api_name == 'prestashop')
 		{
 			try
 			{
-				$result_xml = self::$webService->get(array('resource' => $resource_name, 'id' => $id));
-				return $result_xml->children();
+				$opt = array('resource' => $resource_name, 'id' => $id);
+				if (!empty($more_opt)) $opt+= $more_opt;
+				$result_xml = self::$webService->get($opt);
+				if ($children) return $result_xml->children();
+				else return $result_xml;
 			}
 			catch (PrestaShopWebserviceException $e)
 			{
@@ -606,8 +607,8 @@ class Webservice
 		{
 			if (!isset($opt['limit'])) $opt['limit'] = 2; // ça m'évite de charger des résultats dont je n'ai pas besoin
 			if (!isset($opt['display'])) $opt['display'] = 'full'; // je souhaite récupérer la totalité des champs pour un éventuel update
-			$this->result_xml = self::$webService->get($opt);
-			$resources = $this->result_xml->children();
+			$result_xml = self::$webService->get($opt);
+			$resources = $result_xml->children();
 		}
 		catch (PrestaShopWebserviceException $e)
 		{
@@ -617,7 +618,7 @@ class Webservice
 		if (!$error)
 		{
 			// Nombre d'occurrence ("product") dans "products"
-			if ($resources->children()->count() == 1) return $this->result_xml;
+			if ($resources->children()->count() == 1) return $result_xml;
 			else if (!empty($alt_opt)) return $this->findPsProductResource($alt_opt);
 		}
 		
@@ -674,8 +675,9 @@ class Webservice
 		if (!empty($conf->global->MAIN_MULTILANGS) && !empty(self::$ps_configuration['PS_LANGUAGES']))
 		{
 			// TODO à voir plus tard si j'utilise PRODUCT_USE_OTHER_FIELD_IN_TRANSLATION pour m'en servir comme "description_short"
+			$TProperty = array('name' => 'label', 'description' => 'description');
+			if (!empty($conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT)) $TProperty['description_short'] = 'description_short_trunc';
 			
-			$TProperty = array('name' => 'label', 'description' => 'description', 'description_short' => 'description_short_trunc');
 			foreach ($TProperty as $nodeKey => $dol_index)
 			{
 				preg_match('/.*\_(trunc)$/', $dol_index, $reg);
@@ -708,16 +710,16 @@ class Webservice
 			{
 //				echo '<pre>'.htmlspecialchars($schema->asXML(), ENT_QUOTES);exit;
 				$opt = array('resource' => 'products',  'putXml' => $schema->asXML(), 'id' => $ps_product->id);
-				$this->result_xml = self::$webService->edit($opt);
+				$result_xml = self::$webService->edit($opt);
 			}
 			else
 			{
 //				echo '<pre>'.htmlspecialchars($schema->asXML(), ENT_QUOTES);exit;
 				$opt = array('resource' => 'products',  'postXml' => $schema->asXML());
-				$this->result_xml = self::$webService->add($opt);
+				$result_xml = self::$webService->add($opt);
 			}
 			
-			$ps_product_return = $this->result_xml->children()->children();
+			$ps_product_return = $result_xml->children()->children();
 		}
 		catch (PrestaShopWebserviceException $e)
 		{
@@ -1103,6 +1105,80 @@ class Webservice
 		return false;
 	}
 	
+	
+	public function setWebOrderAsShipped($web_id_order, \Expedition $expedition)
+	{
+		global $conf;
+		
+		if ($conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING < 0) return -1;
+		
+		if ($this->api_name == 'prestashop')
+		{
+			$ps_order = $this->getOne('orders', $web_id_order, array(), false);
+			if ($ps_order)
+			{
+				// Check du statut dès fois que Dolibarr ai eu un petit souci tech et que le statut soit déjà mis à jour sur Prestashop
+				if ($ps_order->order->current_state != $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING)
+				{
+					$ps_order->order->current_state = $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING;
+					if (!empty($expedition->tracking_number)) $ps_order->order->delivery_number = $expedition->tracking_number;
+					if (!empty($expedition->date_delivery)) $ps_order->order->delivery_date = date('Y-m-d H:i:s', $expedition->date_delivery);
+
+					$opt = array('resource' => 'orders',  'putXml' => $ps_order->asXML(), 'id' => $web_id_order);
+					try
+					{
+						$result_xml = self::$webService->edit($opt);
+					}
+					catch (PrestaShopWebserviceException $e)
+					{
+						$error = $this->setError($e);
+					}
+
+					if ($error) return -2;
+				}
+				
+				return 1;
+			}
+		}
+		
+		return 0;
+	}
+	
+	
+	public function setWebOrderAsDelivered($web_id_order)
+	{
+		global $conf;
+		
+		if ($conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED < 0) return -1;
+		
+		if ($this->api_name == 'prestashop')
+		{
+			$ps_order = $this->getOne('orders', $web_id_order, array(), false);
+			if ($ps_order)
+			{
+				// Check du statut dès fois que Dolibarr ai eu un petit souci tech et que le statut soit déjà mis à jour sur Prestashop
+				if ($ps_order->order->current_state != $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED)
+				{
+					$ps_order->order->current_state = $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED;
+					$opt = array('resource' => 'orders',  'putXml' => $ps_order->asXML(), 'id' => $web_id_order);
+					try
+					{
+						$result_xml = self::$webService->edit($opt);
+					}
+					catch (PrestaShopWebserviceException $e)
+					{
+						$error = $this->setError($e);
+					}
+
+					if ($error) return -2;
+				}
+				
+				return 1;
+			}
+		}
+		
+		return 0;
+	}
 	/**
 	 * Méthode qui valorise simplement les attributs "error" et "errors" de l'objet courant 
 	 * si une erreur lors d'un appel au webservice est remontée
