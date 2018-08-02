@@ -52,7 +52,10 @@ WebPaymentsAssociations=Associations des méthodes de paiement
 DolibarrPaymentMethod=Méthode Dolibarr
 WebPaymentsAssociationsHelp=La ressource <b>order_payments</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les méthodes de paiement de votre boutique avec celles de Dolibarr
 
-DOLISHOP_SYNC_STOCK_MOVEMENT=Activer la synchronisation des mouvements de stock
+DOLISHOP_AUTO_PARAM_MODULE_STOCK=Procéder au paramétrage du module stock (ceci aura pour effet de modifier les configurations du module pour correspondre au mode de fonctionnement de celui-ci)
+ModuleStockAutoConfig=Configurer le module 'stock'
+DOLISHOP_SYNC_STOCK=Activer la synchronisation des mouvements de stock (not used yet)
+
 
 DOLISHOP_TEST_CONNECTION=Tester la connexion au service web
 DolishopTestConnection=Tester la connexion

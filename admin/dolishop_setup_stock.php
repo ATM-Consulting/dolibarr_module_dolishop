@@ -59,6 +59,7 @@ if (preg_match('/set_(.*)/',$action,$reg))
 	
 	if (dolibarr_set_const($db, $code, $value, 'chaine', 0, '', $conf->entity) > 0)
 	{
+		setEventMessage('SetupSaved');
 		header("Location: ".$_SERVER["PHP_SELF"]);
 		exit;
 	}
@@ -73,6 +74,7 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	$code=$reg[1];
 	if (dolibarr_del_const($db, $code, 0) > 0)
 	{
+		setEventMessage('SetupSaved');
 		Header("Location: ".$_SERVER["PHP_SELF"]);
 		exit;
 	}
@@ -82,6 +84,38 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	}
 }
 
+if ($action == 'DOLISHOP_AUTO_PARAM_MODULE_STOCK')
+{
+	// Règle de gestion des décrémentations automatiques de stock (la décrémentation manuelle est toujours possible, même si une décrémentation automatique est activée)
+	dolibarr_set_const($db, 'STOCK_CALCULATE_ON_BILL', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_CALCULATE_ON_VALIDATE_ORDER', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_CALCULATE_ON_SHIPMENT', 1, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_CALCULATE_ON_SHIPMENT_CLOSE', 0, 'chaine', 0, '', $conf->entity);
+	
+	// Règle de gestion des incrémentations de stock (l'incrémentation manuelle est toujours possible, même si une incrémentation automatique est activée)
+	dolibarr_set_const($db, 'STOCK_CALCULATE_ON_SUPPLIER_BILL', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_CALCULATE_ON_SUPPLIER_VALIDATE_ORDER', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_CALCULATE_ON_SUPPLIER_DISPATCH_ORDER', 1, 'chaine', 0, '', $conf->entity);
+	
+	// Règles d'exigence sur les stocks
+//	dolibarr_set_const($db, 'STOCK_ALLOW_NEGATIVE_TRANSFER', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_MUST_BE_ENOUGH_FOR_INVOICE', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_MUST_BE_ENOUGH_FOR_ORDER', 1, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_MUST_BE_ENOUGH_FOR_SHIPMENT', 0, 'chaine', 0, '', $conf->entity);
+	
+	// Règle de gestion du réapprovisionnement des stocks
+//	dolibarr_set_const($db, 'STOCK_USE_VIRTUAL_STOCK', 0, 'chaine', 0, '', $conf->entity);
+	
+	// Autre
+	dolibarr_set_const($db, 'STOCK_USERSTOCK_AUTOCREATE', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_SUPPORTS_SERVICES', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'STOCK_ALLOW_ADD_LIMIT_STOCK_BY_WAREHOUSE', 0, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'SUPPLIER_ORDER_USE_DISPATCH_STATUS', 0, 'chaine', 0, '', $conf->entity);
+	
+	setEventMessage('SetupSaved');
+	header("Location: ".$_SERVER["PHP_SELF"]);
+	exit;
+}
 
 /*
  * View
@@ -116,6 +150,19 @@ _print_title("Parameters");
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_AUTO_PARAM_MODULE_STOCK');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="DOLISHOP_AUTO_PARAM_MODULE_STOCK">';
+print '<input type="submit" class="butAction" value="'.$langs->trans("ModuleStockAutoConfig").'">';
+print '</form>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_SYNC_STOCK');
 print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_STOCK_DESC').'</small>';
 print '</td>';
@@ -127,7 +174,6 @@ print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_STOCK">';
 print ajax_constantonoff('DOLISHOP_SYNC_STOCK');
 print '</form></div>';
 print '</td></tr>';
-
 
 print '</table>';
 
