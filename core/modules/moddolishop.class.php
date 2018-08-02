@@ -352,6 +352,18 @@ class moddolishop extends DolibarrModules
 		$extrafield->addExtraField('web_id_order', 'ID commande boutique', 'int', $this->numero.$pos, 10, 'commande', 0, 0, '', '', 0, '', -1, 0);
 		$pos+=10;
 		
+		$pos = 0;
+		$extrafield->addExtraField('web_id_order_carrier', 'ID expédition boutique', 'int', $this->numero.$pos, 10, 'expedition', 0, 0, '', '', 0, '', -1, 0);
+		$pos+=10;
+		
+		$pos = 0;
+		$extrafield->addExtraField('web_id_customer', 'ID client boutique', 'int', $this->numero.$pos, 10, 'societe', 0, 0, '', '', 0, '', -1, 0);
+		$pos+=10;
+		
+		$pos = 0;
+		$extrafield->addExtraField('web_id_address', 'ID adresse boutique', 'int', $this->numero.$pos, 10, 'socpeople', 0, 0, '', '', 0, '', -1, 0);
+		$pos+=10;
+		
 		$result=$this->_load_tables('/dolishop/sql/');
 
 		

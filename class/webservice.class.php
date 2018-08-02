@@ -118,7 +118,7 @@ class Webservice
 
 					return $this->{'schema_'.$resourcename.'_'.$type};
 				}
-				catch (PrestaShopWebserviceException $e)
+				catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
 				{
 					$this->setError($e);
 					return false;
@@ -155,7 +155,7 @@ class Webservice
 	 * @param array		$more_opt		Tableau d'option complémentaire pour la requête ('filter', 'display', 'sort', 'limit', 'id_shop', 'id_group_shop')
 	 * @return \SimpleXMLElement | boolean
 	 */
-	public function getAll($resource_name, $more_opt=array())
+	public function getAll($resource_name, $more_opt=array(), $children=true)
 	{
 		if ($this->api_name == 'prestashop')
 		{
@@ -164,9 +164,10 @@ class Webservice
 				$opt = array('resource' => $resource_name, 'display' => 'full');
 				if (!empty($more_opt)) $opt+= $more_opt;
 				$result_xml = self::$webService->get($opt);
-				return $result_xml->children();
+				if ($children) return $result_xml->children();
+				else return $result_xml;
 			}
-			catch (PrestaShopWebserviceException $e)
+			catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
 			{
 				$this->setError($e);
 			}
@@ -194,7 +195,7 @@ class Webservice
 				if ($children) return $result_xml->children();
 				else return $result_xml;
 			}
-			catch (PrestaShopWebserviceException $e)
+			catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
 			{
 				$this->setError($e);
 			}
@@ -222,7 +223,7 @@ class Webservice
 				$opt = array('resource' => $resource_name, 'id' => $id);
 				return self::$webService->delete($opt);
 			}
-			catch (PrestaShopWebserviceException $e)
+			catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
 			{
 				$this->setError($e);
 			}
@@ -602,7 +603,7 @@ class Webservice
 	 */
 	private function findPsProductResource($opt, $alt_opt=array())
 	{
-		$error = false;
+		$error = 0;
 		try
 		{
 			if (!isset($opt['limit'])) $opt['limit'] = 2; // ça m'évite de charger des résultats dont je n'ai pas besoin
@@ -610,12 +611,13 @@ class Webservice
 			$result_xml = self::$webService->get($opt);
 			$resources = $result_xml->children();
 		}
-		catch (PrestaShopWebserviceException $e)
+		catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
 		{
-			$error = $this->setError($e);
+			$error++;
+			$this->setError($e);
 		}
 		
-		if (!$error)
+		if ($error == 0)
 		{
 			// Nombre d'occurrence ("product") dans "products"
 			if ($resources->children()->count() == 1) return $result_xml;
@@ -703,7 +705,7 @@ class Webservice
 			if (!empty($conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT)) $ps_product->description_short->children()[0][0] = $this->trunc($dol_product->description, $conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT, true, false);
 		}
 		
-		$error = false;
+		$error = 0;
 		try
 		{
 			if (!empty($ps_product->id))
@@ -721,12 +723,13 @@ class Webservice
 			
 			$ps_product_return = $result_xml->children()->children();
 		}
-		catch (PrestaShopWebserviceException $e)
+		catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
 		{
-			$error = $this->setError($e);
+			$error++;
+			$this->setError($e);
 		}
 
-		if (!$error)
+		if ($error == 0)
 		{
 			$res = 1;
 			$ps_id_product_return = (int) $ps_product_return->id;
@@ -884,7 +887,7 @@ class Webservice
 				,'filter[date_add]' => '['.$date_min.','.$now.']')
 			);
 		}
-		
+		//var_dump($web_orders);exit;
 		if ($web_orders)
 		{
 			foreach ($web_orders->children() as $web_order)
@@ -919,9 +922,14 @@ class Webservice
 			$current_state = (int) $web_order->current_state;
 			if (!in_array($current_state, $TState)) return 0;
 		
-			$commande->ref_client = $web_order->reference;
+			$commande->ref_client = $web_order->reference->__toString();
 			
-			list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_invoice) = $this->saveDolCustomerAddress((int) $web_order->id_customer, (int) $web_order->id_address_delivery, (int) $web_order->id_address_invoice);
+			list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddress((int) $web_order->id_customer, (int) $web_order->id_address_delivery, (int) $web_order->id_address_invoice);
+			if (empty($fk_soc) && empty($fk_socpeople_delivery) && empty($fk_socpeople_billing))
+			{
+				$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
+				return 0;
+			}
 			
 			$commande->socid = $fk_soc;
 			$commande->date_commande = strtotime($web_order->date_add->__toString());
@@ -951,9 +959,12 @@ class Webservice
 				$this->errors[] = $this->error;
 				return -1;
 			}
-
-			// TODO add contacts livraison et facturation
 			
+			// Ajout contact livraison / facturation
+			if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY) && $fk_socpeople_delivery > 0) $commande->add_contact($fk_socpeople_delivery, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'external');
+			if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING) && $fk_socpeople_billing > 0) $commande->add_contact($fk_socpeople_billing, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'external');
+			
+			// Ajout des lignes de la commande
 			$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $web_order->id).']'));
 			foreach ($order_details->children() as $order_detail)
 			{
@@ -1013,6 +1024,20 @@ class Webservice
 //		$this->debugXml($web_order);
 		$res = $commande->valid($user);
 		if ($res < 0) $error++;
+		else
+		{
+			
+			if ($this->api_name == 'prestashop')
+			{
+				// Creation d'une expédition brouillon, par défaut Prestashop créé en automatique après chaque commande un order_carriers (expédition)
+				$ps_order_carriers = $this->getAll('order_carriers', array('filter[id_order]' => '['.$web_order->id.']'));
+				if ($ps_order_carriers && $ps_order_carriers->children()->count() > 0)
+				{
+					$commande->fetch_lines();
+					$res = $this->createDolExpeditionDraft($commande, $ps_order_carriers->children()->order_carrier);
+				}
+			}
+		}
 		
 		if ($error)
 		{
@@ -1028,83 +1053,140 @@ class Webservice
 	}
 	
 	
-	/**
-	 * TODO à revoir et à renommer en saveDolCustomer => car côté Prestashop le client peut mettre à jour ses données
-	 */
-	public function saveDolCustomerAddress($web_id_customer, $web_id_address_delivery, $web_id_address_invoice)
+	
+	private function saveDolCustomerAddress($web_id_customer, $web_id_address_delivery, $web_id_address_invoice)
 	{
 		global $user,$conf;
 		
 		if ($this->api_name == 'prestashop')
 		{
-			// TODO faire un get sql pour check si pas déjà existant
-			$fk_soc = DolishopTools::getSociete($web_id_customer); // TODO vérifier que j'ai bien un fk_soc en retour
+			$fk_soc = DolishopTools::getSociete($web_id_customer);
 			$ps_customer = $this->getOne('customers', $web_id_customer);
 			if ($ps_customer)
 			{
 				$ps_customer = $ps_customer->customer;
 				$societe = new \Societe($this->db);
-				$societe->particulier = 1;
+				if ($fk_soc > 0) $societe->fetch($fk_soc);
+				
 				$societe->name = dolGetFirstLastname($ps_customer->firstname->__toString(), $ps_customer->lastname->__toString());
 				$societe->name_bis = $ps_customer->lastname->__toString();
 				$societe->firstname = $ps_customer->firstname->__toString();
 				if ((int) $ps_customer->id_gender == 1) $societe->civility_id = 'MR';
 				else $societe->civility_id = 'MME';
 				$societe->email = $ps_customer->email->__toString();
-				$societe->entity = $conf->entity;
-				$societe->status = 1;
-				$societe->client = 1;
-				$societe->code_client = 'auto';
-				$societe->fournisseur = 0;
-				$societe->tva_assuj = 1;
-				$societe->typent_id = 8; // Particulier
-				$societe->typent_code = dol_getIdFromCode($this->db, $societe->typent_id, 'c_typent', 'id', 'code');	// Force typent_code too so check in verify() will be done on new type
-				
-				$societe->default_lang = ''; // en_US, fr_FR ...
-				$societe->create($user);
+				if (!empty($societe->id))
+				{
+//					$societe->default_lang = ''; // en_US, fr_FR ...
+					$societe->update('', $user);
+				}
+				else
+				{
+					$societe->default_lang = ''; // en_US, fr_FR ...
+					$societe->entity = $conf->entity;
+					$societe->status = 1;
+					$societe->client = 1;
+					$societe->code_client = 'auto';
+					$societe->fournisseur = 0;
+					$societe->tva_assuj = 1;
+					$societe->typent_id = 8; // Particulier
+					$societe->typent_code = dol_getIdFromCode($this->db, $societe->typent_id, 'c_typent', 'id', 'code');	// Force typent_code too so check in verify() will be done on new type
+					$societe->array_options['options_web_id_customer'] = $web_id_customer;
+					$societe->create($user);
+				}
 			}
 			
-			// TODO de même ici, check en bdd si pas déjà existant
-			$ps_delivery_address = $this->getOne('addresses', $web_id_address_delivery);
-			if ($ps_delivery_address)
-			{
-				$ps_delivery_address = $ps_delivery_address->address;
-
-				// Contact livraison
-				$contact_delivery=new \Contact($this->db);
-
-				$contact_delivery->name              = $ps_delivery_address->lastname->__toString();
-				$contact_delivery->firstname         = $ps_delivery_address->firstname->__toString();
-				$contact_delivery->civility_id       = $societe->civility_id;
-				$contact_delivery->socid             = $societe->id;	// fk_soc
-				$contact_delivery->statut            = 1;
-				$contact_delivery->priv              = 0;
-//					$contact_delivery->country_id        = $societe->country_id;
-//					$contact_delivery->state_id          = $societe->state_id;
-				$contact_delivery->address           = implode("\n", array($ps_delivery_address->address1->__toString(), $ps_delivery_address->address2->__toString()));
-				$contact_delivery->email             = $societe->email;
-				$contact_delivery->zip               = $ps_delivery_address->postcode->__toString();
-				$contact_delivery->town              = $ps_delivery_address->city->__toString();
-				$contact_delivery->phone_pro         = $ps_delivery_address->phone->__toString();
-				$contact_delivery->birthday			= strtotime($ps_customer->birthday->__toString().' 12:00:00');
-				$result = $contact_delivery->create($user);
-			}
-
-
-			// Contact facturation
-			// ....
-			if ($web_id_address_delivery == $web_id_address_invoice) $fk_socpeople_invoice = $contact_delivery->id;
-			else
-			{
-				// check bdd + create or update
-			}
-
-			return array($societe->id, $contact_delivery->id, $fk_socpeople_invoice);
+			$fk_socpeople_delivery = $this->saveDolContact($societe, $ps_customer, $web_id_address_delivery);
+			
+			if ($web_id_address_delivery == $web_id_address_invoice) $fk_socpeople_billing = $fk_socpeople_delivery;
+			else $fk_socpeople_billing = $this->saveDolContact($societe, $ps_customer, $web_id_address_invoice);
+			
+			return array($societe->id, $fk_socpeople_delivery, $fk_socpeople_billing);
 		}
 		
 		return false;
 	}
 	
+	private function saveDolContact(&$societe, &$ps_customer, $web_id_address)
+	{
+		global $user;
+		
+		if (!class_exists('\Contact')) require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
+		
+		$ps_address = $this->getOne('addresses', $web_id_address);
+		if ($ps_address)
+		{
+			$ps_address = $ps_address->address;
+
+			// Contact livraison
+			$contact = new \Contact($this->db);
+			$fk_socpeople = DolishopTools::getContact($web_id_address);
+			if ($fk_socpeople > 0) $contact->fetch($fk_socpeople);
+
+			$contact->name = $ps_address->lastname->__toString();
+			$contact->firstname = $ps_address->firstname->__toString();
+			$contact->civility_id = $societe->civility_id;
+			$contact->address = implode("\n", array($ps_address->address1->__toString(), $ps_address->address2->__toString()));
+			$contact->email = $societe->email;
+			$contact->zip = $ps_address->postcode->__toString();
+			$contact->town = $ps_address->city->__toString();
+			$contact->phone_pro = $ps_address->phone->__toString();
+			$contact->birthday = strtotime($ps_customer->birthday->__toString().' 12:00:00');
+//			$contact->country_id        = $societe->country_id;
+//			$contact->state_id          = $societe->state_id;
+
+			if (!empty($contact->id))
+			{
+				$result = $contact->update($contact->id, $user);
+			}
+			else
+			{
+				$contact->statut = 1;
+				$contact->priv = 0;
+				$contact->socid = $societe->id;	// fk_soc
+				$result = $contact->create($user);
+			}
+			
+			return $contact->id;
+		}
+
+		return 0;
+	}
+	
+	private function createDolExpeditionDraft(\Commande &$commande, \SimpleXMLElement $web_order_carrier)
+	{
+		global $user,$conf;
+		
+		if (!class_exists('\Expedition')) require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
+		
+		$expedition = new \Expedition($this->db);
+		$expedition->ref_customer = $commande->ref_client;
+		$expedition->fk_project = $commande->fk_project;
+		$expedition->date_delivery = $commande->date_livraison;
+		$expedition->socid = $commande->socid;
+		$expedition->weight = $web_order_carrier->weight->__toString();
+		$expedition->weight_units = 0; // TODO voir comment synchro les unités (à = kg)
+		if (!empty(self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $web_order_carrier->id_carrier])) $expedition->shipping_method_id = self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $web_order_carrier->id_carrier];
+		else $expedition->shipping_method_id = $commande->shipping_method_id;
+		
+		$expedition->weight = 'NULL';
+	    $expedition->sizeH = 'NULL';
+	    $expedition->sizeW = 'NULL';
+	    $expedition->sizeS = 'NULL';
+		$expedition->size_units = 0; // TODO voir comment synchro les unités (o = mètre)
+		
+		$expedition->origin = $commande->element;
+        $expedition->origin_id = $commande->id;
+		
+		foreach ($commande->lines as &$line)
+		{
+			if ($line->product_type == \Product::TYPE_PRODUCT) $expedition->addline($conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID, $line->id, $line->qty);
+		}
+		
+		$expedition->array_options['options_web_id_order_carrier'] = (int) $web_order_carrier->id;
+		
+		$res = $expedition->create($user);
+		return $res;
+	}
 	
 	public function setWebOrderAsShipped($web_id_order, \Expedition $expedition)
 	{
@@ -1114,31 +1196,84 @@ class Webservice
 		
 		if ($this->api_name == 'prestashop')
 		{
-			$ps_order = $this->getOne('orders', $web_id_order, array(), false);
-			if ($ps_order)
+			$error = 0;
+			try
 			{
-				// Check du statut dès fois que Dolibarr ai eu un petit souci tech et que le statut soit déjà mis à jour sur Prestashop
-				if ($ps_order->order->current_state != $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING)
+				$ps_order = $this->getOne('orders', $web_id_order, array(), false);
+				if ($ps_order)
 				{
-					$ps_order->order->current_state = $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING;
-					if (!empty($expedition->tracking_number)) $ps_order->order->delivery_number = $expedition->tracking_number;
-					if (!empty($expedition->date_delivery)) $ps_order->order->delivery_date = date('Y-m-d H:i:s', $expedition->date_delivery);
-
-					$opt = array('resource' => 'orders',  'putXml' => $ps_order->asXML(), 'id' => $web_id_order);
-					try
+					// J'édite la commande distante que si son statut n'a pas encore était modifié (il est possible de faire plusieurs expéditions)
+					if ($ps_order->order->current_state != $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING)
 					{
+						$ps_order->order->current_state = $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING;
+						$opt = array('resource' => 'orders',  'putXml' => $ps_order->asXML(), 'id' => $web_id_order);
 						$result_xml = self::$webService->edit($opt);
 					}
-					catch (PrestaShopWebserviceException $e)
+					
+					$schema_order_carrier = $this->getSchema('order_carriers', 'blank');
+					
+					$ps_order_carriers = $this->getAll('order_carriers', array('filter[id_order]' => '['.$web_id_order.']'));
+					if (!empty($expedition->array_options['options_web_id_order_carrier']))
 					{
-						$error = $this->setError($e);
+						foreach ($ps_order_carriers->children() as $ps_order_carrier)
+						{
+							if ((int) $ps_order_carrier->id == $expedition->array_options['options_web_id_order_carrier'])
+							{
+								foreach ($ps_order_carrier as $nodeKey => $node)
+								{
+									$schema_order_carrier->order_carrier->{$nodeKey} = $node;
+								}
+								break;
+							}
+						}
 					}
+					
+					$schema_order_carrier->order_carrier->id_order = $ps_order->order->id;
+					$schema_order_carrier->order_carrier->id_order_invoice = $ps_order->order->invoice_number;
+					
+					// Il possible aussi que le transporteur change, donc s'il a bien était modifié sur l'expédition Dolibarr et que celui-ci correspond à quelque chose de configuré, alors j'utilise cet identifiant de transporteur sinon c'est celui par défaut de la commande Prestashop
+					$id_carrier = array_search($expedition->shipping_method_id, Webservice::$ps_configuration['WEB_SHIPPING_ASSOC']);
+					$schema_order_carrier->order_carrier->id_carrier = ($id_carrier !== false) ? $id_carrier : $ps_order->order->id_carrier;
 
-					if ($error) return -2;
+					if ($ps_order_carriers->children()->count() == 0)
+					{
+						// J'applique les frais de livraison qu'à la première expédition
+						$schema_order_carrier->order_carrier->shipping_cost_tax_excl = $ps_order->order->total_shipping_tax_excl;
+						$schema_order_carrier->order_carrier->shipping_cost_tax_incl = $ps_order->order->total_shipping_tax_incl;
+					}
+					
+					$schema_order_carrier->order_carrier->weight = $expedition->trueWeight; // TODO faire la concordance des unités
+					if (!empty($expedition->tracking_number)) $schema_order_carrier->order_carrier->tracking_number = $expedition->tracking_number;
+//					if (!empty($expedition->date_delivery)) $schema_order_carrier->order_carrier->date_add = date('Y-m-d H:i:s', $expedition->date_delivery);
+					
+					// le champ en base s'appel "id_order_carrier" mais "id" au niveau de l'objet
+					if ((int) $schema_order_carrier->order_carrier->id > 0)
+					{
+						$opt = array('resource' => 'order_carriers',  'putXml' => $schema_order_carrier->asXML(), 'id' => (int) $schema_order_carrier->order_carrier->id);
+						$result_xml = self::$webService->edit($opt);
+					}
+					else
+					{
+						$opt = array('resource' => 'order_carriers',  'postXml' => $schema_order_carrier->asXML());
+						$result_xml = self::$webService->add($opt);
+					}
+					
+					$expedition->array_options['options_web_id_order_carrier'] = (int) $result_xml->order_carrier->id;
+					$res = $expedition->updateExtraField('web_id_order_carrier');
+					if ($res < 0) $this->errors[] = $expedition->error;
 				}
-				
-				return 1;
 			}
+			catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
+			{
+				$error++;
+				$this->setError($e);
+				
+				var_dump($this->errors);exit;
+			}
+			
+			if ($error) return -2;
+					
+			return 1;
 		}
 		
 		return 0;
@@ -1151,43 +1286,42 @@ class Webservice
 		
 		if ($conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED < 0) return -1;
 		
+		$error = 0;
 		if ($this->api_name == 'prestashop')
 		{
-			$ps_order = $this->getOne('orders', $web_id_order, array(), false);
-			if ($ps_order)
+			try
 			{
-				// Check du statut dès fois que Dolibarr ai eu un petit souci tech et que le statut soit déjà mis à jour sur Prestashop
-				if ($ps_order->order->current_state != $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED)
+				$ps_order = $this->getOne('orders', $web_id_order, array(), false);
+				if ($ps_order)
 				{
-					$ps_order->order->current_state = $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED;
-					$opt = array('resource' => 'orders',  'putXml' => $ps_order->asXML(), 'id' => $web_id_order);
-					try
+					// Check du statut dès fois que Dolibarr ai eu un petit souci tech et que le statut soit déjà mis à jour sur Prestashop
+					if ($ps_order->order->current_state != $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED)
 					{
+						$ps_order->order->current_state = $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED;
+						$opt = array('resource' => 'orders',  'putXml' => $ps_order->asXML(), 'id' => $web_id_order);
 						$result_xml = self::$webService->edit($opt);
 					}
-					catch (PrestaShopWebserviceException $e)
-					{
-						$error = $this->setError($e);
-					}
-
-					if ($error) return -2;
 				}
-				
-				return 1;
+			}
+			catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
+			{
+				$error++;
+				$this->setError($e);
 			}
 		}
 		
-		return 0;
+		if ($error) return -2;
+		else return 1;
 	}
 	/**
 	 * Méthode qui valorise simplement les attributs "error" et "errors" de l'objet courant 
 	 * si une erreur lors d'un appel au webservice est remontée
 	 * 
 	 * @global Translate $langs
-	 * @param PrestaShopWebserviceException $e
+	 * @param PSWebServiceLibrary\PrestaShopWebserviceException $e
 	 * @return boolean
 	 */
-	private function setError(PrestaShopWebserviceException $e)
+	private function setError(PSWebServiceLibrary\PrestaShopWebserviceException $e)
 	{
 		global $langs;
 		
@@ -1371,11 +1505,38 @@ class EcmFilesDolishop extends \SeedObject
 
 class DolishopTools
 {
-	public static function getSociete($ps_id_customer, $only_fk_soc=true)
+	public static function getSociete($web_id_customer)
 	{
-		// TODO à contruire lorsque la synchro client sera faite
+		global $db;
 		
-		return 7; // id d'un client existant en base TODO REMOVE
+		if ($web_id_customer <= 0) return 0;
+		
+		$sql = 'SELECT fk_object FROM '.MAIN_DB_PREFIX.'societe_extrafields WHERE web_id_customer = '.$web_id_customer;
+		$resql = $db->query($sql);
+		if ($resql)
+		{
+			$obj = $db->fetch_object($resql);
+			if (!empty($obj->fk_object)) return $obj->fk_object;
+			else return 0;
+		}
+		else exit($db->lasterror());
+	}
+	
+	public static function getContact($web_id_address)
+	{
+		global $db;
+		
+		if ($web_id_address <= 0) return 0;
+		
+		$sql = 'SELECT fk_object FROM '.MAIN_DB_PREFIX.'socpeople_extrafields WHERE web_id_address = '.$web_id_address;
+		$resql = $db->query($sql);
+		if ($resql)
+		{
+			$obj = $db->fetch_object($resql);
+			if (!empty($obj->fk_object)) return $obj->fk_object;
+			else return 0;
+		}
+		else exit($db->lasterror());
 	}
 	
 	public static function getVatRate($id_tax=0, $id_tax_rules_group=0)

@@ -202,9 +202,7 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
 	$var=!$var;
 	print '<tr '.$bc[$var].'>';
     print '<td>'.$langs->trans('DOLISHOP_SYNC_PS_CONF');
-	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_LANGUAGES_DESC').'</small>';
-	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_TAXES_DESC').'</small>';
-	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_IMAGES_DESC').'</small>';
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PS_CONF_DESC').'</small>';
     print '</td>';
     print '<td align="center">&nbsp;</td>';
     print '<td align="right">';
@@ -229,7 +227,11 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
     print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
     print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PS_SHOP_ID">';
 	$TShop = array();
-	$ps_shops = $dolishop->getAll('shops', array());
+	
+	try {
+		$ps_shops = $dolishop->getAll('shops', array());
+	} catch (Exception $ex) {}
+	
 	if ($ps_shops)
 	{
 		foreach ($ps_shops->children() as $ps_shop)

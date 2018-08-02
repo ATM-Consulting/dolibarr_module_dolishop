@@ -38,6 +38,8 @@ dol_include_once('/dolishop/lib/dolishop.lib.php');
 dol_include_once('/dolishop/class/webservice.class.php');
 require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/html.formproduct.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formcompany.class.php';
+
 
 // Translations
 $langs->load('admin');
@@ -104,16 +106,25 @@ if ($order_states)
 		$TOrderState[(int) $order_state->id] = $order_state->name->language[0]->__toString();
 	}
 }
+
+//require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
+//$exp = new \Expedition($db);
+//$exp->fetch(11);
+//
+//var_dump($exp);exit;
 /******/
-//$xml=$dolishop->getAll('orders', array());
+//$xml=$dolishop->getAll('order_carriers', array('filter[id_order]' => '[6]'));
+//$schema_order_carrier = $dolishop->getSchema('order_carriers', 'blank');
 //$xml=$dolishop->getOne('orders', 6);
+//$xml=$dolishop->getOne('order_carriers', 2);
 //$dolishop->debugXml($xml);exit;
 //$xml=$dolishop->getOne('customers', 1);
 //$dolishop->debugXml($xml);exit;
 //$xml=$dolishop->getOne('addresses', 1);
 //$dolishop->debugXml($xml->address);exit;
 //$r=$dolishop->createDolCustomer(1, 1, 1);
-//var_dump($r);
+//$dolishop->debugXml($xml);exit;
+//var_dump($xml);
 //exit;
 /******/
 
@@ -143,6 +154,7 @@ $img_warning = img_warning().' ';
 // Setup page goes here
 $form=new Form($db);
 $formproduct = new FormProduct($db);
+$formcompany= new FormCompany($db);
 
 print '<table class="noborder" width="100%">';
 
@@ -178,6 +190,37 @@ print '</form>';
 print '</td></tr>';
 print '</td></tr>';
 
+$tmpobject=new Commande($db);
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY">';
+$formcompany->selectTypeContact($tmpobject, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY', 'external', 'position', 1, 'minwidth200 maxwidth300');
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING">';
+$formcompany->selectTypeContact($tmpobject, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING', 'external', 'position', 1, 'minwidth200 maxwidth300');
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+print '</td></tr>';
+
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE');
@@ -206,9 +249,26 @@ print ajax_constantonoff('DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS');
 print '</form></div>';
 print '</td></tr>';
 
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_DEFAULT_WAREHOUSE_ID');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_DEFAULT_WAREHOUSE_ID">';
+print $formproduct->selectWarehouses($conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID, 'DOLISHOP_DEFAULT_WAREHOUSE_ID', '', 1, 0, 0, '', 0, 0, array(), 'minwidth200 maxwidth300');
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+
+
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC').'</small>';
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -223,6 +283,7 @@ print '</td></tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED_DESC').'</small>';
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
