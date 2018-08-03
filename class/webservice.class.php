@@ -439,7 +439,7 @@ class Webservice
 		else return false;
 		
 		
-		$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_CONFIGURATION', json_encode(self::$ps_configuration));
+		$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_CONFIGURATION', json_encode(self::$ps_configuration), 'chaine', 0, '', $conf->entity);
 		if ($res > 0)
 		{
 			self::$ps_configuration = json_decode($conf->global->DOLISHOP_PS_CONFIGURATION, true);
@@ -454,6 +454,8 @@ class Webservice
 	
 	public function setCarriersAssociation($TCarrierAssociation)
 	{
+		global $conf;
+		
 		self::$ps_configuration['WEB_SHIPPING_ASSOC'] = array();
 		
 		foreach ($TCarrierAssociation as $web_id_carrier => $fk_shipping_method)
@@ -461,7 +463,7 @@ class Webservice
 			self::$ps_configuration['WEB_SHIPPING_ASSOC'][$web_id_carrier] = $fk_shipping_method;
 		}
 		
-		$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_CONFIGURATION', json_encode(self::$ps_configuration));
+		$res = dolibarr_set_const($this->db, 'DOLISHOP_PS_CONFIGURATION', json_encode(self::$ps_configuration), 'chaine', 0, '', $conf->entity);
 		if ($res > 0) return true;
 		else
 		{
@@ -657,12 +659,25 @@ class Webservice
 		$ps_product->id_tax_rules_group = $id_tax_rules_group;
 		
 		$ps_product->state =  1;
-		$ps_product->weight =  $dol_product->weight; // TODO voir pour l'unité de mesure
-		// dans Dolibarr  c'est la notion de LLH et sur Prestashop c'est LHP, à voir s'il y a vraiement une différence
-		$ps_product->width =  $dol_product->length; // TODO voir pour l'unité de mesure
-		$ps_product->height =  $dol_product->height; // TODO voir pour l'unité de mesure
-		$ps_product->depth =  $dol_product->width; // TODO voir pour l'unité de mesure
-
+		
+		$coef = 1;
+		if (!is_null(self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT']) && self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'] !== '' && $dol_product->length_units != self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'])
+		{
+			$delta = $dol_product->length_units - self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'];
+			$coef = pow(10, $delta);
+		}
+		$ps_product->width =  $dol_product->length * $coef;
+		$ps_product->depth =  $dol_product->width * $coef;
+		$ps_product->height =  $dol_product->height * $coef;
+		
+		$coef = 1;
+		if (!is_null(self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT']) && self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'] !== '' && $dol_product->length_units != self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'])
+		{
+			$delta = $dol_product->length_units - self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
+			$coef = pow(10, $delta);
+		}
+		$ps_product->weight =  $dol_product->weight * $coef;
+		
 		$ps_product->active =  $dol_product->status; // 1 = en vente donc à activer sur prestashop
 		$ps_product->available_for_order =  $dol_product->status; // de même pour sa disponibilité sur la boutique
 		$ps_product->show_price =  $dol_product->status; // de même pour afficher le prix sur la boutique
@@ -797,10 +812,18 @@ class Webservice
 				$dol_product->description = $web_product->description->language[0]->__toString();
 			}
 
-			$dol_product->price=$web_product->price->__toString();
+			$dol_product->price = $web_product->price->__toString();
 			$dol_product->tva_tx = DolishopTools::getVatRate(0, (int) $web_product->id_tax_rules_group);
 			$dol_product->status = $web_product->active->__toString();
 			$dol_product->seuil_stock_alerte = $web_product->low_stock_threshold->__toString();
+			
+			$dol_product->length = (float) $web_product->width;
+			$dol_product->width = (float) $web_product->depth;
+			$dol_product->height = (float) $web_product->height;
+			$dol_product->length_units = self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'];
+			
+			$dol_product->weight = (float) $web_product->weight;
+			$dol_product->weight_units = self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
 		}
 		
 		$fk_product=$dol_product->create($user);

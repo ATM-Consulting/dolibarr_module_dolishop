@@ -36,6 +36,8 @@ require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 require_once DOL_DOCUMENT_ROOT . "/core/lib/admin.lib.php";
 dol_include_once('/dolishop/lib/dolishop.lib.php');
 dol_include_once('/dolishop/class/webservice.class.php');
+require_once DOL_DOCUMENT_ROOT.'/product/class/html.formproduct.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/product.lib.php';
 
 // Translations
 $langs->load('admin');
@@ -76,6 +78,25 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	{
 		setEventMessage('SetupSaved');
 		Header("Location: ".$_SERVER["PHP_SELF"]);
+		exit;
+	}
+	else
+	{
+		dol_print_error($db);
+	}
+}
+
+if ($action == 'save_mesuring_units')
+{
+	Dolishop\Webservice::$ps_configuration['MESURING_UNITS'] = array(
+		'WEIGHT_UNIT' => GETPOST('WEIGHT_UNIT')
+		,'DIMENSION_UNIT' => GETPOST('DIMENSION_UNIT')
+	);
+	
+	if (dolibarr_set_const($db, 'DOLISHOP_PS_CONFIGURATION', json_encode(Dolishop\Webservice::$ps_configuration), 'chaine', 0, '', $conf->entity) > 0)
+	{
+		setEventMessage('SetupSaved');
+		header("Location: ".$_SERVER["PHP_SELF"]);
 		exit;
 	}
 	else
@@ -138,6 +159,7 @@ $img_warning = img_warning().' ';
 
 // Setup page goes here
 $form=new Form($db);
+$formproduct = new FormProduct($db);
 
 print '<table class="noborder" width="100%">';
 
@@ -249,6 +271,49 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
 
 
 print '</table>';
+
+dol_fiche_end();
+
+print '<div class="fichehalfleft">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="save_mesuring_units" />';
+print '<table class="noborder" width="100%" style="margin-bottom:5px;">';
+print '<tr class="liste_titre">';
+print '<td>'.$langs->trans('WebMesuringUnits').'</td>'."\n";
+print '<td>'.$langs->trans('DolibarrMesuringUnits').'</td>'."\n";
+print '</tr>';
+
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('dolishop_WEIGHT_UNIT').'</td>';
+print '<td>';
+$selected = 0;
+if (!empty(Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'])) $selected = Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
+print $formproduct->load_measuring_units('WEIGHT_UNIT', 'weight', $selected);
+print '</td>';
+print '</tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('dolishop_DIMENSION_UNIT').'</td>';
+print '<td>';
+$selected = 0;
+if (!empty(Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'])) $selected = Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'];
+print $formproduct->load_measuring_units('DIMENSION_UNIT', 'size', $selected);
+print '</td>';
+print '</tr>';
+
+
+print '</table>';
+print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
+print '</form>';
+
+print '</div>'; // fichehalfleft
+
+
+print '<div style="clear:both;"></div>';
 
 llxFooter();
 

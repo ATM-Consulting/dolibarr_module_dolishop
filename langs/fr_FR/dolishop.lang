@@ -51,6 +51,10 @@ DolibarrShippingMethod=Méthode Dolibarr
 WebPaymentsAssociations=Associations des méthodes de paiement
 DolibarrPaymentMethod=Méthode Dolibarr
 WebPaymentsAssociationsHelp=La ressource <b>order_payments</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les méthodes de paiement de votre boutique avec celles de Dolibarr
+WebMesuringUnits=Unités de mesures
+DolibarrMesuringUnits=Unités Dolibarr
+dolishop_WEIGHT_UNIT=L'unité de poids de votre boutique s'exprime en :
+dolishop_DIMENSION_UNIT=Les dimensions de votre boutique s'expriment en :
 
 DOLISHOP_AUTO_PARAM_MODULE_STOCK=Procéder au paramétrage du module stock (ceci aura pour effet de modifier les configurations du module pour correspondre au mode de fonctionnement de celui-ci)
 ModuleStockAutoConfig=Configurer le module 'stock'
