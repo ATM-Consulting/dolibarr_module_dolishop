@@ -1166,6 +1166,7 @@ class Webservice
 				$contact->statut = 1;
 				$contact->priv = 0;
 				$contact->socid = $societe->id;	// fk_soc
+				$contact->array_options['options_web_id_address'] = $web_id_address;
 				$result = $contact->create($user);
 			}
 			
