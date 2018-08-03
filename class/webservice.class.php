@@ -1154,7 +1154,7 @@ class Webservice
 			$contact->town = $ps_address->city->__toString();
 			$contact->phone_pro = $ps_address->phone->__toString();
 			$contact->birthday = strtotime($ps_customer->birthday->__toString().' 12:00:00');
-//			$contact->country_id        = $societe->country_id;
+			if (!empty(self::$ps_configuration['COUNTRIES_ID'][(int) $ps_address->id_country])) $contact->country_id = self::$ps_configuration['COUNTRIES_ID'][(int) $ps_address->id_country];
 //			$contact->state_id          = $societe->state_id;
 
 			if (!empty($contact->id))

@@ -104,6 +104,21 @@ if ($action == 'save_mesuring_units')
 		dol_print_error($db);
 	}
 }
+else if ($action == 'save_countries')
+{
+	Dolishop\Webservice::$ps_configuration['COUNTRIES_ID'] = GETPOST('TCountry', 'array');
+	
+	if (dolibarr_set_const($db, 'DOLISHOP_PS_CONFIGURATION', json_encode(Dolishop\Webservice::$ps_configuration), 'chaine', 0, '', $conf->entity) > 0)
+	{
+		setEventMessage('SetupSaved');
+		header("Location: ".$_SERVER["PHP_SELF"]);
+		exit;
+	}
+	else
+	{
+		dol_print_error($db);
+	}
+}
 
 /******/
 //$dolishop = new Dolishop\Webservice($db);
@@ -275,12 +290,11 @@ print '<div class="fichehalfleft">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 print '<input type="hidden" name="action" value="save_mesuring_units" />';
-print '<table class="noborder" width="100%" style="margin-bottom:5px;">';
+print '<table class="noborder" width="100%">';
 print '<tr class="liste_titre">';
 print '<td></td>'."\n";
 print '<td>'.$langs->trans('DolibarrMesuringUnits').'</td>'."\n";
 print '</tr>';
-
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
@@ -304,12 +318,50 @@ if (!isset(Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['DIMENSION_U
 print '</td>';
 print '</tr>';
 
+print '</table>';
+print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
+print '</form>';
+print '</div>'; // fichehalfleft
+
+
+print '<div class="fichehalfright">';
+print '<div class="ficheaddleft">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="save_countries" />';
+print '<table class="noborder" width="100%" style="margin-bottom:5px;">';
+print '<tr class="liste_titre">';
+print '<td colspan="2">'.$langs->trans('WebCountriesAssociations').'</td>'."\n";
+print '<td>'.$langs->trans('DolibarrCountries').'</td>'."\n";
+print '</tr>';
+
+$web_countries = $dolishop->getAll('countries', array('filter[active]'=>'[1]'));
+if ($web_countries)
+{
+	foreach ($web_countries->children() as $country)
+	{
+		$var=!$var;
+		print '<tr '.$bc[$var].'>';
+		print '<td width="2%" align="center">'.$country->id.'</td>';
+		print '<td>'.$country->name->language[0].'</td>';
+		print '<td>';
+		$selected = '';
+		if (!empty(Dolishop\Webservice::$ps_configuration['COUNTRIES_ID'][(int) $country->id])) $selected = Dolishop\Webservice::$ps_configuration['COUNTRIES_ID'][(int) $country->id];
+		print $form->select_country($selected, 'TCountry['.$country->id.']', '', 0, 'minwidth200 maxwidth300');
+		print '</td>';
+		print '</tr>';
+	}
+}
+else
+{
+	print '<td colspan="3" align="center">'.$langs->trans('WebCountriesAssociationsHelp').'</td>';
+}
 
 print '</table>';
 print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
 print '</form>';
-
-print '</div>'; // fichehalfleft
+print '</div>'; // ficheaddleft
+print '</div>'; // fichehalfright
 
 
 print '<div style="clear:both;"></div>';

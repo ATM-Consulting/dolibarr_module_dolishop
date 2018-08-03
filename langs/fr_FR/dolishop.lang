@@ -55,6 +55,9 @@ DolibarrMesuringUnits=Unités Dolibarr
 dolishop_WEIGHT_UNIT=Qu'elle est l'unité de poids de votre boutique :
 dolishop_DIMENSION_UNIT=Qu'elle est l'unité de dimension de votre boutique :
 DolishopConfNotSaveYet=Configuration non enregistrée
+WebCountriesAssociations=Pays actifs de votre boutique
+WebCountriesAssociationsHelp=La ressource <b>countries</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les pays de votre boutique avec ceux de Dolibarr
+DolibarrCountries=Pays Dolibarr
 
 DOLISHOP_AUTO_PARAM_MODULE_STOCK=Procéder au paramétrage du module stock (ceci aura pour effet de modifier les configurations du module pour correspondre au mode de fonctionnement de celui-ci)
 ModuleStockAutoConfig=Configurer le module 'stock'
