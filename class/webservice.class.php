@@ -673,7 +673,7 @@ class Webservice
 		$coef = 1;
 		if (!is_null(self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT']) && self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'] !== '' && $dol_product->length_units != self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'])
 		{
-			$delta = $dol_product->length_units - self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
+			$delta = $dol_product->weight_units - self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
 			$coef = pow(10, $delta);
 		}
 		$ps_product->weight =  $dol_product->weight * $coef;
