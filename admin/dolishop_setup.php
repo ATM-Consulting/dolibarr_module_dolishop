@@ -115,7 +115,7 @@ if ($action == 'save_mesuring_units')
 //exit;
 /******/
 
-$dolishop = new \Dolishop\Webservice($db);
+$dolishop = new Dolishop\Webservice($db);
 if ($action == 'testConnection')
 {
 	$shopName = $dolishop->testConnection();
@@ -236,7 +236,8 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
 	$conf_str = $dolishop->getFormatedStringTConf();
 	if (!empty($conf_str)) print $form->textwithpicto('', $conf_str, 1, 'help', '', 0, 2, 1);
     print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopSyncPsConf").'">';
-	if (empty($conf->global->DOLISHOP_PS_CONFIGURATION)) print img_error($langs->trans("DolishopSyncPsConfNeeded"));
+	if (empty(Dolishop\Webservice::$ps_configuration['PS_LANGUAGES']) || empty(Dolishop\Webservice::$ps_configuration['PS_TAXES']) || empty(Dolishop\Webservice::$ps_configuration['PS_IMAGES_MIME_TYPES'])) 
+		print img_error($langs->trans("DolishopSyncPsConfNeeded"));
     print '</form>';
     print '</td></tr>';
 	
@@ -251,11 +252,7 @@ if (!empty($conf->global->DOLISHOP_PS_SHOP_PATH) && !empty($conf->global->DOLISH
     print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
     print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PS_SHOP_ID">';
 	$TShop = array();
-	
-	try {
-		$ps_shops = $dolishop->getAll('shops', array());
-	} catch (Exception $ex) {}
-	
+	$ps_shops = $dolishop->getAll('shops', array());
 	if ($ps_shops)
 	{
 		foreach ($ps_shops->children() as $ps_shop)
@@ -280,7 +277,7 @@ print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 print '<input type="hidden" name="action" value="save_mesuring_units" />';
 print '<table class="noborder" width="100%" style="margin-bottom:5px;">';
 print '<tr class="liste_titre">';
-print '<td>'.$langs->trans('WebMesuringUnits').'</td>'."\n";
+print '<td></td>'."\n";
 print '<td>'.$langs->trans('DolibarrMesuringUnits').'</td>'."\n";
 print '</tr>';
 
@@ -292,6 +289,7 @@ print '<td>';
 $selected = 0;
 if (!empty(Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'])) $selected = Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
 print $formproduct->load_measuring_units('WEIGHT_UNIT', 'weight', $selected);
+if (!isset(Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'])) print ' '.img_error($langs->trans("DolishopConfNotSaveYet"));
 print '</td>';
 print '</tr>';
 
@@ -302,6 +300,7 @@ print '<td>';
 $selected = 0;
 if (!empty(Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'])) $selected = Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'];
 print $formproduct->load_measuring_units('DIMENSION_UNIT', 'size', $selected);
+if (!isset(Dolishop\Webservice::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'])) print ' '.img_error($langs->trans("DolishopConfNotSaveYet"));
 print '</td>';
 print '</tr>';
 

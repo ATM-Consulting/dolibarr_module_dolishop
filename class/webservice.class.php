@@ -661,7 +661,7 @@ class Webservice
 		$ps_product->state =  1;
 		
 		$coef = 1;
-		if (!is_null(self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT']) && self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'] !== '' && $dol_product->length_units != self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'])
+		if (isset(self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT']) && $dol_product->length_units != self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'])
 		{
 			$delta = $dol_product->length_units - self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'];
 			$coef = pow(10, $delta);
@@ -671,7 +671,7 @@ class Webservice
 		$ps_product->height =  $dol_product->height * $coef;
 		
 		$coef = 1;
-		if (!is_null(self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT']) && self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'] !== '' && $dol_product->length_units != self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'])
+		if (isset(self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT']) && $dol_product->weight_units != self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'])
 		{
 			$delta = $dol_product->weight_units - self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
 			$coef = pow(10, $delta);
