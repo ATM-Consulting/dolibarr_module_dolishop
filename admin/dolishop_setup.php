@@ -86,6 +86,8 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	}
 }
 
+$dolishop = new Dolishop\Webservice($db);
+
 if ($action == 'save_mesuring_units')
 {
 	Dolishop\Webservice::$ps_configuration['MESURING_UNITS'] = array(
@@ -130,7 +132,7 @@ else if ($action == 'save_countries')
 //exit;
 /******/
 
-$dolishop = new Dolishop\Webservice($db);
+
 if ($action == 'testConnection')
 {
 	$shopName = $dolishop->testConnection();
