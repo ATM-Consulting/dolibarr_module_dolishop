@@ -337,19 +337,19 @@ print '<td colspan="2">'.$langs->trans('WebCountriesAssociations').'</td>'."\n";
 print '<td>'.$langs->trans('DolibarrCountries').'</td>'."\n";
 print '</tr>';
 
-$web_countries = $dolishop->getAll('countries', array('filter[active]'=>'[1]'));
-if ($web_countries)
+$TCountry = $dolishop->WsGetAllCountries();
+if (!empty($TCountry))
 {
-	foreach ($web_countries->children() as $country)
+	foreach ($TCountry as $id_country => $name)
 	{
 		$var=!$var;
 		print '<tr '.$bc[$var].'>';
-		print '<td width="2%" align="center">'.$country->id.'</td>';
-		print '<td>'.$country->name->language[0].'</td>';
+		print '<td width="2%" align="center">'.$id_country.'</td>';
+		print '<td>'.$name.'</td>';
 		print '<td>';
 		$selected = '';
-		if (!empty(Dolishop\Webservice::$ps_configuration['COUNTRIES_ID'][(int) $country->id])) $selected = Dolishop\Webservice::$ps_configuration['COUNTRIES_ID'][(int) $country->id];
-		print $form->select_country($selected, 'TCountry['.$country->id.']', '', 0, 'minwidth200 maxwidth300');
+		if (!empty(Dolishop\Webservice::$ps_configuration['COUNTRIES_ID'][$id_country])) $selected = Dolishop\Webservice::$ps_configuration['COUNTRIES_ID'][$id_country];
+		print $form->select_country($selected, 'TCountry['.$id_country.']', '', 0, 'minwidth200 maxwidth300');
 		print '</td>';
 		print '</tr>';
 	}

@@ -26,11 +26,7 @@ if (!class_exists('SeedObject'))
 	require_once __DIR__.'/../config.php';
 }
 
-/**
- * Description of webservice
- *
- * @author Pierre-Henry Favre		<phf@atm-consulting.fr>
- */
+
 class Webservice
 {
 	private static $webService = null;
@@ -67,6 +63,7 @@ class Webservice
 		switch ($this->api_name) {
 			case 'magento':
 				break;
+			case 'prestashop':
 			default:
 				require_once __DIR__.'/../src/PSWebServiceLibrary.php';
 				
@@ -162,7 +159,10 @@ class Webservice
 			try
 			{
 				$opt = array('resource' => $resource_name, 'display' => 'full');
-				if (!empty($more_opt)) $opt+= $more_opt;
+				if (!empty($more_opt))
+				{
+					foreach ($more_opt as $key => $value) $opt[$key] = $value;
+				}
 				$result_xml = self::$webService->get($opt);
 				if ($children) return $result_xml->children();
 				else return $result_xml;
@@ -190,7 +190,10 @@ class Webservice
 			try
 			{
 				$opt = array('resource' => $resource_name, 'id' => $id);
-				if (!empty($more_opt)) $opt+= $more_opt;
+				if (!empty($more_opt))
+				{
+					foreach ($more_opt as $key => $value) $opt[$key] = $value;
+				}
 				$result_xml = self::$webService->get($opt);
 				if ($children) return $result_xml->children();
 				else return $result_xml;
@@ -337,7 +340,7 @@ class Webservice
 	 */
 	public function deleteImages(&$dol_product, $TFileName)
 	{
-		if (DolishopTools::checkProductCategories($dol_product->id))
+		if (DolishopTools::checkProductCategoriesD2P($dol_product->id))
 		{
 			foreach ($TFileName as $filename)
 			{
@@ -511,12 +514,13 @@ class Webservice
 		{
 			if ($this->api_name == 'prestashop')
 			{
-				$ps_products = $this->getAll('products', array('filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']'));
+				$more_opt = array('filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']');
+				$ps_products = $this->getAll('products', $more_opt);
 				if ($ps_products)
 				{
 					foreach ($ps_products->children() as $ps_product)
 					{
-						$this->createProductFromWebProduct($ps_product);
+						$this->saveProductFromWebProduct($ps_product);
 					}
 				}
 			}
@@ -776,7 +780,7 @@ class Webservice
 		return 0;
 	}
 	
-	private function createProductFromWebProduct($web_product)
+	private function saveProductFromWebProduct($web_product)
 	{
 		global $conf,$user,$langs;
 		
@@ -786,9 +790,25 @@ class Webservice
 		
 		if ($this->api_name == 'prestashop')
 		{
-			$dol_product->array_options['options_ps_id_product'] = (int) $web_product->id;
-			$dol_product->ref = $web_product->reference->__toString();
-
+			if (!DolishopTools::checkProductCategoriesP2D($this->api_name, $web_product)) return 0;
+			
+			$fk_product = DolishopTools::getDolProductId((int) $web_product->id, $web_product->reference->__toString());
+			if ($fk_product == -1)
+			{
+				$this->error = $langs->trans('DolishopErrorMultipleReferenceFound', (int) $web_product->id, $web_product->reference->__toString());
+				$this->errors[] = $this->error;
+				return -2;
+			}
+			else if ($fk_product > 0)
+			{
+				$dol_product->fetch($fk_product);
+			}
+			else
+			{
+				$dol_product->array_options['options_ps_id_product'] = (int) $web_product->id;
+				$dol_product->ref = $web_product->reference->__toString();	
+			}
+			
 			if (!empty($conf->global->MAIN_MULTILANGS) && !empty(self::$ps_configuration['PS_LANGUAGES']))
 			{
 				$TProperty = array('name' => 'label', 'description' => 'description');
@@ -844,7 +864,7 @@ class Webservice
 			$ps_product = $this->getOne('products', $web_id_product);
 			if ($ps_product)
 			{
-				$res = $this->createProductFromWebProduct($ps_product->product);
+				$res = $this->saveProductFromWebProduct($ps_product->product);
 				if ($res > 0) return $res;
 			}
 		}
@@ -975,7 +995,7 @@ class Webservice
 	//		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
 			$commande->multicurrency_tx = (double) $web_order->conversion_rate;
 			
-			if ($commande->create($user) < 0) // TODO gestion d'erreur à faire
+			if ($commande->create($user) < 0)
 			{
 				$error++;
 				$this->error = $langs->trans('DolishopErrorOrderCreate', $web_order->reference, $commande->db->lasterror());
@@ -991,8 +1011,14 @@ class Webservice
 			$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $web_order->id).']'));
 			foreach ($order_details->children() as $order_detail)
 			{
-				$fk_product = DolishopTools::getProduct((int) $order_detail->product_id, $order_detail->product_reference->__toString());
-				if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
+				$fk_product = DolishopTools::getDolProductId((int) $order_detail->product_id, $order_detail->product_reference->__toString());
+				if ($fk_product == -1)
+				{
+					$this->error = $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString());
+					$this->errors[] = $this->error;
+					return -2;
+				}
+				else if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
 				{
 					$fk_product = $this->createProductFromWebProductId((int) $order_detail->product_id);
 				}
@@ -1439,6 +1465,56 @@ class Webservice
 		return $str;
 	}
 	
+	public function WsGetAllProductsCategories()
+	{
+		global $conf;
+		
+		$TCateg = array();
+		
+		if ($this->api_name == 'prestashop')
+		{
+			$more_opt = array('display'=>'[id,id_parent,name]', 'filter[id]'=>'>[1]'); // > 1 pour ne pas avoir la categorie nommée "Racine" qui est visible uniquement en bdd
+			if (!empty($conf->global->DOLISHOP_SYNC_PS_SHOP_ID)) $more_opt['filter[id_shop_default]'] = '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']';
+			$xml = $this->getAll('categories', $more_opt);
+			if ($xml)
+			{
+				foreach ($xml->children() as $child) 
+				{
+					$TCateg[(int) $child->id] = $child->name->language[0]->__toString(); 
+				}
+				
+				asort($TCateg);
+			}
+		}
+		
+		
+		return $TCateg;
+	}
+	
+	public function WsGetAllCountries()
+	{
+		global $conf;
+		
+		$TCountry = array();
+		
+		if ($this->api_name == 'prestashop')
+		{
+			$more_opt = array('filter[active]'=>'[1]');
+			if (!empty($conf->global->DOLISHOP_SYNC_PS_SHOP_ID)) $more_opt['id_shop'] = $conf->global->DOLISHOP_SYNC_PS_SHOP_ID;
+			$xml = $this->getAll('countries', $more_opt);
+			if ($xml)
+			{
+				foreach ($xml->children() as $child)
+				{
+					$TCountry[(int) $child->id] = $child->name->language[0]->__toString();
+				}
+			}	
+		}
+		
+		
+		return $TCountry;
+	}
+	
 	public function debugXml($xml)
 	{
 		print '<pre>'. print_r($xml, true) .'</pre>';
@@ -1577,7 +1653,14 @@ class DolishopTools
 		}
 	}
 	
-	public static function getProduct($ps_id_product, $ps_product_reference='')
+	/**
+	 * Get product if in Dolibarr from id or reference from website
+	 * 
+	 * @param type $ps_id_product
+	 * @param type $ps_product_reference
+	 * @return int 0 = not found; > 0 id found; -1 if multiple id found
+	 */
+	public static function getDolProductId($ps_id_product, $ps_product_reference='')
 	{
 		global $db,$conf;
 		
@@ -1588,6 +1671,8 @@ class DolishopTools
 		$resql = $db->query($sql);
 		if ($resql)
 		{
+			if ($db->num_rows($resql) > 1) return -1;
+			
 			$obj = $db->fetch_object($resql);
 			if (!empty($obj->rowid)) return $obj->rowid;
 		}
@@ -1609,18 +1694,43 @@ class DolishopTools
 	}
 	
 	/**
-	 * Méthode qui vérifie si le fk_product fait bien partie de/des catégories produits à synchroniser
+	 * Méthode qui vérifie si le produit web fait bien partie d'une des catégories produits à synchroniser
+	 * 
+	 * @param string				$api_name
+	 * @param \SimpleXMLElement		$web_product
+	 * @return boolean
+	 */
+	public static function checkProductCategoriesP2D($api_name, $web_product)
+	{
+		global $conf;
+		
+		$TCat = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE);
+		if (empty($TCat)) return true;
+		
+		if ($api_name == 'prestashop')
+		{
+			foreach ($web_product->associations->categories->children() as $category)
+			{
+				if (in_array((int) $category->id, $TCat)) return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Méthode qui vérifie si le fk_product fait bien partie d'une des catégories produits à synchroniser
 	 * 
 	 * @param int		$fk_product
 	 * @return boolean
 	 */
-	public static function checkProductCategories($fk_product)
+	public static function checkProductCategoriesD2P($fk_product)
 	{
 		global $db,$conf;
 		
 		if (!class_exists('Categorie')) require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 		
-		$TCatFilter = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES);
+		$TCatFilter = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR);
 		$category = new \Categorie($db);
 		$TCategory = $category->getListForItem($fk_product, \Categorie::TYPE_PRODUCT);
 		if (is_array($TCategory))
@@ -1646,13 +1756,13 @@ class DolishopTools
 		
 		$TId = array();
 		
-		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES) && empty($conf->global->DOLISHOP_SYNC_PRODUCTS_RECK_CONF)) return $TId;
+		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR) && empty($conf->global->DOLISHOP_SYNC_PRODUCTS_RECK_CONF)) return $TId;
 		
 		$sql = 'SELECT DISTINCT p.rowid FROM '.MAIN_DB_PREFIX.'product p';
 		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS_RECK_CONF))
 		{
 			$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_product = p.rowid)'; // restriction par tags/categories
-			$sql.= ' WHERE cp.fk_categorie IN ('.$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES.')';
+			$sql.= ' WHERE cp.fk_categorie IN ('.$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR.')';
 		}
 		
 		$resql = $db->query($sql);

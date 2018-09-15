@@ -27,7 +27,9 @@ DOLISHOP_PS_WS_DEBUG=Activer le mode "DEBUG" des appels
 DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
 DOLISHOP_SYNC_PRODUCTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET / PUT / POST</b>
 DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT=Nombre de caractères maximum pour convertir la description de votre fiche produit en tant que description courte sur Prestashop (vide ou 0 = désactivé)
-DOLISHOP_SYNC_PRODUCTS_CATEGORIES=Synchroniser les produits dans la/les catégorie(s) suivante(s)
+DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR=Synchroniser les produits Dolibarr issues de la/les catégorie(s) suivante(s)
+DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE=Synchroniser les produits Prestashop issues de la/les catégorie(s) suivante(s) (vide pour tout récupérer)
+DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE_DESC=La ressource <b>categories</b> doit être accessible en <b>GET</b>
 
 DOLISHOP_SYNC_PRODUCTS_IMAGES=Activer la synchronisation des images produits
 DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET / PUT / POST</b>
@@ -80,9 +82,11 @@ DolishopPsImagesMimeTypes=Type d'images autorisées
 DolishopPsImagesMimeTypesAllowed=<b>Pour les produits :</b> %s
 DolishopPsTaxes=TVA
 
-DolishopCronjobProducts_label=[DOLISHOP] Synchronisation des produits Dolibarr vers Prestashop ou inversement (pour init)
-DolishopCronjobProducts_desc=Jusqu'à 3 paramètres : "fk_user", "direction" (dolibarr2website ou website2dolibarr) et "sync_images" (valeur 1, optionnel)
-DolishopCronjobOrders_label=[DOLISHOP] Synchronisation des commandes Prestashop vers Dolibarr
+DolishopCronjobProductsD2P_label=[DOLISHOP - Produits] Synchronisation des produits Dolibarr vers Prestashop
+DolishopCronjobProductsD2P_desc=Jusqu'à 3 paramètres : "fk_user", "direction" (dolibarr2website ou website2dolibarr) et "sync_images" (valeur 1, optionnel)
+DolishopCronjobProductsP2D_label=[DOLISHOP - Produits] Synchronisation des produits Prestashop vers Dolibarr
+DolishopCronjobProductsP2D_desc=Jusqu'à 3 paramètres : "fk_user", "direction" (dolibarr2website ou website2dolibarr) et "sync_images" (valeur 1, optionnel)
+DolishopCronjobOrders_label=[DOLISHOP - Commandes] Synchronisation des commandes Prestashop vers Dolibarr
 DolishopCronjobOrders_desc1=Il est possible de passer jusqu'à 3 paramètres ($fk_user, $minutes=30, $date_min='')
 DolishopCronjobOrders_desc2=- fk_user => pour la création des commandes (obligatoire et il doit avoir les droits nécessaires pour créer/valider les commandes)
 DolishopCronjobOrders_desc3=- minutes => chaque exécution ira chercher les commandes des 30 dernières minutes par défaut
@@ -97,6 +101,7 @@ DolishopErrorWs404=Erreur 404 : aucun service web à l'URL indiquée
 DolishopErrorWsBadAuthKey=Erreur 401 : clé d'authentification invalide
 DolishopErrorWsUnknown=Erreur inconnue : veuillez vérifier que l'URL pointe vers un site existant [%s]
 DolishopPostImageError=Erreur sur la mise à jour de l'image Prestashop, message retour : [%s] %s
+DolishopErrorMultipleReferenceFound=Erreur : plusieurs produits dolibarr trouvés pour l'identifiant / référence [%s / %s]
 
 ### MESG SUCCESS
 DolishopTestConnectionSuccess=Connexion à votre boutique [%s] réussie

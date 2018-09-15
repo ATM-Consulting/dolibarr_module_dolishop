@@ -369,10 +369,10 @@ class moddolishop extends DolibarrModules
 		
 		// TODO faire l'ajout de la tâche planifiée
 		require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
-		$cronjob = new Cronjob($this->db);
 		
-		$cronjob->label = $langs->trans('DolishopCronjobProducts_label');
-		$cronjob->note = $langs->trans('DolishopCronjobProducts_desc');
+		$cronjob = new Cronjob($this->db);
+		$cronjob->label = $langs->trans('DolishopCronjobProductsD2P_label');
+		$cronjob->note = $langs->trans('DolishopCronjobProductsD2P_desc');
 		$cronjob->jobtype = 'method';
 		$cronjob->frequency = 1;
 		$cronjob->unitfrequency = 86400;
@@ -385,6 +385,22 @@ class moddolishop extends DolibarrModules
 		$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
 		$cronjob->create($user);
 		
+		$cronjob = new Cronjob($this->db);
+		$cronjob->label = $langs->trans('DolishopCronjobProductsP2D_label');
+		$cronjob->note = $langs->trans('DolishopCronjobProductsP2D_desc');
+		$cronjob->jobtype = 'method';
+		$cronjob->frequency = 1;
+		$cronjob->unitfrequency = 86400;
+		$cronjob->status = 0;
+		$cronjob->module_name = 'dolishop';
+		$cronjob->classesname = '/dolishop/class/webservice.class.php';
+		$cronjob->objectname = '\Dolishop\Webservice';
+		$cronjob->methodename = 'rsyncProducts';
+		$cronjob->params = $user->id.',website2dolibarr';
+		$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
+		$cronjob->create($user);
+		
+		$cronjob = new Cronjob($this->db);
 		$cronjob->label = $langs->trans('DolishopCronjobOrders_label');
 		$cronjob->note = $langs->trans('DolishopCronjobOrders_desc1')."\n".$langs->trans('DolishopCronjobOrders_desc2')."\n".$langs->trans('DolishopCronjobOrders_desc3')."\n".$langs->trans('DolishopCronjobOrders_desc4');
 		$cronjob->jobtype = 'method';

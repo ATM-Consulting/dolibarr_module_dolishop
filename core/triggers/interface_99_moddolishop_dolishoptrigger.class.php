@@ -132,8 +132,8 @@ class InterfaceDolishoptrigger
 				// Si je proviens du formulaire de création/édition
 				$TCategory = GETPOST('categories');
 				if (
-					( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES)) )
-					|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategories($object->id) )
+					( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR)) )
+					|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategoriesD2P($object->id) )
 				) {
 					$dolishop->updateWebProducts(array($object->id));
 					if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');

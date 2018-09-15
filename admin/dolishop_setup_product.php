@@ -57,7 +57,10 @@ if (preg_match('/set_(.*)/',$action,$reg))
 	$code=$reg[1];
 	$value=GETPOST($code);
 	
-	if ($code == 'DOLISHOP_SYNC_PRODUCTS_CATEGORIES' && is_array($value)) $value = implode(',', $value);
+	if (
+		in_array($code, array('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR', 'DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE')) 
+		&& is_array($value)
+	) $value = implode(',', $value);
 	
 	if (dolibarr_set_const($db, $code, $value, 'chaine', 0, '', $conf->entity) > 0)
 	{
@@ -159,15 +162,31 @@ print '</td></tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES');
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR');
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_CATEGORIES">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR">';
 $cate_arbo = $form->select_all_categories(Categorie::TYPE_PRODUCT, '', 'parent', 64, 0, 1);
-print $form->multiselectarray('DOLISHOP_SYNC_PRODUCTS_CATEGORIES', $cate_arbo, explode(',',$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES), '', 0, '', 0, '75%');
+print $form->multiselectarray('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR', $cate_arbo, explode(',',$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR), '', 0, '', 0, '75%');
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE_DESC').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE">';
+$TProductCatWebsite = $dolishop->WsGetAllProductsCategories();
+print $form->multiselectarray('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE', $TProductCatWebsite, explode(',',$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE), '', 0, '', 0, '75%');
 print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
 print '</form>';
 print '</td></tr>';
