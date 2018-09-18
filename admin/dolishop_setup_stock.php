@@ -117,6 +117,15 @@ if ($action == 'DOLISHOP_AUTO_PARAM_MODULE_STOCK')
 	exit;
 }
 
+/*****/
+// Voir avec la resource "stock_availables" de comment je peux m'en sortir pour update les quantités
+// table : ps_stock_available [quantity] [physical_quantity, reserved_quantity]
+//$dolishop = new Dolishop\Webservice($db);
+//$xml = $dolishop->getAll('stock_availables', array('filter[id]' => 19), false);
+//$xml = $dolishop->getOne('stock_availables', 19, array(), false);
+//$dolishop->debugXml($xml);exit;
+/*****/
+
 /*
  * View
  */
