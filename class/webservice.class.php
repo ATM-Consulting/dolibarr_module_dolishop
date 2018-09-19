@@ -518,10 +518,9 @@ class Webservice
 				$ps_products = $this->getAll('products', $more_opt);
 				if ($ps_products)
 				{
-					var_dump($ps_products->children()->count());
 					foreach ($ps_products->children() as $ps_product)
 					{
-						$this->saveProductFromWebProduct($ps_product);
+						$this->saveProductFromWebProduct($ps_product, $sync_images);
 					}
 				}
 			}
@@ -563,9 +562,21 @@ class Webservice
 	 */
 	private function syncProductToPrestashop($fk_product, $sync_images=false)
 	{
+//		$fk_product = 166; // TODO REMOVE
+		
 		$dol_product = new \Product($this->db);
 		if ($dol_product->fetch($fk_product) > 0)
 		{
+			// TODO finaliser l'update de la combinaison sur la boutique si je suis sur un produit issue d'une variante
+//			$combination = new ProductCombinationDolishop($this->db);
+//			if ($combination->fetchByFkProductChild($dol_product->id) > 0)
+//			{
+//				
+//			}
+//			
+//			var_dump($combination);
+//			exit;
+			
 			if (empty($dol_product->array_options)) $dol_product->fetch_optionals();
 			if (!empty($dol_product->array_options['options_ps_id_product']))
 			{
@@ -781,7 +792,18 @@ class Webservice
 		return 0;
 	}
 	
-	private function saveProductFromWebProduct($web_product)
+	/**
+	 * Ce charge de crééer les produit dans Dolibarr
+	 * Si le module "variants" est actif, alors les déclinaisons sont synchro aussi
+	 * 
+	 * @global \Dolishop\Conf $conf
+	 * @global \Dolishop\User $user
+	 * @global \Translate	$langs $langs
+	 * @param type $web_product
+	 * @param type $sync_images
+	 * @return int
+	 */
+	private function saveProductFromWebProduct($web_product, $sync_images)
 	{
 		global $conf,$user,$langs;
 		
@@ -847,15 +869,6 @@ class Webservice
 			$dol_product->weight_units = self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
 		}
 		
-//		$psproduct = $this->getAll('products', array('filter[id]'=>'[1]'));
-//		var_dump($psproduct->products->product->associations->combinations, !empty($psproduct->products->product->associations->combinations));
-//		exit;
-//		var_dump($this->getAll('combinations', array('filter[id_product]'=>'['.$web_product->id.']')));
-$r = $this->saveProductCombinationsFromWebProduct($web_product, $dol_product);
-		var_dump($r);
-		exit;
-		
-		
 		if (!empty($dol_product->id)) $res = $dol_product->update($dol_product->id, $user);
 		else $res = $dol_product->create($user);
 		if ($res < 0)
@@ -865,14 +878,13 @@ $r = $this->saveProductCombinationsFromWebProduct($web_product, $dol_product);
 			return -1;
 		}
 		
-		
 		$this->saveProductCombinationsFromWebProduct($web_product, $dol_product);
 		
 		return $dol_product->id;
 	}
 	
 	/**
-	 * Crée ou met à jour les combinaisons
+	 * Crée ou met à jour les combinaisons dans Dolibarr
 	 * API "combinations" accessible en GET
 	 * 
 	 * @global \Dolishop\Conf $conf
@@ -895,77 +907,56 @@ $r = $this->saveProductCombinationsFromWebProduct($web_product, $dol_product);
 			
 			if (!empty($web_product->associations->product_option_values))
 			{
-				$psproduct = $this->getAll("products", array('filter[id]'=>'[43]'));
-				var_dump($psproduct->children()->product->associations->combinations);
-//				$pscomb = $this->getAll('combinations', array('filter[id]'=>'[63,64,65,66,67,68,69,70]'));
-				$pscomb = $this->getAll('combinations', array('filter[id]'=>'[63]'));
-				foreach ($pscomb->children() as $c)
-					var_dump($c->associations->product_option_values);
-				
-				exit;
-				
-				var_dump($this->getAll('combinations', array('filter[id]'=>'[9,10,11,12]'))->children()->combination->associations);
-				var_dump($web_product->associations->combinations);exit;
-				foreach ($web_product->associations->product_option_values->children() as $product_option_value)
+				foreach ($web_product->associations->combinations->children() as $ps_id_combination)
 				{
-					if (!isset($TProdAttrValByPsId[(int) $product_option_value->id]))
+					// Attention, l'API Prestashop ne me permet pas de récupérer toutes les combinaisons avec un getAll(), car si certains ont un impact sur le prix et pas d'autre la récupération est fausse
+					$ps_combination = $this->getOne('combinations', (int) $ps_id_combination->id);
+					if ($ps_combination)
 					{
-						$this->syncWebCombinations(); // Je cherche à re-synchro les "attributs" et "valeurs d'attributs" à partir du moment où il en manque 1, ce cqs doit arriver peu souvent
-						$TProdAttrGroupByPsId = ProductAttributeDolishop::getAllByPsId(true);
-						$TProdAttrValByPsId = ProductAttributeValueDolishop::getAllByPsId(true);
-					}
-					
-					$ps_id_option_group = $TProdAttrValByPsId[(int) $product_option_value->id]->ps_id_option_group;
-
-					$sanit_features = array($TProdAttrGroupByPsId[$ps_id_option_group]->id => $TProdAttrValByPsId[(int) $product_option_value->id]->id);
-					
-					$comb = new \ProductCombination($this->db);
-					$product_comb = $comb->fetchByProductCombination2ValuePairs($dol_product->id, $sanit_features);
-					if (! $product_comb)
-					{
-						$result = $comb->createProductCombination($dol_product, $sanit_features, array(), $price_impact_percent, $price_impact, $weight_impact);
-						var_dump('rtestr');exit;
-					}
-					else
-					{
-//						$product_comb
-						$product_comb->variation_price_percentage = $price_impact_percent;
-						$product_comb->variation_price = $price_impact;
-						$product_comb->variation_weight = $weight_impact;
-
-						if ($product_comb->update($user) > 0)
-						{
+						$ps_combination = $ps_combination->children();
+						$sanit_features = array();
+						
+						foreach ($ps_combination->associations->product_option_values->children() as $ps_product_option_value)
+						{	
+							if (!isset($TProdAttrValByPsId[(int) $ps_product_option_value->id]))
+							{
+								$this->syncWebCombinations(); // Je cherche à re-synchro les "attributs" et "valeurs d'attributs" à partir du moment où il en manque 1, ce cqs doit arriver peu souvent
+								$TProdAttrGroupByPsId = ProductAttributeDolishop::getAllByPsId(true);
+								$TProdAttrValByPsId = ProductAttributeValueDolishop::getAllByPsId(true);
+							}
 							
+							$ps_id_option_group = $TProdAttrValByPsId[(int) $ps_product_option_value->id]->ps_id_option_group;
+							$sanit_features[$TProdAttrGroupByPsId[$ps_id_option_group]->id] = $TProdAttrValByPsId[(int) $ps_product_option_value->id]->id;
+						}
+						
+						$comb = new ProductCombinationDolishop($this->db);
+						// TODO to manage stock, the property $ps_combination->quantity is available
+						$product_comb = $comb->fetchByProductCombination2ValuePairs($dol_product->id, $sanit_features);
+						if (! $product_comb)
+						{
+							$comb->ps_id_combination = (int) $ps_combination->id;
+							$res = $comb->createProductCombination($dol_product, $sanit_features, array(), false, (double) $ps_combination->price, (double) $ps_combination->weight);
+							if ($res < 0)
+							{
+								$this->error = $comb->db->lasterror();
+								$this->errors = $this->error;
+							}
+						}
+						else
+						{
+							$product_comb->variation_price_percentage = false;
+							$product_comb->variation_price = (double) $ps_combination->price;
+							$product_comb->variation_weight = (double) $ps_combination->weight;
+
+							if ($product_comb->update($user) < 0)
+							{
+								$this->error = $this->db->lasterror(); // $product_comb->db interdit car attribut en private (j'utilise celui de l'objet courrant, ça doit normalement le faire car les objets passés en paramètre sont naturellement des références)
+								$this->errors = $this->error;
+							}
 						}
 					}
-					exit;
 				}
-				var_dump($TProdAttrValByPsId);
-//			var_dump($web_product->associations->product_option_values->children(), implode(',', $web_product->associations->product_option_values->children()));
-			exit;
 			}
-//			var_dump($web_product->associations->combinations);
-			
-			var_dump($this->getAll('product_options', array('filter[id]'=>'[1]'))->children());
-			exit;
-			
-			$ps_combinations = $this->getAll('combinations', array('filter[id_product]'=>'['.$web_product->id.']'));
-			if ($ps_combinations)
-			{
-				foreach ($ps_combinations->children() as $ps_combination)
-				{
-					var_dump($ps_combination->associations->product_option_values);
-//					var_dump($ps_combination->associations->product_option_values);
-					exit;
-				}
-				
-			}
-			exit;
-//			foreach ($web_product->associations->combinations)
-			$comb = new \ProductCombination($this->db);
-//			foreach ($comb->fetchAllByFkProductParent($dol_product->id) as $currcomb) {
-//				$currcomb->updateProperties($dol_product);
-//			}
 		}
 		
 		return 1;
@@ -1949,6 +1940,7 @@ class DolishopTools
 		{
 			$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_product = p.rowid)'; // restriction par tags/categories
 			$sql.= ' WHERE cp.fk_categorie IN ('.$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR.')';
+			$sql.= ' AND fk_product_type = '.\Product::TYPE_PRODUCT;
 		}
 		
 		$resql = $db->query($sql);
@@ -2226,5 +2218,84 @@ class ProductAttributeValueDolishop extends \ProductAttributeValue
 		
 
 		return self::$TProdAttrValByPsId;
+	}
+}
+
+
+require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductCombination.class.php';
+
+class ProductCombinationDolishop extends \ProductCombination
+{
+	public $db;
+	
+	/**
+	 * api = combinations
+	 * @var integer 
+	 */
+	public $ps_id_combination;
+	
+	function __construct(\DoliDB $db)
+	{
+		parent::__construct($db);
+		$this->db = $db;
+	}
+	
+	public function updatePsValue()
+	{
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute_combination SET ps_id_combination = '.$this->ps_id_combination.' WHERE rowid = '.$this->id;
+		$resql = $this->db->query($sql);
+		
+		if ($resql) return $this->id;
+		else
+		{
+			$this->error = $this->db->lasterror();
+			$this->errors[] = $this->error;
+			return -1;
+		}
+	}
+
+	public function createProductCombination(\Product $product, array $combinations, array $variations, $price_var_percent = false, $forced_pricevar = false, $forced_weightvar = false)
+	{
+		$this->db->begin();
+		
+		$res = parent::createProductCombination($product, $combinations, $variations, $price_var_percent, $forced_pricevar, $forced_weightvar);
+		if ($res > 0)
+		{
+			$sql = 'SELECT MAX(rowid) AS rowid FROM '.MAIN_DB_PREFIX.'product_attribute_combination LIMIT 1';
+			$resql = $this->db->query($sql);
+			if ($resql)
+			{
+				$o = $this->db->fetch_object($resql);
+				if (!empty($o))
+				{
+					$this->id = $o->rowid;
+					$res = $this->updatePsValue();
+				}
+			}
+		}
+		
+		if ($res > 0) $this->db->commit();
+		else $this->db->rollback();
+		
+		return $res;
+	}
+	
+	
+	public function fetchByFkProductChild($fk_child)
+	{
+		$res = parent::fetchByFkProductChild($fk_child);
+		if ($res)
+		{
+			$sql = "SELECT ps_id_combination FROM ".MAIN_DB_PREFIX."product_attribute_combination WHERE rowid = ".$this->id;
+			$resql = $this->db->query($sql);
+			if ($resql)
+			{
+				$o = $this->db->fetch_object($resql);
+				$this->ps_id_combination = $o->ps_id_combination;
+			}
+			else return -1;
+		}
+		
+		return 1;
 	}
 }
