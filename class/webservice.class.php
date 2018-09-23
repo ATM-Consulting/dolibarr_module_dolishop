@@ -114,7 +114,7 @@ class Webservice
 					$result_xml = self::$webService->get($opt);
 					$this->{'schema_'.$resourcename.'_'.$type} = $result_xml;
 
-					return $this->{'schema_'.$resourcename.'_'.$type};
+					return clone $this->{'schema_'.$resourcename.'_'.$type};
 				}
 				catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
 				{
@@ -1012,7 +1012,8 @@ class Webservice
 					$ps_combination->id_product = (int) $web_product->id;
 					$ps_combination->minimal_quantity = 1; // require
 					
-					try {
+					try 
+					{
 						if ((int) $ps_combination->id > 0)
 						{
 							$opt = array('resource' => 'combinations',  'putXml' => $web_combination->asXML(), 'id' => (int) $ps_combination->id);
@@ -1091,7 +1092,103 @@ class Webservice
 	
 	private function syncDolCombinationsOptions()
 	{
-		// TODO à écrire, devra créer les attributes et valeurs côté web
+		$ps_product_options = $this->getAll('product_options');
+		$ps_product_option_values = $this->getAll('product_option_values');
+		
+		if ($ps_product_options)
+		{
+			$TProdAttr = ProductAttributeDolishop::getAll('', true, false);
+			$TProdAttrValue = ProductAttributeValueDolishop::getAll('', true, false);
+			
+			foreach ($TProdAttr as $productAttr)
+			{
+				$error = 0;
+				$found = false;
+				foreach ($ps_product_options->children() as $ps_product_option)
+				{
+					if ((int) $ps_product_option->id == $productAttr->ps_id_option_group)
+					{
+						$found = true;
+						break;
+					}
+				}
+				
+				if (!$found)
+				{
+					// need to create
+					$xml = $this->getSchema('product_options');
+					$product_option = $xml->children()->children();	
+					$product_option->group_type = 'select';
+					$product_option->name->language[0] = $productAttr->ref;
+					$product_option->public_name->language[0] = $productAttr->label;
+					
+					try
+					{
+						$opt = array('resource' => 'product_options',  'postXml' => $xml->asXML());
+						$result_xml = self::$webService->add($opt);
+					}
+					catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
+					{
+						$error++;
+						$this->setError($e);
+					}
+					
+					if ($error == 0)
+					{
+						$productAttr->ps_id_option_group = (int) $result_xml->product_option->id;
+						$productAttr->updatePsValue();
+					}
+				}
+				
+				// Get all values of object
+				$TVal = array();
+				foreach ($TProdAttrValue as $productAttrValue)
+				{
+					if ($productAttrValue->fk_product_attribute == $productAttr->id) $TVal[] = $productAttrValue;
+				}
+				
+				foreach ($TVal as $value)
+				{
+					$found = false;
+					foreach ($ps_product_option_values->children() as $ps_product_option_value)
+					{
+						if ((int) $ps_product_option_value->id == $value->ps_id_option_value)
+						{
+							$found = true;
+							break;
+						}
+					}
+					
+					if (!$found)
+					{
+						// need to create
+						$xml = $this->getSchema('product_option_values');
+			
+						$product_option_value = $xml->children()->children();	
+						$product_option_value->id_attribute_group = $productAttr->ps_id_option_group;
+						$product_option_value->name->language[0] = $value->ref;
+
+						try
+						{
+							$opt = array('resource' => 'product_option_values',  'postXml' => $xml->asXML());
+							$result_xml = self::$webService->add($opt);
+						}
+						catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
+						{
+							$error++;
+							$this->setError($e);
+						}
+
+						if ($error == 0)
+						{
+							$value->ps_id_option_group = $productAttr->ps_id_option_group;
+							$value->ps_id_option_value = (int) $result_xml->product_option_value->id;
+							$value->updatePsValue();
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	/**
@@ -1849,88 +1946,6 @@ class Webservice
 		print '<pre>'. print_r($xml, true) .'</pre>';
 	}
 }
-
-require_once DOL_DOCUMENT_ROOT.'/ecm/class/ecmfiles.class.php';
-
-class EcmFilesDolishop extends \SeedObject
-{
-	public $table_element = 'ecm_files';
-	public $element = 'ecmfiles';
-	
-	public $ref;					// hash of file path
-	public $label;					// hash of file content (md5_file(dol_osencode($destfull))
-	public $share;					// hash for file sharing, empty by default (example: getRandomPassword(true))
-	public $entity;
-	public $filename;
-	public $filepath;
-	public $fullpath_orig;
-	public $description;
-	public $keywords;
-	public $cover;
-	public $position;
-	public $gen_or_uploaded;       // can be 'generated', 'uploaded', 'unknown'
-	public $extraparams;
-	public $date_c = '';
-	public $date_m = '';
-	public $fk_user_c;
-	public $fk_user_m;
-	public $acl;
-	
-	public $ps_id_image=0;
-	
-	public function __construct($db)
-	{
-		parent::__construct($db);
-		
-		$this->fields=array(
-			'ref'=>array('type'=>'string','length'=>128)
-			,'label'=>array('type'=>'string','length'=>128, 'index'=>true)
-			,'entity'=>array('type'=>'integer')
-			,'filename'=>array('type'=>'string','length'=>255)
-			,'filepath'=>array('type'=>'string','length'=>255)
-			,'description'=>array('type'=>'text')
-			,'keywords'=>array('type'=>'text')
-			,'position'=>array('type'=>'integer')
-
-			// Prestashop
-			,'ps_id_image'=>array('type'=>'integer', 'index'=>true)
-		);
-		
-		$this->init();
-		
-	}
-	
-	public function fetchByFileNamePath($filename, $ref_object)
-	{
-		global $conf;
-		
-		$sql = 'SELECT rowid, ps_id_image FROM '.MAIN_DB_PREFIX.$this->table_element;
-		$sql.= ' WHERE entity = '.$conf->entity;
-		$sql.= ' AND filename = \''.$this->db->escape($filename).'\'';
-		$sql.= ' AND filepath LIKE \'%'.$this->db->escape($ref_object).'\'';
-		
-		$resql = $this->db->query($sql);
-		if ($resql)
-		{
-			if (($obj = $this->db->fetch_object($resql)))
-			{
-				$this->fetch($obj->rowid);
-				$this->ps_id_image = $obj->ps_id_image;
-				return 1;
-			}
-			
-			return 0;
-		}
-		else
-		{
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-		
-	}
-	
-}
-
 
 class DolishopTools
 {

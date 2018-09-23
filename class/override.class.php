@@ -19,6 +19,87 @@
 
 namespace Dolishop;
 
+require_once DOL_DOCUMENT_ROOT.'/ecm/class/ecmfiles.class.php';
+
+class EcmFilesDolishop extends \SeedObject
+{
+	public $table_element = 'ecm_files';
+	public $element = 'ecmfiles';
+	
+	public $ref;					// hash of file path
+	public $label;					// hash of file content (md5_file(dol_osencode($destfull))
+	public $share;					// hash for file sharing, empty by default (example: getRandomPassword(true))
+	public $entity;
+	public $filename;
+	public $filepath;
+	public $fullpath_orig;
+	public $description;
+	public $keywords;
+	public $cover;
+	public $position;
+	public $gen_or_uploaded;       // can be 'generated', 'uploaded', 'unknown'
+	public $extraparams;
+	public $date_c = '';
+	public $date_m = '';
+	public $fk_user_c;
+	public $fk_user_m;
+	public $acl;
+	
+	public $ps_id_image=0;
+	
+	public function __construct($db)
+	{
+		parent::__construct($db);
+		
+		$this->fields=array(
+			'ref'=>array('type'=>'string','length'=>128)
+			,'label'=>array('type'=>'string','length'=>128, 'index'=>true)
+			,'entity'=>array('type'=>'integer')
+			,'filename'=>array('type'=>'string','length'=>255)
+			,'filepath'=>array('type'=>'string','length'=>255)
+			,'description'=>array('type'=>'text')
+			,'keywords'=>array('type'=>'text')
+			,'position'=>array('type'=>'integer')
+
+			// Prestashop
+			,'ps_id_image'=>array('type'=>'integer', 'index'=>true)
+		);
+		
+		$this->init();
+		
+	}
+	
+	public function fetchByFileNamePath($filename, $ref_object)
+	{
+		global $conf;
+		
+		$sql = 'SELECT rowid, ps_id_image FROM '.MAIN_DB_PREFIX.$this->table_element;
+		$sql.= ' WHERE entity = '.$conf->entity;
+		$sql.= ' AND filename = \''.$this->db->escape($filename).'\'';
+		$sql.= ' AND filepath LIKE \'%'.$this->db->escape($ref_object).'\'';
+		
+		$resql = $this->db->query($sql);
+		if ($resql)
+		{
+			if (($obj = $this->db->fetch_object($resql)))
+			{
+				$this->fetch($obj->rowid);
+				$this->ps_id_image = $obj->ps_id_image;
+				return 1;
+			}
+			
+			return 0;
+		}
+		else
+		{
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		
+	}
+	
+}
+
 require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductAttribute.class.php';
 
 class ProductAttributeDolishop extends \ProductAttribute
@@ -42,6 +123,20 @@ class ProductAttributeDolishop extends \ProductAttribute
 		$this->db = $db;
 	}
 	
+	public function updatePsValue()
+	{
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute SET ps_id_option_group = '.$this->ps_id_option_group.' WHERE rowid = '.$this->id;
+		$resql = $this->db->query($sql);
+		
+		if ($resql) return $this->id;
+		else
+		{
+			$this->error = $this->db->lasterror();
+			$this->errors[] = $this->error;
+			return -1;
+		}
+	}
+	
 	/**
 	 * @override
 	 * Creates a product attribute
@@ -51,21 +146,18 @@ class ProductAttributeDolishop extends \ProductAttribute
 	 */
 	public function create(\User $user)
 	{
-		//Ref must be uppercase
-		$this->ref = strtoupper($this->ref);
+		$this->db->begin();
 		
-		$sql = "INSERT INTO ".MAIN_DB_PREFIX."product_attribute (ref, label, entity, rang, ps_id_option_group)
-		VALUES ('".$this->db->escape($this->ref)."', '".$this->db->escape($this->label)."', ".(int) $this->entity.", ".(int) $this->rang.", ".(int) $this->ps_id_option_group.")";
-
-		$query = $this->db->query($sql);
-		if ($query)
+		$res = parent::create($user);
+		if ($res > 0)
 		{
-			$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX.'product_attribute');
-
-			return $this->id;
+			$res = $this->updatePsValue();
 		}
-
-		return -1;
+		
+		if ($res > 0) $this->db->commit();
+		else $this->db->rollback();
+		
+		return $res;
 	}
 	
 	public function fetchByPsId($ps_id_option_group)
@@ -93,14 +185,16 @@ class ProductAttributeDolishop extends \ProductAttribute
 		return 1;
 	}
 	
-	public static function getAll($byKey='', $force_reload=false)
+	public static function getAll($byKey='', $force_reload=false, $filter_ps_id_option_group=true)
 	{
 		global $db;
 		
 		if (empty(self::$TProdAttr) || $force_reload)
 		{
-			$sql = "SELECT rowid, ref, label, rang, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute WHERE ps_id_option_group > 0 AND entity IN (".getEntity('product').")";
-
+			$sql = "SELECT rowid, ref, label, rang, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute";
+			$sql.= ' WHERE entity IN ('.getEntity('product').')';
+			if ($filter_ps_id_option_group) $sql.= ' AND ps_id_option_group > 0';
+			
 			$resql = $db->query($sql);
 
 			if ($resql)
@@ -162,6 +256,20 @@ class ProductAttributeValueDolishop extends \ProductAttributeValue
 		$this->db = $db;
 	}
 	
+	public function updatePsValue()
+	{
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute_value SET ps_id_option_value = '.$this->ps_id_option_value.', ps_id_option_group = '.$this->ps_id_option_group.' WHERE rowid = '.$this->id;
+		$resql = $this->db->query($sql);
+		
+		if ($resql) return $this->id;
+		else
+		{
+			$this->error = $this->db->lasterror();
+			$this->errors[] = $this->error;
+			return -1;
+		}
+	}
+	
 	/**
 	 * @override
 	 * Creates a value for a product attribute
@@ -217,13 +325,15 @@ class ProductAttributeValueDolishop extends \ProductAttributeValue
 		return 1;
 	}
 	
-	public static function getAll($byKey='', $force_reload=false)
+	public static function getAll($byKey='', $force_reload=false, $filter_ps_id_option_value=true)
 	{
 		global $db;
 		
 		if (empty(self::$TProdAttrVal) || $force_reload)
 		{
-			$sql = "SELECT rowid, fk_product_attribute, ref, value, ps_id_option_value, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute_value WHERE ps_id_option_value > 0 AND entity IN (".getEntity('product').")";
+			$sql = "SELECT rowid, fk_product_attribute, ref, value, ps_id_option_value, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute_value";
+			$sql.= ' WHERE entity IN ('.getEntity('product').')';
+			if ($filter_ps_id_option_value) $sql.= ' AND ps_id_option_value > 0';
 
 			$resql = $db->query($sql);
 			if ($resql)
