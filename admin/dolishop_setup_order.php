@@ -161,7 +161,11 @@ $formcompany= new FormCompany($db);
 print '<table class="noborder" width="100%">';
 
 
-_print_title("Parameters");
+print '<tr class="liste_titre">';
+print '<td width="65%">'.$langs->trans('Parameters').'</td>'."\n";
+print '<td align="center" width="1%">&nbsp;</td>';
+print '<td align="center"></td>'."\n";
+print '</tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
@@ -384,15 +388,3 @@ print '<div style="clear:both;"></div>';
 
 llxFooter();
 $db->close();
-
-
-
-function _print_title($title="")
-{
-    global $langs;
-    print '<tr class="liste_titre">';
-    print '<td width="65%">'.$langs->trans($title).'</td>'."\n";
-    print '<td align="center" width="1%">&nbsp;</td>';
-    print '<td align="center"></td>'."\n";
-    print '</tr>';
-}
