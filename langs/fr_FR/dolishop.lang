@@ -26,6 +26,7 @@ DOLISHOP_PS_WS_DEBUG=Activer le mode "DEBUG" des appels
 
 DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
 DOLISHOP_SYNC_PRODUCTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET / PUT / POST</b>
+DOLISHOP_SYNC_PRODUCTS_COMBINATIONS_DESC=Le module <b>"Variantes de produits"</b> étant activé, les ressources <b>combinations, product_options, product_option_values</b> doivent être accessibles en <b>GET / PUT / POST</b>
 DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT=Nombre de caractères maximum pour convertir la description de votre fiche produit en tant que description courte sur Prestashop (vide ou 0 = désactivé)
 DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR=Synchroniser les produits Dolibarr issues de la/les catégorie(s) suivante(s)
 DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE=Synchroniser les produits Prestashop issues de la/les catégorie(s) suivante(s) (vide pour tout récupérer)
@@ -117,6 +118,9 @@ DolishopCronjob_SyncProductSuccess=[%s] synchronisé avec l'identifiant Prestash
 DolishopCronjob_SyncProductFailUpdateExtrafield=Échec : [%s] => identifiant Prestashop retourné [%s]
 DolishopCronjob_SyncProductError=Erreur : message retour [%s]
 DolishopCronjob_ErrorSyncCustomersAndAdresses=Impossible de créer la fiche client (vérifiez les droits côté Prestashop)
+DolishopCronjob_SyncProductCombinationSuccess=Déclinaison OK : [%s]
+DolishopCronjob_SyncProductCombinationFail=Échec déclinaison : [%s]
+DolishopCronjob_SyncProductCombinationErrorAttributeMissing=Erreur déclinaison : le produit [%s] ne parvient pas à créer l'option portant l'id [%s]
 
 DolishopMissingPsOrderStatesConf=Aucune association entre les statuts de commande Prestashop et Dolibarr, configuration à revoir
 DolishopParameterUserIdNotFound=L'identifiant passé en paramètre ne correspond pas à un utilisateur connu ou actif

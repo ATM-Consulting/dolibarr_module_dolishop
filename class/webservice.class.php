@@ -26,6 +26,7 @@ if (!class_exists('SeedObject'))
 	require_once __DIR__.'/../config.php';
 }
 
+require_once __DIR__.'/override.class.php';
 
 class Webservice
 {
@@ -46,6 +47,7 @@ class Webservice
 	
 	public $schema_products_blank;
 	public $schema_products_synopsis;
+	public $schema_combinations_synopsis;
 
 	public function __construct($db)
 	{
@@ -72,7 +74,6 @@ class Webservice
 		
 				break;
 		}
-		
 	}
 	
 	/**
@@ -506,12 +507,16 @@ class Webservice
 
 		if ($direction == 'dolibarr2website')
 		{
+			$this->syncDolCombinationsOptions();
+			
 			if ($sync_images) require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 			$TProductId = DolishopTools::getTProductIdToSync();
 			$this->updateWebProducts($TProductId, $sync_images);
 		}
 		else // website2dolibarr
 		{
+			$this->syncWebCombinationsOptions();
+			
 			if ($this->api_name == 'prestashop')
 			{
 				$more_opt = array('filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']');
@@ -524,7 +529,6 @@ class Webservice
 					}
 				}
 			}
-			//...
 		}
 		
 		return 0;
@@ -562,21 +566,10 @@ class Webservice
 	 */
 	private function syncProductToPrestashop($fk_product, $sync_images=false)
 	{
-//		$fk_product = 166; // TODO REMOVE
 		
 		$dol_product = new \Product($this->db);
 		if ($dol_product->fetch($fk_product) > 0)
 		{
-			// TODO finaliser l'update de la combinaison sur la boutique si je suis sur un produit issue d'une variante
-//			$combination = new ProductCombinationDolishop($this->db);
-//			if ($combination->fetchByFkProductChild($dol_product->id) > 0)
-//			{
-//				
-//			}
-//			
-//			var_dump($combination);
-//			exit;
-			
 			if (empty($dol_product->array_options)) $dol_product->fetch_optionals();
 			if (!empty($dol_product->array_options['options_ps_id_product']))
 			{
@@ -663,6 +656,8 @@ class Webservice
 		// Pour comprendre pourquoi tant de children(), faire un print $schema->asXML()
 		$ps_product = $schema->children()->children();
 		
+		unset($ps_product->position_in_category); // unset car l'api Prestashop génère une erreur 500 une fois sur 2
+		
 		$this->removeUselessFields($ps_product, $this->schema_products_synopsis);
 		
 //		var_dump($ps_product);exit;
@@ -739,10 +734,10 @@ class Webservice
 		$error = 0;
 		try
 		{
-			if (!empty($ps_product->id))
+			if ((int) $ps_product->id > 0)
 			{
 //				echo '<pre>'.htmlspecialchars($schema->asXML(), ENT_QUOTES);exit;
-				$opt = array('resource' => 'products',  'putXml' => $schema->asXML(), 'id' => $ps_product->id);
+				$opt = array('resource' => 'products',  'putXml' => $schema->asXML(), 'id' => (int) $ps_product->id);
 				$result_xml = self::$webService->edit($opt);
 			}
 			else
@@ -759,7 +754,7 @@ class Webservice
 			$error++;
 			$this->setError($e);
 		}
-
+		
 		if ($error == 0)
 		{
 			$res = 1;
@@ -781,6 +776,8 @@ class Webservice
 				if ($res > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $ps_id_product_return)."\n";
 				else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $ps_id_product_return)."\n";
 			}
+			
+			if ($res > 0) $this->saveWebCombinationsFromDolProduct($ps_product_return, $dol_product);
 			
 			return $ps_id_product_return;
 		}
@@ -878,7 +875,9 @@ class Webservice
 			return -1;
 		}
 		
-		$this->saveProductCombinationsFromWebProduct($web_product, $dol_product);
+		// TODO gérér la récupération des images si $sync_images = true
+		
+		$this->saveDolCombinationsFromWebProduct($web_product, $dol_product, $sync_images);
 		
 		return $dol_product->id;
 	}
@@ -887,15 +886,16 @@ class Webservice
 	 * Crée ou met à jour les combinaisons dans Dolibarr
 	 * API "combinations" accessible en GET
 	 * 
-	 * @global \Dolishop\Conf $conf
-	 * @global \Dolishop\User $user
-	 * @param type $web_product
-	 * @param type $dol_product
+	 * @global \Dolishop\Conf		$conf
+	 * @global \Dolishop\User		$user
+	 * @param \SimpleXmlElement		$web_product
+	 * @param \Product				$dol_product
+	 * @param boolean				$sync_images
 	 * @return int
 	 */
-	private function saveProductCombinationsFromWebProduct($web_product, $dol_product)
+	private function saveDolCombinationsFromWebProduct($web_product, $dol_product, $sync_images)
 	{
-		global $conf,$user;
+		global $conf,$user,$langs;
 		
 		if (empty($conf->variants->enabled)) return 0;
 		require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductCombination.class.php';
@@ -917,12 +917,20 @@ class Webservice
 						$sanit_features = array();
 						
 						foreach ($ps_combination->associations->product_option_values->children() as $ps_product_option_value)
-						{	
+						{
 							if (!isset($TProdAttrValByPsId[(int) $ps_product_option_value->id]))
 							{
-								$this->syncWebCombinations(); // Je cherche à re-synchro les "attributs" et "valeurs d'attributs" à partir du moment où il en manque 1, ce cqs doit arriver peu souvent
-								$TProdAttrGroupByPsId = ProductAttributeDolishop::getAllByPsId(true);
-								$TProdAttrValByPsId = ProductAttributeValueDolishop::getAllByPsId(true);
+								if ($this->from_cron_job)
+								{
+									$this->output.= $langs->trans('SyncProductCombinationFailAttributeMissing', $dol_product->ref, (int) $ps_product_option_value->id)."\n";
+								}
+								else
+								{
+									$this->error = $langs->trans('SyncProductCombinationFailAttributeMissing', $dol_product->ref, (int) $ps_product_option_value->id);
+									$this->errors[] = $this->error;
+								}
+								
+								continue 2;
 							}
 							
 							$ps_id_option_group = $TProdAttrValByPsId[(int) $ps_product_option_value->id]->ps_id_option_group;
@@ -930,10 +938,10 @@ class Webservice
 						}
 						
 						$comb = new ProductCombinationDolishop($this->db);
-						// TODO to manage stock, the property $ps_combination->quantity is available
 						$product_comb = $comb->fetchByProductCombination2ValuePairs($dol_product->id, $sanit_features);
 						if (! $product_comb)
 						{
+							$dol_product->array_options['options_ps_id_product'] = null; // Les déclinaisons ne doivent pas être rattachées directement à cet identifiant
 							$comb->ps_id_combination = (int) $ps_combination->id;
 							$res = $comb->createProductCombination($dol_product, $sanit_features, array(), false, (double) $ps_combination->price, (double) $ps_combination->weight);
 							if ($res < 0)
@@ -963,6 +971,131 @@ class Webservice
 	}
 	
 	/**
+	 * Crée ou met à jour les combinaisons dans Prestashop
+	 * API "combinations" accessible en PUT / POST
+	 * 
+	 * @global \Dolishop\Conf $conf
+	 * @global \Translate	$langs $langs
+	 * @param type $web_product
+	 * @param type $dol_product
+	 * @return int
+	 */
+	private function saveWebCombinationsFromDolProduct(&$web_product, &$dol_product)
+	{
+		global $conf,$langs;
+		
+		if (empty($conf->variants->enabled)) return 1;
+		
+		require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductCombination2ValuePair.class.php';
+		
+		$prodcomb = new ProductCombinationDolishop($this->db);
+		$TCombination = $prodcomb->fetchAllByFkProductParent($dol_product->id);
+		
+		if (!is_array($TCombination))
+		{
+			// error
+			return -1;
+		}
+		
+		$TProdAttrValByPsId = ProductAttributeValueDolishop::getAll('id');
+		foreach ($TCombination as $comb)
+		{
+			$web_combination = $this->getWebCombinationFromDolComb($web_product, $comb);
+			if ($web_combination)
+			{
+				$error = 0;
+				if ($this->api_name == 'prestashop')
+				{
+					$ps_combination = &$web_combination->children()->children();
+					$ps_combination->price = $comb->variation_price;
+					$ps_combination->weight = $comb->variation_weight;
+					$ps_combination->id_product = (int) $web_product->id;
+					$ps_combination->minimal_quantity = 1; // require
+					
+					try {
+						if ((int) $ps_combination->id > 0)
+						{
+							$opt = array('resource' => 'combinations',  'putXml' => $web_combination->asXML(), 'id' => (int) $ps_combination->id);
+							$result_xml = self::$webService->edit($opt);
+						}
+						else
+						{
+							$comb2val = new \ProductCombination2ValuePair($this->db);
+							$TValuePair = $comb2val->fetchByFkCombination($comb->id);
+							if (!is_array($TValuePair))
+							{
+								// error
+								return -2;
+							}
+							
+							foreach ($TValuePair as $i => $valuePair)
+							{
+								$ps_combination->associations->product_option_values->product_option_value[$i]->id = $TProdAttrValByPsId[$valuePair->fk_prod_attr_val]->ps_id_option_value;
+							}
+							
+							$opt = array('resource' => 'combinations',  'postXml' => $web_combination->asXML());
+							$result_xml = self::$webService->add($opt);
+							
+							$comb->ps_id_combination = (int) $result_xml->combination->id;
+							$comb->updatePsValue(); // TODO gestion d'erreur
+						}
+					}
+					catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
+					{
+						$error++;
+						$this->setError($e);
+					}
+				}
+				
+				if ($error == 0)
+				{
+					if ($this->from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductCombinationSuccess', $comb->ref)."\n";
+				}
+				else
+				{
+					if ($this->from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductCombinationFail', $comb->ref)."\n";
+				}
+			}
+		}
+					
+		return 0;
+			
+	}
+	
+	private function getWebCombinationFromDolComb(\SimpleXMLElement &$web_product, ProductCombinationDolishop &$comb)
+	{
+		$web_combination = null;
+		
+		if ($this->api_name == 'prestashop')
+		{
+			if (!empty($comb->ps_id_combination) && !empty($web_product->associations->combinations))
+			{
+				foreach ($web_product->associations->combinations->children() as $ps_combination)
+				{
+					if ($comb->ps_id_combination == (int) $ps_combination->id)
+					{
+						$web_combination = $this->getOne('combinations', $comb->ps_id_combination, array(), false);
+						break;
+					}
+				}
+			}
+		}
+		
+		if (is_null($web_combination))
+		{
+			$web_combination = $this->getSchema('combinations');
+		}	
+			
+		return $web_combination;
+	}
+	
+	private function syncDolCombinationsOptions()
+	{
+		// TODO à écrire, devra créer les attributes et valeurs côté web
+	}
+	
+	/**
+	 * Web2Dolibarr
 	 * Permet de synchroniser les groupes d'attributs et valeurs associées manquants (llx_product_attribute & llx_product_attribute_value)
 	 * API product_options & product_option_values accessibles en GET
 	 * 
@@ -970,7 +1103,7 @@ class Webservice
 	 * @global \Dolishop\Conf $conf
 	 * @global \Dolishop\User $user
 	 */
-	public function syncWebCombinations()
+	private function syncWebCombinationsOptions()
 	{
 		global $user,$conf,$user;
 		
@@ -1034,15 +1167,21 @@ class Webservice
 		}
 	}
 	
-	private function createProductFromWebProductId($web_id_product)
+	private function createProductFromWebProductId($web_id_product, $web_product_attribute_id=0)
 	{
+		global $conf;
+		
 		if ($this->api_name == 'prestashop')
 		{
 			$ps_product = $this->getOne('products', $web_id_product);
 			if ($ps_product)
 			{
-				$res = $this->saveProductFromWebProduct($ps_product->product);
-				if ($res > 0) return $res;
+				$fk_product = $this->saveProductFromWebProduct($ps_product->product, (bool) $conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES);
+				if ($fk_product > 0) 
+				{
+					if ($web_product_attribute_id > 0) return DolishopTools::getDolProductId(0, '', $web_product_attribute_id);
+					else return $fk_product;
+				}
 			}
 		}
 		
@@ -1095,6 +1234,8 @@ class Webservice
 		
 		require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
 		
+		$this->syncWebCombinationsOptions();
+		
 		$now = date('Y-m-d H:i:s');
 		
 		if ($this->api_name == 'prestashop')
@@ -1104,20 +1245,24 @@ class Webservice
 				,'filter[current_state]' => '['.$conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES.']'
 				,'sort' => 'id_DESC'
 				,'date' => 1
-				,'filter[date_add]' => '['.$date_min.','.$now.']')
+				,'filter[date_upd]' => '['.$date_min.','.$now.']')
 			);
-		}
-		//var_dump($web_orders);exit;
-		if ($web_orders)
-		{
-			foreach ($web_orders->children() as $web_order)
-			{
-				if (!DolishopTools::checkOrderExist($web_order->reference->__toString(), (int) $web_order->id_shop))
-				{
-					$this->createDolOrder($web_order);
-				}
-			}
 			
+			if ($web_orders)
+			{
+				foreach ($web_orders->children() as $web_order)
+				{
+					if (!DolishopTools::checkOrderExist($web_order->reference->__toString(), (int) $web_order->id_shop))
+					{
+						$this->createDolOrder($web_order);
+					}
+					
+					// TODO à voir mais si l'objet contient un id_invoice je dois sans doute créer l'objet dans Dolibarr aussi
+					// de plus, une commande peut passer plusieurs fois par là sans avoir de facture au 1er passage mais un id au 2eme
+					
+				}
+
+			}
 		}
 		
 		$this->output.='FIN';
@@ -1180,6 +1325,8 @@ class Webservice
 				return -1;
 			}
 			
+			
+			
 			// Ajout contact livraison / facturation
 			if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY) && $fk_socpeople_delivery > 0) $commande->add_contact($fk_socpeople_delivery, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'external');
 			if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING) && $fk_socpeople_billing > 0) $commande->add_contact($fk_socpeople_billing, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'external');
@@ -1188,16 +1335,24 @@ class Webservice
 			$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $web_order->id).']'));
 			foreach ($order_details->children() as $order_detail)
 			{
-				$fk_product = DolishopTools::getDolProductId((int) $order_detail->product_id, $order_detail->product_reference->__toString());
+				$fk_product = DolishopTools::getDolProductId((int) $order_detail->product_id, $order_detail->product_reference->__toString(), (int) $order_detail->product_attribute_id);
 				if ($fk_product == -1)
 				{
-					$this->error = $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString());
-					$this->errors[] = $this->error;
+					if ($this->from_cron_job)
+					{
+						$this->output.= $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString())."\n";
+					}
+					else
+					{
+						$this->error = $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString());
+						$this->errors[] = $this->error;
+					}
+					
 					return -2;
 				}
 				else if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
 				{
-					$fk_product = $this->createProductFromWebProductId((int) $order_detail->product_id);
+					$fk_product = $this->createProductFromWebProductId((int) $order_detail->product_id, (int) $order_detail->product_attribute_id);
 				}
 				
 				if ($fk_product > 0) $desc = '';
@@ -1252,7 +1407,6 @@ class Webservice
 		if ($res < 0) $error++;
 		else
 		{
-			
 			if ($this->api_name == 'prestashop')
 			{
 				// Creation d'une expédition brouillon, par défaut Prestashop créé en automatique après chaque commande un order_carriers (expédition)
@@ -1494,8 +1648,6 @@ class Webservice
 			{
 				$error++;
 				$this->setError($e);
-				
-				var_dump($this->errors);exit;
 			}
 			
 			if ($error) return -2;
@@ -1831,19 +1983,31 @@ class DolishopTools
 	}
 	
 	/**
-	 * Get product if in Dolibarr from id or reference from website
+	 * Retourne le rowid du produit Dolibarr correspondant à l'id ou la référence ou par son id de combinaison
 	 * 
 	 * @param type $ps_id_product
 	 * @param type $ps_product_reference
+	 * @param type $ps_id_combination
 	 * @return int 0 = not found; > 0 id found; -1 if multiple id found
 	 */
-	public static function getDolProductId($ps_id_product, $ps_product_reference='')
+	public static function getDolProductId($ps_id_product, $ps_product_reference='', $ps_id_combination=0)
 	{
 		global $db,$conf;
 		
-		$sql = 'SELECT p.rowid FROM '.MAIN_DB_PREFIX.'product p LEFT JOIN '.MAIN_DB_PREFIX.'product_extrafields pe ON (pe.fk_object = p.rowid)';
-		$sql.= ' WHERE p.entity = '.$conf->entity;
-		$sql.= ' AND (pe.ps_id_product = '.$ps_id_product.' OR p.ref = \''.$db->escape($ps_product_reference).'\')';
+		if (empty($ps_id_combination))
+		{
+			$sql = 'SELECT p.rowid FROM '.MAIN_DB_PREFIX.'product p';
+			$sql.= ' LEFT JOIN '.MAIN_DB_PREFIX.'product_extrafields pe ON (pe.fk_object = p.rowid)';
+			$sql.= ' WHERE p.entity = '.$conf->entity;
+			$sql.= ' AND (pe.ps_id_product = '.$ps_id_product.' OR p.ref = \''.$db->escape($ps_product_reference).'\')';
+		}
+		else
+		{
+			$sql = 'SELECT pac.fk_product_child AS rowid';
+			$sql.= ' FROM '.MAIN_DB_PREFIX.'product_attribute_combination pac';
+			$sql.= ' WHERE pac.entity = '.$conf->entity;
+			$sql.= ' AND pac.ps_id_combination = '.$ps_id_combination;
+		}
 		
 		$resql = $db->query($sql);
 		if ($resql)
@@ -1933,15 +2097,14 @@ class DolishopTools
 		
 		$TId = array();
 		
-		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR) && empty($conf->global->DOLISHOP_SYNC_PRODUCTS_RECK_CONF)) return $TId;
+		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR)) return $TId;
 		
 		$sql = 'SELECT DISTINCT p.rowid FROM '.MAIN_DB_PREFIX.'product p';
-		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS_RECK_CONF))
-		{
-			$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_product = p.rowid)'; // restriction par tags/categories
-			$sql.= ' WHERE cp.fk_categorie IN ('.$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR.')';
-			$sql.= ' AND fk_product_type = '.\Product::TYPE_PRODUCT;
-		}
+		if (!empty($conf->variants->enabled)) $sql.= ' LEFT JOIN '.MAIN_DB_PREFIX.'product_attribute_combination comb ON (p.rowid = comb.fk_product_child)';
+		$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_product = p.rowid)'; // restriction par tags/categories
+		$sql.= ' WHERE fk_product_type = '.\Product::TYPE_PRODUCT;
+		$sql.= ' AND cp.fk_categorie IN ('.$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR.')';
+		if (!empty($conf->variants->enabled)) $sql.= ' AND comb.fk_product_child IS NULL';
 		
 		$resql = $db->query($sql);
 		if ($resql)
@@ -1996,306 +2159,5 @@ class DolishopTools
 		}
 		
 		return !empty($upload_dirold) ? $upload_dirold : $upload_dir;
-	}
-}
-
-
-
-require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductAttribute.class.php';
-
-class ProductAttributeDolishop extends \ProductAttribute
-{
-	public $db;
-	
-	/**
-	 * api = product_options
-	 * @var integer 
-	 */
-	public $ps_id_option_group;
-	
-	private static $TProdAttrByPsId;
-	
-	function __construct(\DoliDB $db)
-	{
-		parent::__construct($db);
-		$this->db = $db;
-	}
-	
-	/**
-	 * Creates a product attribute
-	 *
-	 * @param	User	$user	Object user that create
-	 * @return 					int <0 KO, Id of new variant if OK
-	 */
-	public function create(\User $user)
-	{
-		//Ref must be uppercase
-		$this->ref = strtoupper($this->ref);
-		
-		$sql = "INSERT INTO ".MAIN_DB_PREFIX."product_attribute (ref, label, entity, rang, ps_id_option_group)
-		VALUES ('".$this->db->escape($this->ref)."', '".$this->db->escape($this->label)."', ".(int) $this->entity.", ".(int) $this->rang.", ".(int) $this->ps_id_option_group.")";
-
-		$query = $this->db->query($sql);
-		if ($query)
-		{
-			$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX.'product_attribute');
-
-			return $this->id;
-		}
-
-		return -1;
-	}
-	
-	public function fetchByPsId($ps_id_option_group)
-	{
-		if (!$ps_id_option_group) {
-			return -1;
-		}
-
-		$sql = "SELECT rowid, ref, label, rang, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute WHERE ps_id_option_group = ".(int) $ps_id_option_group." AND entity IN (".getEntity('product').")";
-
-		$query = $this->db->query($sql);
-
-		if (!$this->db->num_rows($query)) {
-			return -1;
-		}
-
-		$result = $this->db->fetch_object($query);
-
-		$this->id = $result->rowid;
-		$this->ref = $result->ref;
-		$this->label = $result->label;
-		$this->rang = $result->rang;
-		$this->ps_id_option_group = $result->ps_id_option_group;
-
-		return 1;
-	}
-	
-	public static function getAllByPsId($force_reload=false)
-	{
-		global $db;
-		
-		if (empty(self::$TProdAttrByPsId) || $force_reload)
-		{
-			$sql = "SELECT rowid, ref, label, rang, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute WHERE ps_id_option_group > 0 AND entity IN (".getEntity('product').")";
-
-			$resql = $db->query($sql);
-
-			if ($resql)
-			{
-				self::$TProdAttrByPsId = array();
-				while ($result = $db->fetch_object($resql))
-				{
-					$tmp = new ProductAttributeDolishop($db);
-					$tmp->id = $result->rowid;
-					$tmp->ref = $result->ref;
-					$tmp->label = $result->label;
-					$tmp->rang = $result->rang;
-					$tmp->ps_id_option_group = $result->ps_id_option_group;
-
-					self::$TProdAttrByPsId[$tmp->ps_id_option_group] = $tmp;
-				}
-			}
-			else
-			{
-				dol_print_error($db);
-			}
-		}
-		
-		return self::$TProdAttrByPsId;
-	}
-}
-
-require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductAttributeValue.class.php';
-
-class ProductAttributeValueDolishop extends \ProductAttributeValue
-{
-	public $db;
-	
-	/**
-	 * api = product_option_values
-	 * @var integer 
-	 */
-	public $ps_id_option_value;
-	/**
-	 * foreign key of llx_product_attribute(ps_id_option_group)
-	 * @var integer 
-	 */
-	public $ps_id_option_group;
-	
-	private static $TProdAttrValByPsId;
-
-	function __construct(\DoliDB $db)
-	{
-		parent::__construct($db);
-		$this->db = $db;
-	}
-	
-	/**
-	 * Creates a value for a product attribute
-	 *
-	 * @return int <0 KO >0 OK
-	 */
-	public function create()
-	{
-		if (!$this->fk_product_attribute) {
-			return -1;
-		}
-
-		//Ref must be uppercase
-		$this->ref = strtoupper($this->ref);
-
-		$sql = "INSERT INTO ".MAIN_DB_PREFIX."product_attribute_value (fk_product_attribute, ref, value, entity, ps_id_option_value, ps_id_option_group)
-		VALUES ('".(int) $this->fk_product_attribute."', '".$this->db->escape($this->ref)."',
-		'".$this->db->escape($this->value)."', ".(int) $this->entity.", ".(int) $this->ps_id_option_value.", ".(int) $this->ps_id_option_group.")";
-
-		$query = $this->db->query($sql);
-
-		if ($query) {
-			$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX.'product_attribute_value');
-			return $this->id;
-		}
-
-		return -1;
-	}
-	
-	public function fetchByPsId($ps_id_option_value)
-	{
-		$sql = "SELECT rowid, fk_product_attribute, ref, value, ps_id_option_value, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute_value WHERE ps_id_option_value = ".(int) $ps_id_option_value." AND entity IN (".getEntity('product').")";
-
-		$query = $this->db->query($sql);
-
-		if (!$query) {
-			return -1;
-		}
-
-		if (!$this->db->num_rows($query)) {
-			return -1;
-		}
-
-		$result = $this->db->fetch_object($query);
-
-		$this->id = $result->rowid;
-		$this->fk_product_attribute = $result->fk_product_attribute;
-		$this->ref = $result->ref;
-		$this->value = $result->value;
-		$this->ps_id_option_value = $result->ps_id_option_value;
-		$this->ps_id_option_group = $result->ps_id_option_group;
-
-		return 1;
-	}
-	
-	public static function getAllByPsId($force_reload=false)
-	{
-		global $db;
-		
-		if (empty(self::$TProdAttrValByPsId) || $force_reload)
-		{
-			$sql = "SELECT rowid, fk_product_attribute, ref, value, ps_id_option_value, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute_value WHERE ps_id_option_value > 0 AND entity IN (".getEntity('product').")";
-
-			$resql = $db->query($sql);
-			if ($resql)
-			{
-				self::$TProdAttrValByPsId = array();
-				while ($result = $db->fetch_object($resql))
-				{
-					$tmp = new ProductAttributeValueDolishop($db);
-					$tmp->fk_product_attribute = $result->fk_product_attribute;
-					$tmp->id = $result->rowid;
-					$tmp->ref = $result->ref;
-					$tmp->value = $result->value;
-					$tmp->ps_id_option_value = $result->ps_id_option_value;
-					$tmp->ps_id_option_group = $result->ps_id_option_group;
-
-					self::$TProdAttrValByPsId[$tmp->ps_id_option_value] = $tmp;
-				}
-			}
-			else
-			{
-				dol_print_error($db);
-			}
-		}
-		
-
-		return self::$TProdAttrValByPsId;
-	}
-}
-
-
-require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductCombination.class.php';
-
-class ProductCombinationDolishop extends \ProductCombination
-{
-	public $db;
-	
-	/**
-	 * api = combinations
-	 * @var integer 
-	 */
-	public $ps_id_combination;
-	
-	function __construct(\DoliDB $db)
-	{
-		parent::__construct($db);
-		$this->db = $db;
-	}
-	
-	public function updatePsValue()
-	{
-		$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute_combination SET ps_id_combination = '.$this->ps_id_combination.' WHERE rowid = '.$this->id;
-		$resql = $this->db->query($sql);
-		
-		if ($resql) return $this->id;
-		else
-		{
-			$this->error = $this->db->lasterror();
-			$this->errors[] = $this->error;
-			return -1;
-		}
-	}
-
-	public function createProductCombination(\Product $product, array $combinations, array $variations, $price_var_percent = false, $forced_pricevar = false, $forced_weightvar = false)
-	{
-		$this->db->begin();
-		
-		$res = parent::createProductCombination($product, $combinations, $variations, $price_var_percent, $forced_pricevar, $forced_weightvar);
-		if ($res > 0)
-		{
-			$sql = 'SELECT MAX(rowid) AS rowid FROM '.MAIN_DB_PREFIX.'product_attribute_combination LIMIT 1';
-			$resql = $this->db->query($sql);
-			if ($resql)
-			{
-				$o = $this->db->fetch_object($resql);
-				if (!empty($o))
-				{
-					$this->id = $o->rowid;
-					$res = $this->updatePsValue();
-				}
-			}
-		}
-		
-		if ($res > 0) $this->db->commit();
-		else $this->db->rollback();
-		
-		return $res;
-	}
-	
-	
-	public function fetchByFkProductChild($fk_child)
-	{
-		$res = parent::fetchByFkProductChild($fk_child);
-		if ($res)
-		{
-			$sql = "SELECT ps_id_combination FROM ".MAIN_DB_PREFIX."product_attribute_combination WHERE rowid = ".$this->id;
-			$resql = $this->db->query($sql);
-			if ($resql)
-			{
-				$o = $this->db->fetch_object($resql);
-				$this->ps_id_combination = $o->ps_id_combination;
-			}
-			else return -1;
-		}
-		
-		return 1;
 	}
 }

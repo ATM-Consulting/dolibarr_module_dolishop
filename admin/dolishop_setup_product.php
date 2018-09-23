@@ -136,6 +136,7 @@ $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS');
 print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC').'</small>';
+if (!empty($conf->variants->enabled)) print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_COMBINATIONS_DESC').'</small>';
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
