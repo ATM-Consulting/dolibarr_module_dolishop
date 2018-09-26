@@ -145,6 +145,9 @@ class InterfaceDolishoptrigger
 						( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR)) )
 						|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategoriesD2P($object->id) )
 					) {
+						$dolishop->syncCategoriesD2W();
+						$dolishop->syncDolCombinationsOptions();
+						
 						$dolishop->updateWebProducts(array($object->id));
 						if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
 						else setEventMessage($langs->trans('DolishopSyncPsProductSuccess'));

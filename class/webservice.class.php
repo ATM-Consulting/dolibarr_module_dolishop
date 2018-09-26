@@ -875,6 +875,10 @@ class Webservice
 			return -1;
 		}
 		
+		// TODO ckecker les categ (si c'est un fetch il y en aura) puis ajouter la premiere categ de parametré pour la synchro inverse pour que le produit face automatiquement parti des produits à synchro
+		// Faire de même avec les déclinaison
+//		$object->setCategories($categories);
+		
 		// TODO gérér la récupération des images si $sync_images = true
 		
 		$this->saveDolCombinationsFromWebProduct($web_product, $dol_product, $sync_images);
@@ -1090,7 +1094,12 @@ class Webservice
 		return $web_combination;
 	}
 	
-	private function syncDolCombinationsOptions()
+	/**
+	 * Dolibarr2Web
+	 * Permet de synchroniser les groupes d'attributs et valeurs associées manquants (llx_product_attribute & llx_product_attribute_value)
+	 * API product_options & product_option_values accessibles en GET / POST
+	 */
+	public function syncDolCombinationsOptions()
 	{
 		$ps_product_options = $this->getAll('product_options');
 		$ps_product_option_values = $this->getAll('product_option_values');
@@ -1262,6 +1271,118 @@ class Webservice
 				}
 			}
 		}
+	}
+	
+	private function getTProductCategory()
+	{
+		require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
+		
+		$TCat = array();
+		
+		$sql = 'SELECT DISTINCT c.rowid, c.label, c.description, c.fk_parent';	// Distinct reduce pb with old tables with duplicates
+		$sql.= ' FROM '.MAIN_DB_PREFIX.'categorie as c';
+		$sql .= ' WHERE c.entity IN (' . getEntity( 'category') . ')';
+		$sql .= ' AND c.type = 0'; // Type product
+		$sql .= ' ORDER BY c.fk_parent, c.label';
+		
+		$resql = $this->db->query($sql);
+		if ($resql)
+		{
+			while ($obj = $this->db->fetch_object($resql))
+			{
+				$TCat[$obj->rowid]['rowid'] = $obj->rowid;
+				$TCat[$obj->rowid]['id'] = $obj->rowid;
+				$TCat[$obj->rowid]['id_parent'] = $obj->fk_parent;
+				$TCat[$obj->rowid]['fk_parent'] = $obj->fk_parent;
+				$TCat[$obj->rowid]['label'] = $obj->label;
+				$TCat[$obj->rowid]['description'] = $obj->description;
+			}
+		}
+		else
+		{
+			dol_print_error($this->db);
+			return -1;
+		}
+		
+		return $TCat;
+	}
+	
+	private function syncCategoriesD2W_checker(&$dol_fullarbo, $ps_fullarbo)
+	{
+		foreach ($dol_fullarbo as &$dol_cat)
+		{
+			$found = false;
+			foreach ($ps_fullarbo as $ps_cat)
+			{
+				if ($dol_cat['label'] == $ps_cat['name']['language'][0])
+				{
+					$found = true;
+					break;
+				}
+			}
+			
+			if (!$found) $dol_cat['need_to_create'] = true;
+			else
+			{
+				$this->syncCategoriesD2W_checker($dol_cat['children'], $ps_cat['children']);
+			}
+		}
+	}
+	
+	// Dolibarr2Web
+	public function syncCategoriesD2W()
+	{
+		global $conf;
+		
+		require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
+		
+		$dol_fullarbo = array();
+		
+		if ($this->api_name == 'prestashop')
+		{
+			$start = microtime(true);
+			
+			$ps_categories = $this->getAll('categories', array('display' => '[id,id_parent,id_shop_default,name,description]', 'filter[id]' => '>[2]', 'filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']')); // 1 = racine, 2 = Accueil
+			if ($ps_categories)
+			{
+				$ps_categories = json_decode(json_encode($ps_categories->children()), true); // Cast array
+				$ps_fullarbo = $this->contructFullTree($ps_categories['category'], 2);
+				
+				$TProductCat = $this->getTProductCategory();
+				$dol_fullarbo = $this->contructFullTree($TProductCat, 0);
+			}
+			
+			$this->syncCategoriesD2W_checker($dol_fullarbo, $ps_fullarbo);
+			
+			$end = microtime(true);
+			var_dump($end - $start);
+			echo '<pre>';
+			print_r($dol_fullarbo);
+			exit;
+		}
+	}
+	
+	private function contructFullTree($arbo, $fk_parent, $level=1)
+	{
+		$fullarbo = array();
+		
+		foreach ($arbo as $a)
+		{
+			if ($a['id_parent'] == $fk_parent)
+			{
+				$a['children'] = $this->contructFullTree($arbo, $a['id'], $level+2);
+				$fullarbo[] = $a;
+			}
+		}
+		
+		return $fullarbo;
+	}
+
+
+	// Web2Dolibarr
+	private function syncCategoriesW2D()
+	{
+		
 	}
 	
 	private function createProductFromWebProductId($web_id_product, $web_product_attribute_id=0)
