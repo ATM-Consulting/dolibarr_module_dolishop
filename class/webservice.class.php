@@ -1307,24 +1307,106 @@ class Webservice
 		return $TCat;
 	}
 	
-	private function syncCategoriesD2W_checker(&$dol_fullarbo, $ps_fullarbo)
+	
+	private function constructFullTree($arbo, $fk_parent, $TExclude=array())
+	{
+		$fullarbo = array();
+		
+		foreach ($arbo as $a)
+		{
+			if (!empty($TExclude) && in_array($a['id'], $TExclude)) continue;
+			
+			if ($a['id_parent'] == $fk_parent)
+			{
+				$a['children'] = $this->constructFullTree($arbo, $a['id'], $TExclude);
+				$fullarbo[] = $a;
+			}
+		}
+		
+		return $fullarbo;
+	}
+	
+	/**
+	 * Permet de d'init un boolean qui indiquera s'il est nécessaire de créer la catégorie Dolibarr vers Prestashop
+	 * @param type $dol_fullarbo
+	 * @param type $web_fullarbo
+	 */
+	private function syncCategoriesD2W_checker(&$dol_fullarbo, $web_fullarbo)
 	{
 		foreach ($dol_fullarbo as &$dol_cat)
 		{
 			$found = false;
-			foreach ($ps_fullarbo as $ps_cat)
+			
+			if ($this->api_name == 'prestashop')
 			{
-				if ($dol_cat['label'] == $ps_cat['name']['language'][0])
+				foreach ($web_fullarbo as $ps_cat)
 				{
-					$found = true;
-					break;
+					if ($dol_cat['label'] == $ps_cat['name']['language'][0])
+					{
+						$found = true;
+						break;
+					}
 				}
 			}
 			
-			if (!$found) $dol_cat['need_to_create'] = true;
+			if (!$found)
+			{
+				$dol_cat['need_to_create'] = true;
+			}
 			else
 			{
+				$dol_cat['web_id_parent'] = $ps_cat['id_parent'];
+				$dol_cat['web_id'] = $ps_cat['id'];
 				$this->syncCategoriesD2W_checker($dol_cat['children'], $ps_cat['children']);
+			}
+		}
+	}
+	
+	private function syncCategoriesD2W_create($dol_fullarbo, $fk_parent=0, $force_create=false)
+	{
+		global $conf;
+		
+		foreach ($dol_fullarbo as $dol_cat)
+		{
+			if ($this->api_name == 'prestashop')
+			{
+				if ($force_create || !empty($dol_cat['need_to_create']))
+				{
+					$schema = $this->getSchema('categories', 'blank');
+					$ps_category = $schema->category;
+
+					$ps_category->name->language[0] = $dol_cat['label'];
+					$ps_category->description->language[0] = $dol_cat['description'];
+					$link_rewrite = dol_string_nospecial(dol_sanitizeFileName($dol_cat['label'], '-'), '-');
+					$ps_category->link_rewrite->language[0] = strtolower($link_rewrite);
+					$ps_category->active = true;
+					$ps_category->id_shop_default = $conf->global->DOLISHOP_SYNC_PS_SHOP_ID;
+					$ps_category->id_parent = $fk_parent;
+					try
+					{
+						$opt = array('resource' => 'categories',  'postXml' => $schema->asXML());
+						$result_xml = self::$webService->add($opt);
+						if ($result_xml) $fk_parent_for_children = $result_xml->category->id;
+						else
+						{
+							// Error
+							break;
+						}
+					}
+					catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
+					{
+//						$error++;
+						$this->setError($e);
+						break;
+					}
+					
+				}
+				else
+				{
+					$fk_parent_for_children = $dol_cat['web_id'];
+				}
+				
+				if (!empty($dol_cat['children'])) $this->syncCategoriesD2W_create($dol_cat['children'], $fk_parent_for_children, true);
 			}
 		}
 	}
@@ -1340,47 +1422,32 @@ class Webservice
 		
 		if ($this->api_name == 'prestashop')
 		{
-			$start = microtime(true);
-			
 			$ps_categories = $this->getAll('categories', array('display' => '[id,id_parent,id_shop_default,name,description]', 'filter[id]' => '>[2]', 'filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']')); // 1 = racine, 2 = Accueil
 			if ($ps_categories)
 			{
 				$ps_categories = json_decode(json_encode($ps_categories->children()), true); // Cast array
-				$ps_fullarbo = $this->contructFullTree($ps_categories['category'], 2);
+				$ps_fullarbo = $this->constructFullTree($ps_categories['category'], 2);
 				
 				$TProductCat = $this->getTProductCategory();
-				$dol_fullarbo = $this->contructFullTree($TProductCat, 0);
+				$dol_fullarbo = $this->constructFullTree($TProductCat, 0, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR));
+				
+				// tag les catégories devant être create
+				$this->syncCategoriesD2W_checker($dol_fullarbo, $ps_fullarbo);
+				
+				// Sur Prestashop l'id de la catégorie root par défaut c'est 2 (Accueil)
+				$id_category_root = !empty($conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT) ? $conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT : 2;
+				$this->syncCategoriesD2W_create($dol_fullarbo, $id_category_root);
 			}
-			
-			$this->syncCategoriesD2W_checker($dol_fullarbo, $ps_fullarbo);
-			
-			$end = microtime(true);
-			var_dump($end - $start);
-			echo '<pre>';
-			print_r($dol_fullarbo);
-			exit;
 		}
-	}
-	
-	private function contructFullTree($arbo, $fk_parent, $level=1)
-	{
-		$fullarbo = array();
-		
-		foreach ($arbo as $a)
+		else
 		{
-			if ($a['id_parent'] == $fk_parent)
-			{
-				$a['children'] = $this->contructFullTree($arbo, $a['id'], $level+2);
-				$fullarbo[] = $a;
-			}
+			
 		}
-		
-		return $fullarbo;
 	}
 
 
 	// Web2Dolibarr
-	private function syncCategoriesW2D()
+	public function syncCategoriesW2D()
 	{
 		
 	}

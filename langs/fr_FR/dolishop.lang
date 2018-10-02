@@ -35,9 +35,9 @@ DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE_DESC=La ressource <b>categories</
 DOLISHOP_SYNC_PRODUCTS_IMAGES=Activer la synchronisation des images produits
 DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET / PUT / POST</b>
 
-DOLISHOP_SYNC_PRODUCT_CATEG_D2W=Synchroniser les catégories du produit Dolibarr vers le produit web (créera les catégories manquantes sur le site ou les mettra à jour - synchro Dolibarr vers site)
+DOLISHOP_SYNC_PRODUCT_CATEG_D2W=Synchroniser les catégories du produit Dolibarr vers le produit web (créera les catégories manquantes sur le site si nécessaire - synchro Dolibarr vers site)
 DOLISHOP_SYNC_PRODUCT_CATEG_D2W_DESC=
-DOLISHOP_SYNC_PRODUCT_CATEG_W2D=Synchroniser les catégories du produit web dans Dolibarr (créera les catégories manquantes dans Dolibarr ou les mettra à jour - synchro site vers Dolibarr)
+DOLISHOP_SYNC_PRODUCT_CATEG_W2D=Synchroniser les catégories du produit web dans Dolibarr (créera les catégories manquantes dans Dolibarr si nécessaire - synchro site vers Dolibarr)
 DOLISHOP_SYNC_PRODUCT_CATEG_W2D_DESC=
 
 DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes Prestashop

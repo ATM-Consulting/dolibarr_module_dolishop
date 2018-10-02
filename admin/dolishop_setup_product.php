@@ -89,6 +89,20 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	}
 }
 
+// TODO ajouter les actions dans la page de config, plus bas
+if ($action == 'SyncCategoriesD2W')
+{
+//	set_time_limit(0);
+//	$dolishop->syncCategoriesD2W();
+//	exit;
+}
+else if ($qction == 'SyncCategoriesW2D')
+{
+//	set_time_limit(0);
+//	$dolishop->syncCategoriesW2D;
+//	exit;
+}
+
 /******/
 //$dolishop = new Dolishop\Dolishop($db);
 //$xml = $dolishop->getAll('order_states', array());
@@ -99,7 +113,6 @@ if (preg_match('/del_(.*)/',$action,$reg))
 /******/
 
 $dolishop = new \Dolishop\Webservice($db);
-
 
 /*
  * View
@@ -239,6 +252,9 @@ print '</form></div>';
 print '</td></tr>';
 
 print '</table>';
+
+
+// TODO ajouter 2 tableaux, l'un pour la synchro Dolibarr vers Presta et l'autre pour la synchro Presta vers Dolibarr
 
 llxFooter();
 
