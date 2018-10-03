@@ -70,3 +70,22 @@ function dolishopAdminPrepareHead()
 
     return $head;
 }
+
+function dolishop_get_tree($arbo, $level=0, $default_bg='#AAA')
+{
+	$html = '<ul class="'.($level == 0 ? 'treeview' : '').'">'.PHP_EOL;
+
+	$last_k = count($arbo) - 1;
+	foreach ($arbo as $k => $cat)
+	{
+		$html.= '<li class="liuseractive '.($k == $last_k ? 'last' : '').'">'.PHP_EOL;
+		$html.= '<span class="noborderoncategories classfortooltip categtextwhite" style="background: '.(empty($cat['need_to_create']) ? $default_bg : '#7f0000').';">'.$cat['label'].'</span>'.PHP_EOL;
+		
+		if (!empty($cat['children'])) $html.= dolishop_get_tree ($cat['children'], ++$level, empty($cat['need_to_create']) ? $default_bg : '#7f0000');
+		
+		$html.= '</li>'.PHP_EOL;
+	}
+
+	$html.= '</ul>'.PHP_EOL;
+	return $html;
+}

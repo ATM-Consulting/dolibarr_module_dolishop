@@ -89,15 +89,24 @@ if (preg_match('/del_(.*)/',$action,$reg))
 	}
 }
 
-// TODO ajouter les actions dans la page de config, plus bas
-if ($action == 'SyncCategoriesD2W')
+$dolishop = new \Dolishop\Webservice($db);
+
+if ($action == 'CompareCategoriesD2W')
 {
+	$dol_fullarbo = $dolishop->getCategoriesFullArboFromDol();
+	$web_fullarbo = $dolishop->getCategoriesFullArboFromWeb();
+	$dolishop->syncCategoriesD2W_checker($dol_fullarbo, $web_fullarbo);
+}
+else if ($action == 'SyncCategoriesD2W')
+{
+	// TODO déclancher la synchro Dolibarr vers Presta
 //	set_time_limit(0);
 //	$dolishop->syncCategoriesD2W();
 //	exit;
 }
-else if ($qction == 'SyncCategoriesW2D')
+else if ($action == 'SyncCategoriesW2D')
 {
+	// TODO déclancher la synchro Presta vers Dolibarr auqnd la méthode sera écrite
 //	set_time_limit(0);
 //	$dolishop->syncCategoriesW2D;
 //	exit;
@@ -112,13 +121,13 @@ else if ($qction == 'SyncCategoriesW2D')
 //exit;
 /******/
 
-$dolishop = new \Dolishop\Webservice($db);
 
 /*
  * View
  */
+$arrayofcss=array('/includes/jquery/plugins/jquerytreeview/jquery.treeview.css');
 $page_name = "dolishopSetup";
-llxHeader('', $langs->trans($page_name));
+llxHeader('', $langs->trans($page_name),'','',0,0,array(),$arrayofcss);
 
 // Subheader
 $linkback = '<a href="' . DOL_URL_ROOT . '/admin/modules.php">'
@@ -254,7 +263,85 @@ print '</td></tr>';
 print '</table>';
 
 
-// TODO ajouter 2 tableaux, l'un pour la synchro Dolibarr vers Presta et l'autre pour la synchro Presta vers Dolibarr
+dol_fiche_end();
+
+
+print '<div class="fichehalfleft">';
+print '<table class="noborder" width="100%">';
+print '<tr class="liste_titre">';
+print '<td width="50%">'.$form->textwithpicto($langs->trans('DolishopTreeDolibarrCategories'), $langs->trans('DolishopTreeDolibarrCategories_tip')).'</td>'."\n";
+print '<td width="50%">'.$langs->trans('DolishopTreeWebCategories').'</td>'."\n";
+print '</tr>';
+
+if ($action == 'CompareCategoriesD2W')
+{
+	print '<tr class="oddeven">';
+	print '<td>'.dolishop_get_tree($dol_fullarbo).'</td>';
+	if ($web_fullarbo !== false) print '<td>'.dolishop_get_tree($web_fullarbo).'</td>';
+	else print '<td align="center">'.$langs->trans('WebCategoriesHelp').'</td>';
+	print '</tr>';
+}
+
+print '</table>';
+print '<div class="center">';
+
+print '<form id="sync_categories" method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+if ($action == 'CompareCategoriesD2W')
+{
+	print '<input type="hidden" name="action" value="" />';
+	
+	print '<input id="sync_categories_d2w" data-action="SyncCategoriesD2W" class="button" value="'.$langs->trans('SyncCategoriesD2W').'" type="submit">';
+	print '<input id="sync_categories_w2d" data-action="SyncCategoriesW2D" class="button" value="'.$langs->trans('SyncCategoriesW2D').'" type="submit">';
+	print '
+		<script type="text/javascript">
+			$(function() {
+				$("#sync_categories").submit(function(event) {
+				console.log("cal");
+					if (confirm("'.dol_escape_js($langs->transnoentities('DolishopConfirmSyncCategories')).'") === true) {
+						$("#sync_categories_d2w, #sync_categories_w2d").prop("disabled", true);
+
+						var action = event.originalEvent.explicitOriginalTarget.dataset.action;
+						$(this).children("input[name=action]").val(action);
+					} else {
+						event.preventDefault();
+					}
+				});
+			});
+		</script>
+	';
+}
+else
+{
+	print '<input type="hidden" name="action" value="CompareCategoriesD2W" />';
+	print '<input class="button" value="'.$langs->trans('Compare').'" type="submit">';
+}
+
+
+
+print '</div>';
+print '</form>';
+print '</div>'; // fichehalfleft
+
+/*
+print '<div class="fichehalfright">';
+print '<div class="ficheaddleft">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="save_countries" />';
+print '<table class="noborder" width="100%" style="margin-bottom:5px;">';
+print '<tr class="liste_titre">';
+print '<td colspan="2">'.$langs->trans('WebCountriesAssociations').'</td>'."\n";
+print '<td>'.$langs->trans('DolibarrCountries').'</td>'."\n";
+print '</tr>';
+
+
+print '</table>';
+print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
+print '</form>';
+print '</div>'; // ficheaddleft
+print '</div>'; // fichehalfright
+*/
 
 llxFooter();
 

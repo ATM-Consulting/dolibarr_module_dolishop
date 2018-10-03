@@ -40,6 +40,13 @@ DOLISHOP_SYNC_PRODUCT_CATEG_D2W_DESC=
 DOLISHOP_SYNC_PRODUCT_CATEG_W2D=Synchroniser les catégories du produit web dans Dolibarr (créera les catégories manquantes dans Dolibarr si nécessaire - synchro site vers Dolibarr)
 DOLISHOP_SYNC_PRODUCT_CATEG_W2D_DESC=
 
+WebCategoriesHelp=La ressource <b>categories </b> doit être accessible en <b>GET / POST</b><br />Ce tableau vous permettra de faire correspondre les catégories de votre boutique avec ceux de Dolibarr
+DolishopConfirmSyncCategories=Êtes-vous sûr de vouloir lancer la synchronisation ?
+DolishopTreeDolibarrCategories=Arborescence des tags/catégories produit de Dolibarr
+DolishopTreeDolibarrCategories_tip=Les <b>tags/catégories</b> en <b>rouge</b> indiquent qu'ils ne sont pas présent sur votre boutique<br />Seuls les noms sur fond rouge seront créés<br />Si quelque chose vous semble anormal, vous pouvez comparer avec l'arborescence de droite et rectifier les niveaux manuellement depuis Dolibarr ou votre boutique
+DolishopTreeWebCategories=Arborescence des tags/catégories produit de votre boutique
+DolishopTreeWebCategories_tip=
+
 DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes Prestashop
 DOLISHOP_SYNC_ORDERS_DESC=Les ressources <b>orders, order_details, order_states, carriers, customers, addresses</b> doivent être accessibles en <b>GET</b>
 DOLISHOP_SYNC_WEB_ORDER_STATES=Statuts des commandes à synchroniser

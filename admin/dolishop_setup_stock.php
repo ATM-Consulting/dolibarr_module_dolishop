@@ -190,6 +190,8 @@ print '</td></tr>';
 
 print '</table>';
 
+dol_fiche_end();
+
 llxFooter();
 
 $db->close();
