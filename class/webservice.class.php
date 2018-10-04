@@ -1328,11 +1328,11 @@ class Webservice
 	}
 	
 	/**
-	 * Permet de d'init un boolean qui indiquera s'il est nécessaire de créer la catégorie Dolibarr vers Prestashop
+	 * Permet d'init un boolean qui indiquera s'il est nécessaire de créer la catégorie Dolibarr vers Prestashop (fonctionne dans le sens inverse)
 	 * @param array $dol_fullarbo
 	 * @param array $web_fullarbo
 	 */
-	public function syncCategoriesD2W_checker(&$dol_fullarbo, &$web_fullarbo)
+	public function syncCategories_checker(&$dol_fullarbo, &$web_fullarbo)
 	{
 		foreach ($dol_fullarbo as &$dol_cat)
 		{
@@ -1342,9 +1342,9 @@ class Webservice
 			{
 				if ($web_fullarbo)
 				{
-					foreach ($web_fullarbo as $ps_cat)
+					foreach ($web_fullarbo as $web_cat)
 					{
-						if ($dol_cat['label'] == $ps_cat['name']['language'][0])
+						if ($dol_cat['label'] == $web_cat['label'])
 						{
 							$found = true;
 							break;
@@ -1359,9 +1359,9 @@ class Webservice
 			}
 			else
 			{
-				$dol_cat['web_id_parent'] = $ps_cat['id_parent'];
-				$dol_cat['web_id'] = $ps_cat['id'];
-				$this->syncCategoriesD2W_checker($dol_cat['children'], $ps_cat['children']);
+				$dol_cat['web_id_parent'] = $web_cat['id_parent'];
+				$dol_cat['web_id'] = $web_cat['id'];
+				$this->syncCategories_checker($dol_cat['children'], $web_cat['children']);
 			}
 		}
 	}
@@ -1430,7 +1430,7 @@ class Webservice
 			$dol_fullarbo = $this->getCategoriesFullArboFromDol();
 			
 			// tag les catégories devant être create
-			$this->syncCategoriesD2W_checker($dol_fullarbo, $web_fullarbo);
+			$this->syncCategories_checker($dol_fullarbo, $web_fullarbo);
 
 			// Sur Prestashop l'id de la catégorie root par défaut c'est 2 (Accueil)
 			$id_category_root = !empty($conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT) ? $conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT : 2;

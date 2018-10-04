@@ -95,14 +95,17 @@ if ($action == 'CompareCategoriesD2W')
 {
 	$dol_fullarbo = $dolishop->getCategoriesFullArboFromDol();
 	$web_fullarbo = $dolishop->getCategoriesFullArboFromWeb();
-	$dolishop->syncCategoriesD2W_checker($dol_fullarbo, $web_fullarbo);
+	$dolishop->syncCategories_checker($dol_fullarbo, $web_fullarbo);
+	$dolishop->syncCategories_checker($web_fullarbo, $dol_fullarbo);
 }
 else if ($action == 'SyncCategoriesD2W')
 {
-	// TODO déclancher la synchro Dolibarr vers Presta
-//	set_time_limit(0);
-//	$dolishop->syncCategoriesD2W();
-//	exit;
+	set_time_limit(0);
+	$dolishop->syncCategoriesD2W();
+	if (!empty($dolishop->errors)) setEventMessages('', $dolishop->errors, 'errors');
+	
+	header('Location: '.$_SERVER['PHP_SELF']);
+	exit;
 }
 else if ($action == 'SyncCategoriesW2D')
 {
@@ -270,16 +273,20 @@ print '<div class="fichehalfleft">';
 print '<table class="noborder" width="100%">';
 print '<tr class="liste_titre">';
 print '<td width="50%">'.$form->textwithpicto($langs->trans('DolishopTreeDolibarrCategories'), $langs->trans('DolishopTreeDolibarrCategories_tip')).'</td>'."\n";
-print '<td width="50%">'.$langs->trans('DolishopTreeWebCategories').'</td>'."\n";
+print '<td width="50%">'.$form->textwithpicto($langs->trans('DolishopTreeWebCategories'), $langs->trans('DolishopTreeWebCategories_tip')).'</td>'."\n";
 print '</tr>';
 
 if ($action == 'CompareCategoriesD2W')
 {
-	print '<tr class="oddeven">';
+	print '<tr class="oddeven" style="font-size:1.1em">';
 	print '<td>'.dolishop_get_tree($dol_fullarbo).'</td>';
-	if ($web_fullarbo !== false) print '<td>'.dolishop_get_tree($web_fullarbo).'</td>';
+	if ($web_fullarbo !== false) print '<td>'.dolishop_get_tree($web_fullarbo, 1, '#877A79', '#508B00').'</td>';
 	else print '<td align="center">'.$langs->trans('WebCategoriesHelp').'</td>';
 	print '</tr>';
+}
+else
+{
+	print '<td colspan="2" align="center">'.$langs->trans('WebCategoriesHelp').'</td>';
 }
 
 print '</table>';

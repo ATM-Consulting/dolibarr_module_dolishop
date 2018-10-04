@@ -71,17 +71,18 @@ function dolishopAdminPrepareHead()
     return $head;
 }
 
-function dolishop_get_tree($arbo, $level=0, $default_bg='#AAA')
+function dolishop_get_tree($arbo, $level=1, $default_bg='#877A79', $need_create_bg='#BA4C49')
 {
-	$html = '<ul class="'.($level == 0 ? 'treeview' : '').'">'.PHP_EOL;
+	$html = '<ul class="'.($level == 1 ? 'treeview' : '').'">'.PHP_EOL;
 
 	$last_k = count($arbo) - 1;
 	foreach ($arbo as $k => $cat)
 	{
+		$bg = empty($cat['need_to_create']) ? $default_bg : $need_create_bg;
 		$html.= '<li class="liuseractive '.($k == $last_k ? 'last' : '').'">'.PHP_EOL;
-		$html.= '<span class="noborderoncategories classfortooltip categtextwhite" style="background: '.(empty($cat['need_to_create']) ? $default_bg : '#7f0000').';">'.$cat['label'].'</span>'.PHP_EOL;
+		$html.= '<span class="noborderoncategories classfortooltip categtextwhite" style="background: '.$bg.';">'.$cat['label'].'</span>'.PHP_EOL;
 		
-		if (!empty($cat['children'])) $html.= dolishop_get_tree ($cat['children'], ++$level, empty($cat['need_to_create']) ? $default_bg : '#7f0000');
+		if (!empty($cat['children'])) $html.= dolishop_get_tree ($cat['children'], ++$level, $bg);
 		
 		$html.= '</li>'.PHP_EOL;
 	}
