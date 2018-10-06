@@ -110,9 +110,12 @@ else if ($action == 'SyncCategoriesD2W')
 else if ($action == 'SyncCategoriesW2D')
 {
 	// TODO déclancher la synchro Presta vers Dolibarr auqnd la méthode sera écrite
-//	set_time_limit(0);
-//	$dolishop->syncCategoriesW2D;
-//	exit;
+	set_time_limit(0);
+	$dolishop->syncCategoriesW2D();
+	if (!empty($dolishop->errors)) setEventMessages('', $dolishop->errors, 'errors');
+	
+	header('Location: '.$_SERVER['PHP_SELF']);
+	exit;
 }
 
 /******/
@@ -135,7 +138,7 @@ llxHeader('', $langs->trans($page_name),'','',0,0,array(),$arrayofcss);
 // Subheader
 $linkback = '<a href="' . DOL_URL_ROOT . '/admin/modules.php">'
     . $langs->trans("BackToModuleList") . '</a>';
-print_fiche_titre($langs->trans($page_name), $linkback);
+print load_fiche_titre($langs->trans($page_name), $linkback);
 
 // Configuration header
 $head = dolishopAdminPrepareHead();
@@ -298,8 +301,8 @@ if ($action == 'CompareCategoriesD2W')
 {
 	print '<input type="hidden" name="action" value="" />';
 	
-	print '<input id="sync_categories_d2w" data-action="SyncCategoriesD2W" class="button" value="'.$langs->trans('SyncCategoriesD2W').'" type="submit">';
-	print '<input id="sync_categories_w2d" data-action="SyncCategoriesW2D" class="button" value="'.$langs->trans('SyncCategoriesW2D').'" type="submit">';
+	print '<input id="sync_categories_d2w" data-action="SyncCategoriesD2W" class="button" value="'.$langs->trans('DolishopSyncCategoriesD2W').'" type="submit">';
+	print '<input id="sync_categories_w2d" data-action="SyncCategoriesW2D" class="button" value="'.$langs->trans('DolishopSyncCategoriesW2D').'" type="submit">';
 	print '
 		<script type="text/javascript">
 			$(function() {
@@ -321,7 +324,7 @@ if ($action == 'CompareCategoriesD2W')
 else
 {
 	print '<input type="hidden" name="action" value="CompareCategoriesD2W" />';
-	print '<input class="button" value="'.$langs->trans('Compare').'" type="submit">';
+	print '<input class="button" value="'.$langs->trans('DolishopCompareCategories').'" type="submit">';
 }
 
 
