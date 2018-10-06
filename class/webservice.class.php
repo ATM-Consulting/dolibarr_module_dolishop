@@ -275,7 +275,8 @@ class Webservice
 			$xml_result = new \SimpleXMLElement($result);
 			if (isset($xml_result->children()->errors))
 			{
-				$error = $xml_result->children()->children()[0];
+				$e = $xml_result->children()->children();
+				$error = $e[0];
 				$this->error = $langs->trans('DolishopPostImageError', $error->code->__toString(), $error->message->__toString());
 				$this->errors[] = $this->error;
 				return false;
@@ -645,6 +646,7 @@ class Webservice
 	 * @global \Conf		$conf
 	 * @param	\Product				$dol_product
 	 * @param	\SimpleXMLElement	$xml_origin
+	 * @return int
 	 */
 	private function savePsProduct(&$dol_product, $xml_origin=false)
 	{
@@ -726,9 +728,9 @@ class Webservice
 		}
 		else
 		{
-			$ps_product->name->children()[0][0] = $dol_product->label;
-			$ps_product->description->children()[0][0] = $dol_product->description;
-			if (!empty($conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT)) $ps_product->description_short->children()[0][0] = $this->trunc($dol_product->description, $conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT, true, false);
+			$ps_product->name->language[0] = $dol_product->label;
+			$ps_product->description->language[0] = $dol_product->description;
+			if (!empty($conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT)) $ps_product->description_short->language[0] = $this->trunc($dol_product->description, $conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT, true, false);
 		}
 		
 		$error = 0;
@@ -1205,13 +1207,13 @@ class Webservice
 	 * Permet de synchroniser les groupes d'attributs et valeurs associées manquants (llx_product_attribute & llx_product_attribute_value)
 	 * API product_options & product_option_values accessibles en GET
 	 * 
-	 * @global \Dolishop\User $user
-	 * @global \Dolishop\Conf $conf
-	 * @global \Dolishop\User $user
+	 * @global \User $user
+	 * @global \Conf $conf
+	 * @global \User $user
 	 */
 	private function syncWebCombinationsOptions()
 	{
-		global $user,$conf,$user;
+		global $conf,$user;
 		
 		if ($this->api_name == 'prestashop')
 		{
@@ -1606,7 +1608,8 @@ class Webservice
 			}
 			
 			$commande->socid = $fk_soc;
-			$commande->date_commande = strtotime($web_order->date_add->__toString());
+			$commande->date = strtotime($web_order->date_add->__toString());
+			$commande->date_commande = $commande->date;
 			$commande->note_private = ''; // TODO à voir avec la ressource "messages"
 			$commande->note_public = '';
 
@@ -2343,8 +2346,9 @@ class DolishopTools
 		}
 		else
 		{
-			$this->error = $db->lasterror();
-			$this->errors[] = $db->error;
+			// TODO manage error
+//			$this->error = $db->lasterror();
+//			$thisclass/webservice.class.phpclass/webservice.class.phpclass/webservice.class.phpclass/webservice.class.php->errors[] = $db->error;
 		}
 		
 		return $TId;
