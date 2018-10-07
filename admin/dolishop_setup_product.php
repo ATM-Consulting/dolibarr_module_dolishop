@@ -95,7 +95,7 @@ if ($action == 'CompareCategoriesD2W')
 {
 	$dol_fullarbo = $dolishop->getCategoriesFullArboFromDol();
 	$web_fullarbo = $dolishop->getCategoriesFullArboFromWeb();
-	$dolishop->syncCategories_checker($dol_fullarbo, $web_fullarbo);
+	$dolishop->syncCategories_checker($dol_fullarbo, $web_fullarbo, true);
 	$dolishop->syncCategories_checker($web_fullarbo, $dol_fullarbo);
 }
 else if ($action == 'SyncCategoriesD2W')
@@ -112,7 +112,7 @@ else if ($action == 'SyncCategoriesW2D')
 	set_time_limit(0);
 	$dolishop->syncCategoriesW2D();
 	if (!empty($dolishop->errors)) setEventMessages('', $dolishop->errors, 'errors');
-	
+
 	header('Location: '.$_SERVER['PHP_SELF']);
 	exit;
 }

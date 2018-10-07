@@ -482,6 +482,7 @@ class Webservice
 	 * Méthode utilisée par la tâche cron déclarée dans Dolibarr à l'activation du module
 	 * 
 	 * @global Conf $conf
+	 * @return int
 	 */
 	public function rsyncProducts($fk_user, $direction, $sync_images=false)
 	{
@@ -497,7 +498,8 @@ class Webservice
 		
 		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
-		
+		require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
+
 		$user = new \User($this->db);
 		if ($user->fetch($fk_user) <= 0 || $user->statut == 0)
 		{
@@ -1281,7 +1283,7 @@ class Webservice
 		
 		$TCat = array();
 		
-		$sql = 'SELECT DISTINCT c.rowid, c.label, c.description, c.fk_parent';	// Distinct reduce pb with old tables with duplicates
+		$sql = 'SELECT DISTINCT c.rowid, c.label, c.description, c.fk_parent, c.import_key';	// Distinct reduce pb with old tables with duplicates
 		$sql.= ' FROM '.MAIN_DB_PREFIX.'categorie as c';
 		$sql .= ' WHERE c.entity IN (' . getEntity( 'category') . ')';
 		$sql .= ' AND c.type = 0'; // Type product
@@ -1298,6 +1300,7 @@ class Webservice
 				$TCat[$obj->rowid]['fk_parent'] = $obj->fk_parent;
 				$TCat[$obj->rowid]['label'] = $obj->label;
 				$TCat[$obj->rowid]['description'] = $obj->description;
+				$TCat[$obj->rowid]['import_key'] = $obj->import_key;
 			}
 		}
 		else
@@ -1331,10 +1334,13 @@ class Webservice
 	
 	/**
 	 * Permet d'init un boolean qui indiquera s'il est nécessaire de créer la catégorie Dolibarr vers Prestashop (fonctionne dans le sens inverse)
+	 * Si $update_import_key est à true, alors mettra aussi à jour le champ "import_key" de la table llx_categorie (@warning à utiliser uniquement dans le sens Dolibarr / Presta)
+	 *
 	 * @param array $dol_fullarbo
 	 * @param array $web_fullarbo
+	 * @param bool	$update_import_key
 	 */
-	public function syncCategories_checker(&$dol_fullarbo, &$web_fullarbo)
+	public function syncCategories_checker(&$dol_fullarbo, &$web_fullarbo, $update_import_key=false)
 	{
 		foreach ($dol_fullarbo as &$dol_cat)
 		{
@@ -1363,7 +1369,11 @@ class Webservice
 			{
 				$dol_cat['web_id_parent'] = $web_cat['id_parent'];
 				$dol_cat['web_id'] = $web_cat['id']; // rowid Dolibarr si les paramètres sont passés à l'envers
-				$this->syncCategories_checker($dol_cat['children'], $web_cat['children']);
+				if ($update_import_key && $dol_cat['import_key'] != $web_cat['id'])
+				{
+					$this->db->query('UPDATE '.MAIN_DB_PREFIX.'categorie SET import_key = \''.$web_cat['id'].'\' WHERE rowid = '.$dol_cat['id']);
+				}
+				$this->syncCategories_checker($dol_cat['children'], $web_cat['children'], $update_import_key);
 			}
 		}
 	}
@@ -1371,7 +1381,7 @@ class Webservice
 	private function syncCategoriesD2W_create(&$dol_fullarbo, $fk_parent=0, $force_create=false)
 	{
 		global $conf;
-		
+
 		foreach ($dol_fullarbo as $dol_cat)
 		{
 			$force_create_for_children = false;
@@ -1396,6 +1406,8 @@ class Webservice
 						if ($result_xml)
 						{
 							$fk_parent_for_children = $result_xml->category->id;
+							$this->db->query('UPDATE '.MAIN_DB_PREFIX.'categorie SET import_key = \''.$fk_parent_for_children.'\' WHERE rowid = '.$dol_cat['id']);
+
 							$force_create_for_children = true;
 						}
 						else
@@ -1416,7 +1428,7 @@ class Webservice
 				{
 					$fk_parent_for_children = $dol_cat['web_id'];
 				}
-				
+
 				if (!empty($dol_cat['children'])) $this->syncCategoriesD2W_create($dol_cat['children'], $fk_parent_for_children, $force_create_for_children);
 			}
 		}
@@ -1489,7 +1501,6 @@ class Webservice
 
 		foreach ($web_fullarbo as $web_cat)
 		{
-
 			if ($force_create || !empty($web_cat['need_to_create']))
 			{
 				$dol_cat = new \Categorie($this->db);
