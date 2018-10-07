@@ -1374,6 +1374,7 @@ class Webservice
 		
 		foreach ($dol_fullarbo as $dol_cat)
 		{
+			$force_create_for_children = false;
 			if ($this->api_name == 'prestashop')
 			{
 				if ($force_create || !empty($dol_cat['need_to_create']))
@@ -1392,10 +1393,14 @@ class Webservice
 					{
 						$opt = array('resource' => 'categories',  'postXml' => $schema->asXML());
 						$result_xml = self::$webService->add($opt);
-						if ($result_xml) $fk_parent_for_children = $result_xml->category->id;
+						if ($result_xml)
+						{
+							$fk_parent_for_children = $result_xml->category->id;
+							$force_create_for_children = true;
+						}
 						else
 						{
-							// Error
+							// Error: this case should not happen
 							break;
 						}
 					}
@@ -1412,7 +1417,7 @@ class Webservice
 					$fk_parent_for_children = $dol_cat['web_id'];
 				}
 				
-				if (!empty($dol_cat['children'])) $this->syncCategoriesD2W_create($dol_cat['children'], $fk_parent_for_children, true);
+				if (!empty($dol_cat['children'])) $this->syncCategoriesD2W_create($dol_cat['children'], $fk_parent_for_children, $force_create_for_children);
 			}
 		}
 	}
@@ -2359,7 +2364,7 @@ class DolishopTools
 	 * 
 	 * @param string	$input
 	 * @param int		$length
-	 * @param string	$ellipses
+	 * @param bool		$ellipses
 	 * @param bool		$strip_html
 	 * @return string
 	 */
