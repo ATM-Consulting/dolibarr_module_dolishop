@@ -109,7 +109,6 @@ else if ($action == 'SyncCategoriesD2W')
 }
 else if ($action == 'SyncCategoriesW2D')
 {
-	// TODO déclancher la synchro Presta vers Dolibarr auqnd la méthode sera écrite
 	set_time_limit(0);
 	$dolishop->syncCategoriesW2D();
 	if (!empty($dolishop->errors)) setEventMessages('', $dolishop->errors, 'errors');
@@ -307,7 +306,6 @@ if ($action == 'CompareCategoriesD2W')
 		<script type="text/javascript">
 			$(function() {
 				$("#sync_categories").submit(function(event) {
-				console.log("cal");
 					if (confirm("'.dol_escape_js($langs->transnoentities('DolishopConfirmSyncCategories')).'") === true) {
 						$("#sync_categories_d2w, #sync_categories_w2d").prop("disabled", true);
 

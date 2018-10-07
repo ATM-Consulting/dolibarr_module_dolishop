@@ -1362,13 +1362,13 @@ class Webservice
 			else
 			{
 				$dol_cat['web_id_parent'] = $web_cat['id_parent'];
-				$dol_cat['web_id'] = $web_cat['id'];
+				$dol_cat['web_id'] = $web_cat['id']; // rowid Dolibarr si les paramètres sont passés à l'envers
 				$this->syncCategories_checker($dol_cat['children'], $web_cat['children']);
 			}
 		}
 	}
 	
-	private function syncCategoriesD2W_create($dol_fullarbo, $fk_parent=0, $force_create=false)
+	private function syncCategoriesD2W_create(&$dol_fullarbo, $fk_parent=0, $force_create=false)
 	{
 		global $conf;
 		
@@ -1422,36 +1422,19 @@ class Webservice
 		}
 	}
 	
-	// Dolibarr2Web
-	public function syncCategoriesD2W()
-	{
-		global $conf;
-		
-		require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
-		
-		$dol_fullarbo = array();
-		
-		$web_fullarbo = $this->getCategoriesFullArboFromWeb();
-		if ($web_fullarbo)
-		{
-			$dol_fullarbo = $this->getCategoriesFullArboFromDol();
-			
-			// tag les catégories devant être create
-			$this->syncCategories_checker($dol_fullarbo, $web_fullarbo);
-
-			// Sur Prestashop l'id de la catégorie root par défaut c'est 2 (Accueil)
-			$id_category_root = !empty($conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT) ? $conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT : 2;
-			$this->syncCategoriesD2W_create($dol_fullarbo, $id_category_root);
-		}
-	}
-	
 	public function getCategoriesFullArboFromWeb()
 	{
 		global $conf;
 		
 		if ($this->api_name == 'prestashop')
 		{
-			$ps_categories = $this->getAll('categories', array('display' => '[id,id_parent,id_shop_default,name,description]', 'filter[id]' => '>[2]', 'filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']')); // 1 = racine, 2 = Accueil
+			$ps_categories = $this->getAll('categories', array(
+				'display' => '[id,id_parent,id_shop_default,name,description]'
+				,'filter[id]' => '>[2]' // 1 = racine, 2 = Accueil
+				,'filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']'
+				,'sort' => '[id_parent_ASC,name_ASC]'
+			));
+
 			if ($ps_categories)
 			{
 				$ps_categories = json_decode(json_encode($ps_categories->children()), true); // Cast array
@@ -1477,10 +1460,89 @@ class Webservice
 		return $dol_fullarbo;
 	}
 
+	// Dolibarr2Web
+	public function syncCategoriesD2W()
+	{
+		global $conf;
+
+		require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
+
+		$dol_fullarbo = array();
+
+		$web_fullarbo = $this->getCategoriesFullArboFromWeb();
+		if ($web_fullarbo)
+		{
+			$dol_fullarbo = $this->getCategoriesFullArboFromDol();
+
+			// tag les catégories devant être create
+			$this->syncCategories_checker($dol_fullarbo, $web_fullarbo);
+
+			// Sur Prestashop l'id de la catégorie root par défaut c'est 2 (Accueil)
+			$id_category_root = !empty($conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT) ? $conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT : 2;
+			$this->syncCategoriesD2W_create($dol_fullarbo, $id_category_root);
+		}
+	}
+
+	private function syncCategoriesW2D_create(&$web_fullarbo, $fk_parent=0, $force_create=false)
+	{
+		global $user,$conf;
+
+		foreach ($web_fullarbo as $web_cat)
+		{
+
+			if ($force_create || !empty($web_cat['need_to_create']))
+			{
+				$dol_cat = new \Categorie($this->db);
+				if ($this->api_name == 'prestashop')
+				{
+					$dol_cat->label = $web_cat['name']['language'][0];
+					$dol_cat->description = $web_cat['description']['language'][0];
+					$dol_cat->color = !empty($conf->global->DOLISHOP_COLOR_FOR_CATEGORY) ? $conf->global->DOLISHOP_COLOR_FOR_CATEGORY : '';
+					$dol_cat->import_key = $web_cat['id'];
+					$dol_cat->visible = 1;
+					$dol_cat->fk_parent = $fk_parent;
+				}
+
+				$dol_cat->type = \Categorie::TYPE_PRODUCT;
+				if ($dol_cat->create($user) > 0)
+				{
+					$fk_parent_for_children = $dol_cat->id;
+					$force_create_for_children = true;
+				}
+				else
+				{
+					$this->error = $dol_cat->error;
+					$this->errors[] = $this->error;
+					break;
+				}
+			}
+			else
+			{
+				// En amont, la méthode syncCategories_checker() est appelé avec les paramètres à l'envers, ça veut dire que web_id contient le rowid Dolibarr
+				$fk_parent_for_children = $web_cat['web_id'];
+				$force_create_for_children = false;
+			}
+
+			if (!empty($web_cat['children'])) $this->syncCategoriesW2D_create($web_cat['children'], $fk_parent_for_children, $force_create_for_children);
+		}
+	}
+
 	// Web2Dolibarr
 	public function syncCategoriesW2D()
 	{
-		
+		require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
+
+		$web_fullarbo = $this->getCategoriesFullArboFromWeb();
+		if ($web_fullarbo)
+		{
+			$dol_fullarbo = $this->getCategoriesFullArboFromDol();
+
+			// tag les catégories devant être create
+			$this->syncCategories_checker($web_fullarbo, $dol_fullarbo);
+
+			// create categories in Dolibarr
+			$this->syncCategoriesW2D_create($web_fullarbo);
+		}
 	}
 	
 	private function createProductFromWebProductId($web_id_product, $web_product_attribute_id=0)
