@@ -137,12 +137,12 @@ class InterfaceDolishoptrigger
 				if (!$is_combination)
 				{
 					dol_include_once('/dolishop/class/webservice.class.php');
-					$dolishop = new Dolishop\Webservice($db);
+					$dolishop = new Dolishop\Webservice($db, true);
 
 					// Si je proviens du formulaire de création/édition
 					$TCategory = GETPOST('categories');
 					if (
-						( !empty($TCategory) && array_intersect($TCategory, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR)) )
+						( !empty($TCategory) && array_intersect($TCategory, $dolishop->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR) )
 						|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategoriesD2P($object->id) )
 					) {
 //						$dolishop->syncCategoriesD2W();

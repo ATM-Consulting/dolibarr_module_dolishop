@@ -44,38 +44,47 @@ class Webservice
 	public $errors = array();
 	
 	public $from_cron_job = false;
-	
+	public $from_trigger = false;
+
 	public $schema_products_blank;
 	public $schema_products_synopsis;
+	public $schema_combinations_blank;
 	public $schema_combinations_synopsis;
+	public $schema_categories_blank;
+	public $schema_categories_synopsis;
 
-	public function __construct($db)
+	public $DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR;
+
+	public function __construct($db, $from_trigger=false)
 	{
 		global $conf,$langs;
-		
+
 		$this->db = $db;
+		$this->from_trigger = $from_trigger;
 		$langs->load('dolishop@dolishop');
 
 		$this->url = $conf->global->DOLISHOP_PS_SHOP_PATH;
 		$this->key = $conf->global->DOLISHOP_PS_WS_AUTH_KEY;
 		$this->debug = (bool) $conf->global->DOLISHOP_PS_WS_DEBUG;
-		
+
 		if (!empty($conf->global->DOLISHOP_API_NAME)) $this->api_name = $conf->global->DOLISHOP_API_NAME;
-		
+
 		switch ($this->api_name) {
 			case 'magento':
 				break;
 			case 'prestashop':
 			default:
 				require_once __DIR__.'/../src/PSWebServiceLibrary.php';
-				
+
 				if (is_null(self::$webService)) self::$webService = new PSWebServiceLibrary\PrestaShopWebservice($this->url, $this->key, $this->debug);
 				if (is_null(self::$ps_configuration)) self::$ps_configuration = json_decode($conf->global->DOLISHOP_PS_CONFIGURATION, true);
-		
+
 				break;
 		}
+
+		$this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR);
 	}
-	
+
 	/**
 	 * Test de connectivité avec la boutique distante
 	 * 
@@ -569,7 +578,6 @@ class Webservice
 	 */
 	private function syncProductToPrestashop($fk_product, $sync_images=false)
 	{
-		
 		$dol_product = new \Product($this->db);
 		if ($dol_product->fetch($fk_product) > 0)
 		{
@@ -734,7 +742,42 @@ class Webservice
 			$ps_product->description->language[0] = $dol_product->description;
 			if (!empty($conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT)) $ps_product->description_short->language[0] = $this->trunc($dol_product->description, $conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT, true, false);
 		}
-		
+
+		// Association des catégories
+		if (!empty($conf->global->DOLISHOP_SYNC_PRODUCT_CATEG_D2W))
+		{
+			$TCategory = $this->getTProductCategory($dol_product->id);
+			if (is_array($TCategory))
+			{
+				$TCategoryFromXml = array();
+				foreach ($ps_product->associations->categories->children() as $ps_category)
+				{
+					$TCategoryFromXml[(int) $ps_category->id] = (int) $ps_category->id;
+				}
+
+				unset($ps_product->associations->categories);
+				$ps_product->associations->addChild('categories');
+				if (isset($TCategoryFromXml[2]))
+				{
+					// Je ne touche pas à la catégorie "Accueil"
+					$pp = $ps_product->associations->categories->addChild('category');
+					$pp->id = 2;
+				}
+
+				foreach ($TCategory as $cat)
+				{
+					if (empty($cat['import_key']) || in_array($cat['id'], $this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR)) continue;
+					$pp = $ps_product->associations->categories->addChild('category');
+					$pp->id = $cat['import_key'];
+				}
+
+				// TODO si $ps_product->id_category_default ne fait pas partie des ids associés alors Prestashop de supprimera pas le lien
+				// Voir pour ajouter un extrafield "web_id_category_default" qui sera une liste issue d'une table (llx_category ::type=0 AND import_key>0)
+				// en attendant, s'il y qu'une seule catégorie alors c'est celle par défaut
+				if ($ps_product->associations->categories->children()->count() == 1) $ps_product->id_category_default = (int) $ps_product->associations->categories->category->id;
+			}
+		}
+
 		$error = 0;
 		try
 		{
@@ -1277,7 +1320,7 @@ class Webservice
 		}
 	}
 	
-	private function getTProductCategory()
+	private function getTProductCategory($fk_product=0)
 	{
 		require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
 		
@@ -1285,10 +1328,17 @@ class Webservice
 		
 		$sql = 'SELECT DISTINCT c.rowid, c.label, c.description, c.fk_parent, c.import_key';	// Distinct reduce pb with old tables with duplicates
 		$sql.= ' FROM '.MAIN_DB_PREFIX.'categorie as c';
+		if ($fk_product > 0 && empty($this->from_trigger)) $sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_categorie = c.rowid)';
 		$sql .= ' WHERE c.entity IN (' . getEntity( 'category') . ')';
 		$sql .= ' AND c.type = 0'; // Type product
+		if ($fk_product > 0)
+		{
+			// So ugly but no choice
+			if ($this->from_trigger) $sql.= ' AND c.rowid IN ('.implode(',', GETPOST('categories', 'array')).')';
+			else $sql.= ' AND cp.fk_product = \'.$fk_product\'';
+		}
 		$sql .= ' ORDER BY c.fk_parent, c.label';
-		
+
 		$resql = $this->db->query($sql);
 		if ($resql)
 		{
@@ -1467,7 +1517,7 @@ class Webservice
 		global $conf;
 		
 		$TProductCat = $this->getTProductCategory();
-		$dol_fullarbo = $this->constructFullTree($TProductCat, 0, explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR));
+		$dol_fullarbo = $this->constructFullTree($TProductCat, 0, $this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR);
 
 		return $dol_fullarbo;
 	}
