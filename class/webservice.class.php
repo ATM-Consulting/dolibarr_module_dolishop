@@ -55,6 +55,12 @@ class Webservice
 
 	public $DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR;
 
+	/**
+	 * @see getTProductCategory
+	 * @var array|int $TCategoryByProductId
+	 */
+	public $TCategoryByProductId;
+
 	public function __construct($db, $from_trigger=false)
 	{
 		global $conf,$langs;
@@ -1319,47 +1325,52 @@ class Webservice
 			}
 		}
 	}
-	
-	private function getTProductCategory($fk_product=0)
-	{
-		require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
-		
-		$TCat = array();
-		
-		$sql = 'SELECT DISTINCT c.rowid, c.label, c.description, c.fk_parent, c.import_key';	// Distinct reduce pb with old tables with duplicates
-		$sql.= ' FROM '.MAIN_DB_PREFIX.'categorie as c';
-		if ($fk_product > 0 && empty($this->from_trigger)) $sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_categorie = c.rowid)';
-		$sql .= ' WHERE c.entity IN (' . getEntity( 'category') . ')';
-		$sql .= ' AND c.type = 0'; // Type product
-		if ($fk_product > 0)
-		{
-			// So ugly but no choice
-			if ($this->from_trigger) $sql.= ' AND c.rowid IN ('.implode(',', GETPOST('categories', 'array')).')';
-			else $sql.= ' AND cp.fk_product = \'.$fk_product\'';
-		}
-		$sql .= ' ORDER BY c.fk_parent, c.label';
 
-		$resql = $this->db->query($sql);
-		if ($resql)
+	private function getTProductCategory($fk_product=0, $force=false)
+	{
+		if ($force || empty($this->TCategoryByProductId[$fk_product]) || $this->TCategoryByProductId[$fk_product] === -1)
 		{
-			while ($obj = $this->db->fetch_object($resql))
+			require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
+
+			$TCat = array();
+
+			$sql = 'SELECT DISTINCT c.rowid, c.label, c.description, c.fk_parent, c.import_key';	// Distinct reduce pb with old tables with duplicates
+			$sql.= ' FROM '.MAIN_DB_PREFIX.'categorie as c';
+			if ($fk_product > 0 && empty($this->from_trigger)) $sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_categorie = c.rowid)';
+			$sql .= ' WHERE c.entity IN (' . getEntity( 'category') . ')';
+			$sql .= ' AND c.type = 0'; // Type product
+			if ($fk_product > 0)
 			{
-				$TCat[$obj->rowid]['rowid'] = $obj->rowid;
-				$TCat[$obj->rowid]['id'] = $obj->rowid;
-				$TCat[$obj->rowid]['id_parent'] = $obj->fk_parent;
-				$TCat[$obj->rowid]['fk_parent'] = $obj->fk_parent;
-				$TCat[$obj->rowid]['label'] = $obj->label;
-				$TCat[$obj->rowid]['description'] = $obj->description;
-				$TCat[$obj->rowid]['import_key'] = $obj->import_key;
+				// So ugly but no choice
+				if ($this->from_trigger) $sql.= ' AND c.rowid IN ('.implode(',', GETPOST('categories', 'array')).')';
+				else $sql.= ' AND cp.fk_product = \'.$fk_product\'';
+			}
+			$sql .= ' ORDER BY c.fk_parent, c.label';
+
+			$resql = $this->db->query($sql);
+			if ($resql)
+			{
+				while ($obj = $this->db->fetch_object($resql))
+				{
+					$TCat[$obj->rowid]['rowid'] = $obj->rowid;
+					$TCat[$obj->rowid]['id'] = $obj->rowid;
+					$TCat[$obj->rowid]['id_parent'] = $obj->fk_parent;
+					$TCat[$obj->rowid]['fk_parent'] = $obj->fk_parent;
+					$TCat[$obj->rowid]['label'] = $obj->label;
+					$TCat[$obj->rowid]['description'] = $obj->description;
+					$TCat[$obj->rowid]['import_key'] = $obj->import_key;
+				}
+
+				$this->TCategoryByProductId[$fk_product] = $TCat;
+			}
+			else
+			{
+				dol_print_error($this->db);
+				$this->TCategoryByProductId[$fk_product] = -1;
 			}
 		}
-		else
-		{
-			dol_print_error($this->db);
-			return -1;
-		}
-		
-		return $TCat;
+
+		return $this->TCategoryByProductId[$fk_product];
 	}
 	
 	
