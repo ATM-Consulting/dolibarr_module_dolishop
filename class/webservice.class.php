@@ -1568,7 +1568,7 @@ class Webservice
 				if ($this->api_name == 'prestashop')
 				{
 					$dol_cat->label = $web_cat['name']['language'][0];
-					$dol_cat->description = $web_cat['description']['language'][0];
+					$dol_cat->description = is_string($web_cat['description']['language'][0]) ? $web_cat['description']['language'][0] : '';
 					$dol_cat->color = !empty($conf->global->DOLISHOP_COLOR_FOR_CATEGORY) ? $conf->global->DOLISHOP_COLOR_FOR_CATEGORY : '';
 					$dol_cat->import_key = $web_cat['id'];
 					$dol_cat->visible = 1;
