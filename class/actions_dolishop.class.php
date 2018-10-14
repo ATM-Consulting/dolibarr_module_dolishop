@@ -86,7 +86,7 @@ class Actionsdolishop
 			if (!empty($object->array_options['options_ps_id_product']))
 			{
 				dol_include_once('/dolishop/class/webservice.class.php');
-				
+
 				$explode = explode('/', $parameters['file']);
 				$filename = $explode[count($explode)-1];
 				
@@ -94,7 +94,12 @@ class Actionsdolishop
 				$res = $dolishop->deleteImages($object, array($filename));
 				if ($res >= 1) setEventMessage($langs->trans('DolishopDeletePsProductImagesSuccess'));
 				else if ($res <= -1) setEventMessage($langs->trans('DolishopDeletePsProductImagesWarning'), 'warnings');
-				
+
+				if ((float) DOL_VERSION < 6.0)
+				{
+					EcmFilesBackward::deleteCustom($object, $filename);
+				}
+
 				if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
 			}
 		}
@@ -113,24 +118,29 @@ class Actionsdolishop
 	 */
 	public function formattachOptions($parameters, &$object, &$action, $hookmanager)
 	{
-		global $langs,$conf;
+		global $langs,$conf,$db;
 		
 		$TContext = explode(':', $parameters['context']);
 		if (in_array('productdocuments', $TContext))
 		{
 			// Obligé de gérer ça ici, pas de doActions :'(
 			// Vivement que ce soit gérable via la class EcmFiles avec des triggers du style : CREATE_ECM_FILE / MODIFY_ECM_FILE / DELETE_ECM_FILE
-			if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES) && GETPOST('sendit'))
+			if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES) && GETPOST('sendit') && !empty($_FILES['userfile']['name']))
 			{
 				global $upload_dir, $upload_dirold;
-				
+
 				$dir = !empty($upload_dirold) ? $upload_dirold : $upload_dir;
 				$TFileName = $_FILES['userfile']['name'];
 				if (!is_array($TFileName)) $TFileName = array($TFileName);
-				
+
 				dol_include_once('/dolishop/class/webservice.class.php');
-				if (DolishopTools::checkProductCategories($dol_product->id))
+				if (\Dolishop\DolishopTools::checkProductCategoriesD2P($object->id))
 				{
+					if ((float) DOL_VERSION < 6.0)
+					{
+						EcmFilesBackward::createCustom($object, $_FILES['userfile']);
+					}
+
 					$dolishop = new \Dolishop\Webservice($this->db);
 					$dolishop->saveImages($object, $TFileName, $dir);
 					if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');

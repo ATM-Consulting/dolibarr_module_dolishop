@@ -44,7 +44,7 @@ class Webservice
 	public $errors = array();
 	
 	public $from_cron_job = false;
-	public $from_trigger = false;
+	public $from_product_card = false;
 
 	public $schema_products_blank;
 	public $schema_products_synopsis;
@@ -61,12 +61,12 @@ class Webservice
 	 */
 	public $TCategoryByProductId;
 
-	public function __construct($db, $from_trigger=false)
+	public function __construct($db, $from_product_card=false)
 	{
 		global $conf,$langs;
 
 		$this->db = $db;
-		$this->from_trigger = $from_trigger;
+		$this->from_product_card = $from_product_card;
 		$langs->load('dolishop@dolishop');
 
 		$this->url = $conf->global->DOLISHOP_PS_SHOP_PATH;
@@ -250,7 +250,7 @@ class Webservice
 		
 		return false;
 	}
-	
+
 	/**
 	 * Envoi une requête de création ou de mise à jour d'une image
 	 * @see http://doc.prestashop.com/display/PS16/Chapter+9+-+Image+management
@@ -328,7 +328,7 @@ class Webservice
 			{
 				$ecm = new EcmFilesDolishop($this->db);
 				$ecm->fetchByFileNamePath($filename, $dol_product->ref);
-				
+
 				$result = $this->postImage($image_path, 'products', $dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
 				if ($result === false)
 				{
@@ -363,19 +363,43 @@ class Webservice
 			{
 				$ecm = new EcmFilesDolishop($this->db);
 				$ecm->fetchByFileNamePath($filename, $dol_product->ref);
-
 				if ($ecm->ps_id_image > 0)
 				{
-					$res = $this->deleteOne('images/products/'.$dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
-					if ($res) return 1;
-					else return -1;
-				}	
+					$res = $this->deleteImage('products', $dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
+//					if (empty($res)) return 1;
+//					else return -1;
+				}
 			}
 		}
 		
 		return 0;
 	}
-	
+
+	/**
+	 * @param $resource_name
+	 * @param $id_resource
+	 * @param $id_image
+	 * @return mixed	return empty string if success
+	 */
+	public function deleteImage($resource_name, $id_resource, $id_image)
+	{
+		$url = $this->url;
+		if (substr($url, -1, 1) !== '/') $url.= '/api/images/';
+		else $url.= 'api/images/';
+
+		$url.= $resource_name.'/'.$id_resource;
+		$url.= '/'.$id_image.'?ps_method=DELETE';
+
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_POST, true);
+		curl_setopt($ch, CURLOPT_USERPWD, $this->key.':');
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		$result = curl_exec($ch);
+		curl_close($ch);
+
+		return $result;
+	}
 	
 	public function syncConf()
 	{
@@ -1154,6 +1178,8 @@ class Webservice
 	 */
 	public function syncDolCombinationsOptions()
 	{
+		if ((float) DOL_VERSION < 6.0) return 0;
+
 		$ps_product_options = $this->getAll('product_options');
 		$ps_product_option_values = $this->getAll('product_option_values');
 		
@@ -1336,14 +1362,14 @@ class Webservice
 
 			$sql = 'SELECT DISTINCT c.rowid, c.label, c.description, c.fk_parent, c.import_key';	// Distinct reduce pb with old tables with duplicates
 			$sql.= ' FROM '.MAIN_DB_PREFIX.'categorie as c';
-			if ($fk_product > 0 && empty($this->from_trigger)) $sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_categorie = c.rowid)';
+			if ($fk_product > 0 && empty($this->from_product_card)) $sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_categorie = c.rowid)';
 			$sql .= ' WHERE c.entity IN (' . getEntity( 'category') . ')';
 			$sql .= ' AND c.type = 0'; // Type product
 			if ($fk_product > 0)
 			{
 				// So ugly but no choice
-				if ($this->from_trigger) $sql.= ' AND c.rowid IN ('.implode(',', GETPOST('categories', 'array')).')';
-				else $sql.= ' AND cp.fk_product = \'.$fk_product\'';
+				if ($this->from_product_card) $sql.= ' AND c.rowid IN ('.implode(',', GETPOST('categories', 'array')).')';
+				else $sql.= ' AND cp.fk_product = '.$fk_product;
 			}
 			$sql .= ' ORDER BY c.fk_parent, c.label';
 
@@ -2442,12 +2468,14 @@ class DolishopTools
 		
 		$TCatFilter = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR);
 		$category = new \Categorie($db);
-		$TCategory = $category->getListForItem($fk_product, \Categorie::TYPE_PRODUCT);
-		if (is_array($TCategory))
+
+		$TCategoryId = $category->containing($fk_product, 'product', 'id');
+//		$TCategory = $category->getListForItem($fk_product, \Categorie::TYPE_PRODUCT);
+		if (is_array($TCategoryId))
 		{
-			foreach ($TCategory as $cat)
+			foreach ($TCategoryId as $fk_category)
 			{
-				if (in_array($cat['id'], $TCatFilter)) return true;
+				if (in_array($fk_category, $TCatFilter)) return true;
 			}	
 		}
 		

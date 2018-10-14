@@ -111,6 +111,7 @@ class InterfaceDolishoptrigger
      * 	@param		Translate	$langs		Object langs
      * 	@param		conf		$conf		Object conf
      * 	@return		int						<0 if KO, 0 if no triggered ran, >0 if OK
+	 *  @throws 	Exception
      */
     public function runTrigger($action, $object, $user, $langs, $conf)
     {
@@ -118,7 +119,7 @@ class InterfaceDolishoptrigger
         // Put here code you want to execute when a Dolibarr business events occurs.
         // Data and type of action are stored into $object and $action
         // Users
-		
+
 		// TODO voir si je retire l'automatisation de la synchro pour le faire via un bouton sur la fiche produit
 		if ($action == 'PRODUCT_CREATE' || $action == 'PRODUCT_MODIFY' || ($action == 'PRODUCT_SET_MULTILANGS' && GETPOST('action') == 'vedit') )
 		{
@@ -137,7 +138,10 @@ class InterfaceDolishoptrigger
 				if (!$is_combination)
 				{
 					dol_include_once('/dolishop/class/webservice.class.php');
-					$dolishop = new Dolishop\Webservice($db, true);
+
+					$from_prodcut_card = in_array(GETPOST('action'), array('update', 'add')) && strpos($_SERVER['REQUEST_URI'], '/product/card.php') !== false;
+
+					$dolishop = new Dolishop\Webservice($db, $from_prodcut_card);
 
 					// Si je proviens du formulaire de création/édition
 					$TCategory = GETPOST('categories');

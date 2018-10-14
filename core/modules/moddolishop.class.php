@@ -109,7 +109,7 @@ class moddolishop extends DolibarrModules
 		$this->requiredby = array();	// List of modules id to disable if this one is disabled
 		$this->conflictwith = array();	// List of modules id this module is in conflict with
 		$this->phpmin = array(5,3);					// Minimum version of PHP required by module
-		$this->need_dolibarr_version = array(6,0);	// Minimum version of Dolibarr required by module
+		$this->need_dolibarr_version = array(4,0);	// Minimum version of Dolibarr required by module
 		$this->langfiles = array("dolishop@dolishop");
 
 		// Constants
@@ -381,7 +381,7 @@ class moddolishop extends DolibarrModules
 		$cronjob->classesname = '/dolishop/class/webservice.class.php';
 		$cronjob->objectname = '\Dolishop\Webservice';
 		$cronjob->methodename = 'rsyncProducts';
-		$cronjob->params = $user->id.',dolibarr2website';
+		$cronjob->params = $user->id.', dolibarr2website';
 		$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
 		$cronjob->create($user);
 		
@@ -396,7 +396,7 @@ class moddolishop extends DolibarrModules
 		$cronjob->classesname = '/dolishop/class/webservice.class.php';
 		$cronjob->objectname = '\Dolishop\Webservice';
 		$cronjob->methodename = 'rsyncProducts';
-		$cronjob->params = $user->id.',website2dolibarr';
+		$cronjob->params = $user->id.', website2dolibarr';
 		$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
 		$cronjob->create($user);
 		
