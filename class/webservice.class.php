@@ -951,11 +951,28 @@ class Webservice
 			$this->errors[] = $this->error;
 			return -1;
 		}
-		
-		// TODO ckecker les categ (si c'est un fetch il y en aura) puis ajouter la premiere categ de parametré pour la synchro inverse pour que le produit face automatiquement parti des produits à synchro
-		// Faire de même avec les déclinaison
-//		$object->setCategories($categories);
-		
+
+		if ($res > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $dol_product->array_options['options_ps_id_product'])."\n";
+		else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $dol_product->array_options['options_ps_id_product'])."\n";
+
+		$TCatToAdd = array();
+
+		reset($this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR);
+		$firstK = key($this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR);
+		if (!empty($this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR[$firstK])) $TCatToAdd[] = $this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR[$firstK];
+
+		if ($web_product->associations->categories->children()->count() > 0)
+		{
+			$TCategory = $this->getTProductCategory(0, false, 'import_key');
+			foreach ($web_product->associations->categories->children() as $ps_category)
+			{
+				if (isset($TCategory[(int) $ps_category->id])) $TCatToAdd[] = $TCategory[(int) $ps_category->id]['id'];
+			}
+		}
+
+		if (!empty($TCatToAdd)) $dol_product->setCategories($TCatToAdd);
+
+		// TODO voir si je passe $TCatToAdd pour les associations avec les déclinaisons
 		// TODO gérér la récupération des images si $sync_images = true
 		
 		$this->saveDolCombinationsFromWebProduct($web_product, $dol_product, $sync_images);
@@ -1352,7 +1369,7 @@ class Webservice
 		}
 	}
 
-	private function getTProductCategory($fk_product=0, $force=false)
+	private function getTProductCategory($fk_product=0, $force=false, $by='rowid')
 	{
 		if ($force || empty($this->TCategoryByProductId[$fk_product]) || $this->TCategoryByProductId[$fk_product] === -1)
 		{
@@ -1378,13 +1395,13 @@ class Webservice
 			{
 				while ($obj = $this->db->fetch_object($resql))
 				{
-					$TCat[$obj->rowid]['rowid'] = $obj->rowid;
-					$TCat[$obj->rowid]['id'] = $obj->rowid;
-					$TCat[$obj->rowid]['id_parent'] = $obj->fk_parent;
-					$TCat[$obj->rowid]['fk_parent'] = $obj->fk_parent;
-					$TCat[$obj->rowid]['label'] = $obj->label;
-					$TCat[$obj->rowid]['description'] = $obj->description;
-					$TCat[$obj->rowid]['import_key'] = $obj->import_key;
+					$TCat[$obj->{$by}]['rowid'] = $obj->rowid;
+					$TCat[$obj->{$by}]['id'] = $obj->rowid;
+					$TCat[$obj->{$by}]['id_parent'] = $obj->fk_parent;
+					$TCat[$obj->{$by}]['fk_parent'] = $obj->fk_parent;
+					$TCat[$obj->{$by}]['label'] = $obj->label;
+					$TCat[$obj->{$by}]['description'] = $obj->description;
+					$TCat[$obj->{$by}]['import_key'] = $obj->import_key;
 				}
 
 				$this->TCategoryByProductId[$fk_product] = $TCat;
