@@ -2458,8 +2458,8 @@ class DolishopTools
 		global $conf;
 		
 		$TCat = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE);
-		if (empty($TCat)) return true;
-		
+		if (empty($TCat) || count($TCat) == 1 && $TCat[0] === '') return true;
+
 		if ($api_name == 'prestashop')
 		{
 			foreach ($web_product->associations->categories->children() as $category)
