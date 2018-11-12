@@ -281,7 +281,7 @@ class StoreStoreConfigManagerV1Api
             $store_codes = ObjectSerializer::serializeCollection($store_codes, 'csv', true);
         }
         if ($store_codes !== null) {
-            $queryParams['storeCodes'] = ObjectSerializer::toQueryValue($store_codes);
+            $queryParams['storeCodes[]'] = ObjectSerializer::toQueryValue($store_codes);
         }
 
 

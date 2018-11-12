@@ -899,15 +899,15 @@ class CatalogProductRepositoryV1Api
 
         // query params
         if ($search_criteria_filter_groups_filters_field !== null) {
-            $queryParams['searchCriteria[filterGroups][][filters][][field]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_field);
+            $queryParams['searchCriteria[filterGroups][0][filters][0][field]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_field);
         }
         // query params
         if ($search_criteria_filter_groups_filters_value !== null) {
-            $queryParams['searchCriteria[filterGroups][][filters][][value]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_value);
+            $queryParams['searchCriteria[filterGroups][0][filters][0][value]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_value);
         }
         // query params
         if ($search_criteria_filter_groups_filters_condition_type !== null) {
-            $queryParams['searchCriteria[filterGroups][][filters][][conditionType]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_condition_type);
+            $queryParams['searchCriteria[filterGroups][0][filters][0][conditionType]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_condition_type);
         }
         // query params
         if ($search_criteria_sort_orders_field !== null) {
