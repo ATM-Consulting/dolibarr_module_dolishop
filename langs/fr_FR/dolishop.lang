@@ -16,13 +16,14 @@ PsProducts=Produits
 PsOrders=Commandes
 PsStocks=Stocks
 
+DOLISHOP_API_NAME=Type de boutique à synchroniser
 
-DOLISHOP_PS_SHOP_PATH=Adresse URL de votre boutique Prestashop
+DOLISHOP_STORE_PATH=Adresse URL de votre boutique %s
 
 DOLISHOP_PS_WS_AUTH_KEY=Clé du service web Prestashop
 DOLISHOP_PS_WS_AUTH_KEY_desc=Il s'agit d'une clé webservice que vous devez générer depuis le backoffice de votre boutique
 
-DOLISHOP_PS_WS_DEBUG=Activer le mode "DEBUG" des appels
+DOLISHOP_STORE_WS_DEBUG=Activer le mode "DEBUG" des appels
 
 DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
 DOLISHOP_SYNC_PRODUCTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET / PUT / POST</b>
@@ -92,6 +93,7 @@ DolishopSyncPsConfNeeded=Attention : des configurations présentes sur votre bou
 
 DOLISHOP_SYNC_PS_SHOP_ID=Synchroniser l'entité courante avec la boutique :
 DOLISHOP_SYNC_PS_SHOP_ID_DESC=La ressource <b>shops</b> doit être accessible en <b>GET</b>
+DOLISHOP_SYNC_MAGENTO_STORE_CODE=Synchroniser l'entité courante avec la boutique :
 
 DolishopPsLanguages=Langue(s)
 DolishopPsImagesMimeTypes=Type d'images autorisées

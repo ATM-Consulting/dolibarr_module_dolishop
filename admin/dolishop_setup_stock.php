@@ -143,7 +143,7 @@ dol_fiche_head(
     $head,
     'stocks',
     $langs->trans("Module104071Name"),
-    0,
+    -1,
     "dolishop@dolishop"
 );
 

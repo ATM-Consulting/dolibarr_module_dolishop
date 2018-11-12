@@ -147,7 +147,7 @@ dol_fiche_head(
     $head,
     'orders',
     $langs->trans("Module104071Name"),
-    0,
+    -1,
     "dolishop@dolishop"
 );
 

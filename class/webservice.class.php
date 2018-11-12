@@ -20,19 +20,25 @@
 namespace Dolishop;
 
 
+
+use Swagger\Client\ApiException;
+
 if (!class_exists('SeedObject'))
 {
 	define('INC_FROM_DOLIBARR', true);
 	require_once __DIR__.'/../config.php';
 }
 
-require_once __DIR__.'/override.class.php';
+if ((float) DOL_VERSION < 6.0) require_once __DIR__.'/override.class.php';
 
 class Webservice
 {
 	private static $webService = null;
-	
-	private $api_name = 'prestashop';
+
+	/** @var \DoliDB $db */
+	public $db;
+
+	public $api_name = 'prestashop';
 	
 	private $url;
 	private $key;
@@ -55,6 +61,13 @@ class Webservice
 
 	public $DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR;
 
+
+	private $mgClient;
+	private $mgConfiguration;
+	private $mgStoreCode='default';
+	private $mgApiHost='';
+
+
 	/**
 	 * @see getTProductCategory
 	 * @var array|int $TCategoryByProductId
@@ -69,14 +82,84 @@ class Webservice
 		$this->from_product_card = $from_product_card;
 		$langs->load('dolishop@dolishop');
 
-		$this->url = $conf->global->DOLISHOP_PS_SHOP_PATH;
+		$this->url = $conf->global->DOLISHOP_STORE_PATH;
 		$this->key = $conf->global->DOLISHOP_PS_WS_AUTH_KEY;
-		$this->debug = (bool) $conf->global->DOLISHOP_PS_WS_DEBUG;
+		$this->debug = (bool) $conf->global->DOLISHOP_STORE_WS_DEBUG;
 
 		if (!empty($conf->global->DOLISHOP_API_NAME)) $this->api_name = $conf->global->DOLISHOP_API_NAME;
 
 		switch ($this->api_name) {
 			case 'magento':
+				require_once __DIR__ . '/../src/magento/SwaggerClient-php/vendor/autoload.php';
+
+				if ($this->isConfigured())
+				{
+					$this->mgApiHost = $this->url.'/rest/';
+					if (!empty($conf->global->DOLISHOP_SYNC_MAGENTO_STORE_CODE)) $this->mgStoreCode = $conf->global->DOLISHOP_SYNC_MAGENTO_STORE_CODE;
+					$this->mgApiHost.= $this->mgStoreCode;
+
+					$token = $this->mgGetAccessToken();
+
+					// Init Client
+					$this->mgClient = new \GuzzleHttp\Client(array(
+						'base_uri' => $this->url
+						,'headers' => array(
+							'Authorization' => 'Bearer '.$token
+							,'Content-Type' => 'application/json'
+						)
+					));
+
+					// Init Configuration
+					$this->mgConfiguration = new \Swagger\Client\Configuration();
+					// default or store_code (don't know how it's work yet)
+					$this->mgConfiguration->setHost($this->mgApiHost); // http://t2010.vg/rest/default
+					$this->mgConfiguration->setDebug($this->debug);
+				}
+
+
+
+//				$apiInstance = new \Swagger\Client\Api\CatalogProductRepositoryV1Api(
+//				// If you want use custom http client, pass your client which implements `GuzzleHttp\ClientInterface`.
+//				// This is optional, `GuzzleHttp\Client` will be used as default.
+//					$this->mgClient
+//					,$this->mgConfiguration
+//				);
+
+				//new \Swagger\Client\Model\CatalogDataProductSearchResultsInterface
+				try {
+
+// https://devdocs.magento.com/guides/v2.0/rest/performing-searches.html
+//					$result = $apiInstance->catalogProductRepositoryV1GetListGet(
+//						'sku'//array(0=>'sku')
+//						,''//,array(0=>'')
+//						,'notnull'//,array(0=>'notnull')
+//						,'id'//,array(0=>'id')
+//						,'ASC'//,array(0=>'ASC')
+//						,5//,array(0=>0)
+//						,1//,array(0=>0)
+//					);
+					/** @var \Swagger\Client\Model\CatalogDataProductSearchResultsInterface $result */
+//					$result = $apiInstance->catalogProductRepositoryV1GetListGet($search_criteria_filter_groups_filters_field, $search_criteria_filter_groups_filters_value, $search_criteria_filter_groups_filters_condition_type, $search_criteria_sort_orders_field, $search_criteria_sort_orders_direction, $search_criteria_page_size, $search_criteria_current_page);
+					//$result->getItems();
+//
+					/** @var \Swagger\Client\Model\CatalogDataProductInterface $item */
+//					foreach ($result->getItems() as $item)
+//					{
+//						var_dump($item->getSku());
+//					}
+//					var_dump( $result->getItems());exit;
+//					print_r($result);
+				} catch (ApiException $e) {
+//					echo $e->getMessage();
+					$this->error = $langs->trans('DolishopErrorWsUnknown', $e->getMessage());
+					$this->errors[] = $this->error;
+				} catch (InvalidArgumentException $e) {
+
+//					var_dump('InvalidArgumentException');
+//					exit;
+				}
+
+
 				break;
 			case 'prestashop':
 			default:
@@ -91,6 +174,73 @@ class Webservice
 		$this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR);
 	}
 
+	public function isConfigured()
+	{
+		global $conf;
+
+		switch ($this->api_name)
+		{
+			case 'magento':
+				$is = !empty($conf->global->DOLISHOP_STORE_PATH) & !empty($conf->global->DOLISHOP_MAGENTO_USERNAME) & !empty($conf->global->DOLISHOP_MAGENTO_PASSWORD);
+				break;
+			case 'prestashop':
+			default:
+				$is = !empty($conf->global->DOLISHOP_STORE_PATH) & !empty($conf->global->DOLISHOP_PS_WS_AUTH_KEY);
+				break;
+		}
+
+		return $is;
+	}
+
+	private function mgGetAccessToken($force=false)
+	{
+		global $conf;
+
+		// 8sfupk7xsin78ouncrpci5wqs8rqc9uc
+		if ($force)
+		{
+			$configuration = new \Swagger\Client\Configuration();
+			$configuration->setHost($this->mgApiHost);
+			$configuration->setDebug($this->debug);
+
+			$apiInstance = new \Swagger\Client\Api\IntegrationAdminTokenServiceV1Api(
+				new \GuzzleHttp\Client()
+				, $configuration
+			);
+
+			$body = new \Swagger\Client\Model\Body123(array(
+				'username' => $conf->global->DOLISHOP_MAGENTO_USERNAME
+				,'password' => $conf->global->DOLISHOP_MAGENTO_PASSWORD
+			)); // \Swagger\Client\Model\Body123 |
+
+			try {
+				$token = $apiInstance->integrationAdminTokenServiceV1CreateAdminAccessTokenPost($body);
+				$Tab = array(
+					'token' => $token
+					,'life_time' => 3600 * 4 // default life time is 4 hours TODO get it from REST call
+					,'time_limit' => strtotime('+4 hours')
+				);
+
+				dolibarr_set_const($this->db, 'DOLISHOP_MAGENTO_ADMIN_TOKEN', serialize($Tab), 'chaine', 0, '', $conf->entity);
+
+			} catch (Exception $e) {
+				echo 'Exception when calling IntegrationAdminTokenServiceV1Api->integrationAdminTokenServiceV1CreateAdminAccessTokenPost: ', $e->getMessage(), PHP_EOL;
+			}
+		}
+		else
+		{
+			$Tab = unserialize($conf->global->DOLISHOP_MAGENTO_ADMIN_TOKEN);
+//var_dump($Tab, dol_now(), $Tab['time_limit'] <= dol_now());exit;
+			if (empty($Tab) || $Tab['time_limit'] <= dol_now()) return $this->mgGetAccessToken(true);
+			else
+			{
+				$token = $Tab['token'];
+			}
+		}
+
+		return trim($token, '"');
+	}
+
 	/**
 	 * Test de connectivité avec la boutique distante
 	 * 
@@ -103,7 +253,21 @@ class Webservice
 			$r = $this->getAll('');
 			if ($r !== false) return $r->attributes()->shopName->__toString();
 		}
-		
+		else if ($this->api_name == 'magento')
+		{
+			$apiInstance = new \Swagger\Client\Api\StoreStoreConfigManagerV1Api($this->mgClient ,$this->mgConfiguration);
+			$store_codes = array('default'); // string[] |
+
+			try {
+//				$result = $apiInstance->storeStoreConfigManagerV1GetStoreConfigsGet($store_codes);
+//				var_dump($result);
+//				exit;
+			} catch (Exception $e) {
+				echo 'Exception when calling StoreStoreConfigManagerV1Api->storeStoreConfigManagerV1GetStoreConfigsGet: ', $e->getMessage(), PHP_EOL;
+			}
+
+		}
+
 		return false;
 	}
 	
@@ -125,7 +289,7 @@ class Webservice
 			{
 				try
 				{
-					$opt = array('url' => $conf->global->DOLISHOP_PS_SHOP_PATH.'/api/'.$resourcename.'?schema='.$type);
+					$opt = array('url' => $conf->global->DOLISHOP_STORE_PATH.'/api/'.$resourcename.'?schema='.$type);
 					$result_xml = self::$webService->get($opt);
 					$this->{'schema_'.$resourcename.'_'.$type} = $result_xml;
 
@@ -2336,6 +2500,49 @@ class Webservice
 		
 		
 		return $TCountry;
+	}
+
+	public function WsGetAllShops()
+	{
+		$TShop = array();
+
+		if ($this->api_name == 'prestashop')
+		{
+			$ps_shops = $this->getAll('shops', array());
+			if ($ps_shops)
+			{
+				foreach ($ps_shops->children() as $ps_shop)
+				{
+					$TShop[(int) $ps_shop->id] = $ps_shop->name->__toString();
+				}
+			}
+		}
+		else if ($this->api_name == 'magento')
+		{
+			$apiInstance = new \Swagger\Client\Api\StoreStoreRepositoryV1Api($this->mgClient ,$this->mgConfiguration);
+
+			try
+			{
+				/** @var \Swagger\Client\Model\StoreDataStoreInterface[] $result */
+				$result = $apiInstance->storeStoreRepositoryV1GetListGet();
+				foreach ($result as $mg_shop)
+				{
+					if ($mg_shop->getId() > 0) $TShop[$mg_shop->getCode()] = $mg_shop->getName();
+				}
+			} catch (\Swagger\Client\ApiException $e) {
+				$this->error = $e->getMessage();
+				$this->errors[] = $this->error;
+			} catch (\InvalidArgumentException $e) {
+				$this->error = $e->getMessage();
+				$this->errors[] = $this->error;
+			} catch (Exception $e) {
+				echo 'Exception when calling StoreStoreRepositoryV1Api->storeStoreRepositoryV1GetListGet: ', $e->getMessage(), PHP_EOL;
+			}
+		}
+
+		echo($this->error);
+
+		return $TShop;
 	}
 	
 	public function debugXml($xml)
