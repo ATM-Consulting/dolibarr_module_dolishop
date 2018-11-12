@@ -118,7 +118,7 @@ class CatalogDataCategoryTreeInterface implements ModelInterface, ArrayAccess
         'position' => 'position',
         'level' => 'level',
         'product_count' => 'productCount',
-        'children_data' => 'childrenData'
+        'children_data' => 'children_data'
     ];
 
     /**
