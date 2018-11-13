@@ -1,0 +1,7 @@
+{
+    "require": {
+        "guzzlehttp/guzzle": "^6.3",
+        "league/oauth1-client": "^1.7",
+        "lusitanian/oauth": "^0.8.11"
+    }
+}
