@@ -144,6 +144,7 @@ class MGWebServiceLibrary
 					'username' => $this->username
 					,'password' => $this->password
 				)
+				,null
 				,($callback ? array('handler' => $callback) : array())
 			);
 
@@ -165,7 +166,7 @@ class MGWebServiceLibrary
 	 */
 	public function get($options, $request_opt=array())
 	{
-		$response = $this->executeRequest('GET', $options['resource'], $this->headers, $options['params'], $request_opt);
+		$response = $this->executeRequest('GET', $options['resource'], $this->headers, $options['params'], $options['body'], $request_opt);
 
 		if ($response instanceof \GuzzleHttp\Psr7\Response)
 		{
@@ -184,7 +185,7 @@ class MGWebServiceLibrary
 	 */
 	public function post($options, $request_opt=array())
 	{
-		$response = $this->executeRequest('POST', $options['resource'], $this->headers, $options['params'], $request_opt);
+		$response = $this->executeRequest('POST', $options['resource'], $this->headers, $options['params'], $options['body'], $request_opt);
 
 		if ($response instanceof \GuzzleHttp\Psr7\Response)
 		{
@@ -196,16 +197,19 @@ class MGWebServiceLibrary
 	}
 
 
-	public function executeRequest($method, $resource, $headers, $body=null, $request_opt=array())
+	public function executeRequest($method, $resource, $headers, $params=null, $body=null, $request_opt=array())
 	{
 		if (empty($method))
 			throw new MagentoWebserviceException('Parameters "method" is empty');
 		if (empty($resource))
 			throw new MagentoWebserviceException('Parameters "resource" is empty');
 
+		if ($params !== null) $query = \GuzzleHttp\Psr7\build_query($params);
+		else $query = '';
+
 		$request = new \GuzzleHttp\Psr7\Request(
 			$method
-			,$this->base_uri.$resource
+			,$this->base_uri.$resource.($query ? '?'.$query : '')
 			,$headers
 			,($body) ? json_encode($body) : null
 		);

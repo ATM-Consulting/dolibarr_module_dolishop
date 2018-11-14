@@ -1656,7 +1656,7 @@ class Webservice
 			$mg_categories = $this->getAll('/V1/categories', array(
 				'return_as_array' => true
 				,'params' => array(
-					'rootCategoryId' => 1
+					'rootCategoryId' => 2 // 1 = root, 2 default cat (both seems no deletable)
 //					,'depth' => 10
 				)
 			));
