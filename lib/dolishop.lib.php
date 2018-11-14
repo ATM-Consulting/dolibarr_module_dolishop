@@ -79,10 +79,13 @@ function dolishop_get_tree($arbo, $level=1, $default_bg='#877A79', $need_create_
 	foreach ($arbo as $k => $cat)
 	{
 		$bg = empty($cat['need_to_create']) ? $default_bg : $need_create_bg;
+		$label = isset($cat['label']) ? $cat['label'] : $cat['name']; // Dolibarr & Prestashop => "label" ; Magento => "name"
+
 		$html.= '<li class="liuseractive '.($k == $last_k ? 'last' : '').'">'.PHP_EOL;
-		$html.= '<span class="noborderoncategories classfortooltip categtextwhite" style="background: '.$bg.';">'.$cat['label'].'</span>'.PHP_EOL;
+		$html.= '<span class="noborderoncategories classfortooltip categtextwhite" style="background: '.$bg.';">'.$label.'</span>'.PHP_EOL;
 		
-		if (!empty($cat['children'])) $html.= dolishop_get_tree ($cat['children'], ++$level, $bg);
+		if (!empty($cat['children'])) $html.= dolishop_get_tree($cat['children'], ++$level, $bg);
+		else if (!empty($cat['children_data'])) $html.= dolishop_get_tree($cat['children_data'], ++$level, $bg);
 		
 		$html.= '</li>'.PHP_EOL;
 	}

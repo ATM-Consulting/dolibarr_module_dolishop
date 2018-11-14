@@ -166,8 +166,15 @@ print '</tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC').'</small>';
-if (!empty($conf->variants->enabled)) print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_COMBINATIONS_DESC').'</small>';
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_DESC').'</small>';
+	if (!empty($conf->variants->enabled)) print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_COMBINATIONS_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -180,14 +187,14 @@ print '</td></tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT');
+print '<td>'.$langs->trans('DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT', ucfirst($dolishop->api_name));
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT">';
-print '<input type="text" size="5" name="DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT" value="'.$conf->global->DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT.'" />';
+print '<input type="hidden" name="action" value="set_DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT">';
+print '<input type="text" size="5" name="DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT" value="'.$conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT.'" />';
 print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
 print '</form>';
 print '</td></tr>';
@@ -209,8 +216,15 @@ print '</td></tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE_DESC').'</small>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE', ucfirst($dolishop->api_name));
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -226,7 +240,14 @@ print '</td></tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC').'</small>';
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -239,8 +260,15 @@ print '</td></tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCT_CATEG_D2W');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCT_CATEG_D2W_DESC').'</small>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCT_CATEG_D2W', ucfirst($dolishop->api_name));
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCT_CATEG_D2W_PS_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -253,8 +281,15 @@ print '</td></tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCT_CATEG_W2D');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCT_CATEG_W2D_DESC').'</small>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_PRODUCT_CATEG_W2D', ucfirst($dolishop->api_name));
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_PRODUCT_CATEG_W2D_PS_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -275,7 +310,7 @@ print '<div class="fichehalfleft">';
 print '<table class="noborder" width="100%">';
 print '<tr class="liste_titre">';
 print '<td width="50%">'.$form->textwithpicto($langs->trans('DolishopTreeDolibarrCategories'), $langs->trans('DolishopTreeDolibarrCategories_tip')).'</td>'."\n";
-print '<td width="50%">'.$form->textwithpicto($langs->trans('DolishopTreeWebCategories'), $langs->trans('DolishopTreeWebCategories_tip')).'</td>'."\n";
+print '<td width="50%">'.$form->textwithpicto($langs->trans('DolishopTreeWebCategories', ucfirst($dolishop->api_name)), $langs->trans('DolishopTreeWebCategories_tip')).'</td>'."\n";
 print '</tr>';
 
 if ($action == 'CompareCategoriesD2W')

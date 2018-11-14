@@ -28,6 +28,9 @@ class MGWebServiceLibrary
 	/** @var string Shop URL with rest suffix */
 	protected $base_uri;
 
+	/** @var string Shop code */
+	public $store_code='default';
+
 	/** @var string Authentification user name */
 	protected $username;
 
@@ -57,6 +60,7 @@ class MGWebServiceLibrary
 	protected $headers;
 
 
+
 	function __construct($url, $options, $debug = true)
 	{
 		if (!extension_loaded('curl'))
@@ -65,9 +69,9 @@ class MGWebServiceLibrary
 		$this->url = $url;
 		$this->base_uri = $this->url.'/rest';
 
-		if (!empty($options['store_code'])) $this->base_uri.= '/'.$options['store_code'];
-		else $this->base_uri.= '/default';
+		if (!empty($options['store_code'])) $this->store_code = $options['store_code'];
 
+		$this->base_uri.= '/'.$this->store_code;
 
 		$this->client = new \GuzzleHttp\Client(array('base_uri' => $this->base_uri));
 
@@ -94,45 +98,7 @@ class MGWebServiceLibrary
 			$this->headers[$key] = $val;
 		}
 
-		if ($this->debug) $this->headers['debug'] = true;
-
-		var_dump($this->headers);
-	}
-
-	public function getToken()
-	{
-		if (!empty($this->consumer_key) && !empty($this->consumer_secret) && !empty($this->token) && !empty($this->token_secret))
-		{
-			// TODO voir comment ça marche (OAuth1)
-			// https://devdocs.magento.com/guides/v2.2/get-started/authentication/gs-authentication-oauth.html#pre-auth-token
-		}
-		else
-		{
-			$request = new \GuzzleHttp\Psr7\Request(
-				'POST'
-				,$this->base_uri.'/V1/integration/admin/token'
-				,array('Content-Type' => 'application/json')
-				,json_encode(array(
-					'username'=>$this->username
-					,'password'=>$this->password
-				))
-			);
-
-			try {
-				$response = $this->client->send($request);
-
-				$token = $response->getBody()->getContents();
-				$token = trim($token, '"');
-			} catch (RequestException $e) {
-				throw new MagentoWebserviceException("[{$e->getCode()}] {$e->getMessage()}", $e->getCode());
-			} catch (\Exception $e) {
-				throw new MagentoWebserviceException("[{$e->getCode()}] {$e->getMessage()}", $e->getCode());
-			}
-
-			return $token;
-		}
-
-		return '';
+//		if ($this->debug) var_dump($this->headers);
 	}
 
 	/**
@@ -155,63 +121,109 @@ class MGWebServiceLibrary
 		return true;
 	}
 
-	public function get($options)
+	/**
+	 * @param string $callback
+	 * @return bool|\GuzzleHttp\Promise\PromiseInterface|mixed|\Psr\Http\Message\ResponseInterface|string
+	 * @throws MagentoWebserviceException
+	 */
+	public function getToken($callback='')
 	{
-		if (isset($options['resource']))
+		if (!empty($this->consumer_key) && !empty($this->consumer_secret) && !empty($this->token) && !empty($this->token_secret))
 		{
-			$queryParams = is_array($options['params']) ? $options['params'] : array();
-
-			$query = \GuzzleHttp\Psr7\build_query($queryParams);
-
-			$request = new \GuzzleHttp\Psr7\Request(
-				'GET'
-				,$this->base_uri.$options['resource'] . ($query ? "?{$query}" : '')
-				,$this->headers
-			);
+			// TODO voir comment ça marche (OAuth1)
+			// https://devdocs.magento.com/guides/v2.2/get-started/authentication/gs-authentication-oauth.html#pre-auth-token
+			return false;
 		}
 		else
-			throw new MagentoWebserviceException('Parameters "resource" is missing');
+		{
+			$token = $this->executeRequest(
+				'POST'
+				, '/V1/integration/admin/token'
+				, array('Content-Type' => 'application/json')
+				, array(
+					'username' => $this->username
+					,'password' => $this->password
+				)
+				,($callback ? array('handler' => $callback) : array())
+			);
+
+			if (!empty($token))
+			{
+				return trim($token, '"');
+			}
+
+			return false;
+		}
+	}
+
+
+	/**
+	 * @param array $options		'resource' and other parameters
+	 * @param array  $request_opt
+	 * @return bool|\GuzzleHttp\Promise\PromiseInterface|mixed|\Psr\Http\Message\ResponseInterface
+	 * @throws MagentoWebserviceException
+	 */
+	public function get($options, $request_opt=array())
+	{
+		$response = $this->executeRequest('GET', $options['resource'], $this->headers, $options['params'], $request_opt);
+
+		if ($response instanceof \GuzzleHttp\Psr7\Response)
+		{
+			$as_array = !empty($options['return_as_array']) ? true : false;
+			return json_decode($response->getBody()->getContents(), $as_array);
+		}
+
+		return $response;
+	}
+
+	/**
+	 * @param array  $options		'resource' and other parameters
+	 * @param array  $request_opt
+	 * @return bool|\GuzzleHttp\Promise\PromiseInterface|mixed|\Psr\Http\Message\ResponseInterface
+	 * @throws MagentoWebserviceException
+	 */
+	public function post($options, $request_opt=array())
+	{
+		$response = $this->executeRequest('POST', $options['resource'], $this->headers, $options['params'], $request_opt);
+
+		if ($response instanceof \GuzzleHttp\Psr7\Response)
+		{
+			$as_array = !empty($options['return_as_array']) ? true : false;
+			return json_decode($response->getBody()->getContents(), $as_array);
+		}
+
+		return $response;
+	}
+
+
+	public function executeRequest($method, $resource, $headers, $body=null, $request_opt=array())
+	{
+		if (empty($method))
+			throw new MagentoWebserviceException('Parameters "method" is empty');
+		if (empty($resource))
+			throw new MagentoWebserviceException('Parameters "resource" is empty');
+
+		$request = new \GuzzleHttp\Psr7\Request(
+			$method
+			,$this->base_uri.$resource
+			,$headers
+			,($body) ? json_encode($body) : null
+		);
+
+		if ($this->debug) $request_opt[\GuzzleHttp\RequestOptions::DEBUG] = true;
 
 		try {
-			$response = $this->client->send($request);
+			if (!empty($request_opt['handler'])) $response = $this->client->sendAsync($request, $request_opt);
+			else $response = $this->client->send($request, $request_opt);
 
 			// check the response validity
-			if (empty($this->error) && $this->checkStatusCode($response->getStatusCode()) )
-			{
-				return json_decode($response->getBody()->getContents());
-			}
+			if ($response instanceof \GuzzleHttp\Promise\FulfilledPromise) return true;
+			else if ($this->checkStatusCode($response->getStatusCode())) return $response;
+
 		} catch (RequestException $e) {
 			throw new MagentoWebserviceException("[{$e->getCode()}] {$e->getMessage()}", $e->getCode());
 		} catch (\Exception $e) {
 			throw new MagentoWebserviceException("[{$e->getCode()}] {$e->getMessage()}", $e->getCode());
-		}
-
-		return false;
-	}
-
-
-	public function post($options)
-	{
-		if (isset($options['resource']))
-		{
-			$request = new \GuzzleHttp\Psr7\Request(
-				'POST'
-				,$this->base_uri.$options['resource']
-				,$this->headers
-				,json_encode($options['params'])
-			);
-		}
-		else
-		{
-			throw new MagentoWebserviceException('Parameters "resource" is missing');
-		}
-
-		$response = '';
-
-		// check the response validity
-		if (empty($this->error) && $this->checkStatusCode($response->getStatusCode()) )
-		{
-			return json_decode($response->getBody()->getContents());
 		}
 
 		return false;

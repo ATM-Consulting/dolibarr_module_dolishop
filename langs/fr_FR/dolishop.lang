@@ -28,24 +28,24 @@ DOLISHOP_STORE_WS_DEBUG=Activer le mode "DEBUG" des appels
 DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
 DOLISHOP_SYNC_PRODUCTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET / PUT / POST</b>
 DOLISHOP_SYNC_PRODUCTS_COMBINATIONS_DESC=Le module <b>"Variantes de produits"</b> étant activé, les ressources <b>combinations, product_options, product_option_values</b> doivent être accessibles en <b>GET / PUT / POST</b>
-DOLISHOP_TRUNC_PS_DESCRIPTION_SHORT=Nombre de caractères maximum pour convertir la description de votre fiche produit en tant que description courte sur Prestashop (vide ou 0 = désactivé)
+DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT=Nombre de caractères maximum pour convertir la description de votre fiche produit en tant que description courte sur %s (vide ou 0 = désactivé)
 DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR=Synchroniser les produits Dolibarr issues de la/les catégorie(s) suivante(s)
-DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE=Synchroniser les produits Prestashop issues de la/les catégorie(s) suivante(s) (vide pour tout récupérer)
+DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE=Synchroniser les produits %s issues de la/les catégorie(s) suivante(s) (vide pour tout récupérer)
 DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE_DESC=La ressource <b>categories</b> doit être accessible en <b>GET</b>
 
 DOLISHOP_SYNC_PRODUCTS_IMAGES=Activer la synchronisation des images produits
 DOLISHOP_SYNC_PRODUCTS_IMAGES_DESC=La ressource <b>images</b> doit être accessible en <b>GET / PUT / POST</b>
 
-DOLISHOP_SYNC_PRODUCT_CATEG_D2W=Synchroniser les catégories du produit Dolibarr vers le produit web (les catégories manquantes ne seront pas créées - synchro Dolibarr vers boutique)
-DOLISHOP_SYNC_PRODUCT_CATEG_D2W_DESC=La ressource <b>categories</b> doit être accessible en <b>GET / POST</b>
-DOLISHOP_SYNC_PRODUCT_CATEG_W2D=Synchroniser les catégories du produit web dans Dolibarr (les catégories manquantes ne seront pas créées - synchro boutique vers Dolibarr)
-DOLISHOP_SYNC_PRODUCT_CATEG_W2D_DESC=La ressource <b>categories</b> doit être accessible en <b>GET / POST</b>
+DOLISHOP_SYNC_PRODUCT_CATEG_D2W=Synchroniser les catégories du produit Dolibarr vers le produit web (les catégories manquantes ne seront pas créées - synchro Dolibarr vers %s)
+DOLISHOP_SYNC_PRODUCT_CATEG_D2W_PS_DESC=La ressource <b>categories</b> doit être accessible en <b>GET / POST</b>
+DOLISHOP_SYNC_PRODUCT_CATEG_W2D=Synchroniser les catégories du produit web dans Dolibarr (les catégories manquantes ne seront pas créées - synchro %s vers Dolibarr)
+DOLISHOP_SYNC_PRODUCT_CATEG_W2D_PS_DESC=La ressource <b>categories</b> doit être accessible en <b>GET / POST</b>
 
 WebCategoriesHelp=La ressource <b>categories </b> doit être accessible en <b>GET / POST</b><br />Ce tableau vous permettra de faire correspondre les catégories de votre boutique avec ceux de Dolibarr
 DolishopConfirmSyncCategories=Êtes-vous sûr de vouloir lancer la synchronisation ?
 DolishopTreeDolibarrCategories=Arborescence des tags/catégories produit de Dolibarr
 DolishopTreeDolibarrCategories_tip=Les <b>tags/catégories</b> en <b>rouge</b> indiquent qu'ils ne sont pas présent sur votre boutique<br />Seuls les noms sur fond rouge seront créés<br />Si quelque chose vous semble anormal, vous pouvez comparer avec l'arborescence de droite et rectifier les niveaux manuellement depuis Dolibarr ou votre boutique
-DolishopTreeWebCategories=Arborescence des tags/catégories produit de votre boutique
+DolishopTreeWebCategories=Arborescence des tags/catégories produit de %s
 DolishopTreeWebCategories_tip=Les <b>tags/catégories</b> en <b>vert</b> indiquent qu'ils ne sont pas présent dans Dolibarr<br />Seuls les noms sur fond vert seront créés<br />Si quelque chose vous semble anormal, vous pouvez comparer avec l'arborescence de gauche et rectifier les niveaux manuellement depuis Dolibarr ou votre boutique
 DolishopCompareCategories=Comparer les catégories
 DolishopSyncCategoriesD2W=Synchroniser vers la boutique
@@ -94,6 +94,9 @@ DolishopSyncPsConfNeeded=Attention : des configurations présentes sur votre bou
 DOLISHOP_SYNC_PS_SHOP_ID=Synchroniser l'entité courante avec la boutique :
 DOLISHOP_SYNC_PS_SHOP_ID_DESC=La ressource <b>shops</b> doit être accessible en <b>GET</b>
 DOLISHOP_SYNC_MAGENTO_STORE_CODE=Synchroniser l'entité courante avec la boutique :
+
+DolishopMagentoDefaultStoreCode=Boutique par défaut
+DolishopMagentoAllStoreCode=Toutes les boutiques
 
 DolishopPsLanguages=Langue(s)
 DolishopPsImagesMimeTypes=Type d'images autorisées
