@@ -126,7 +126,7 @@ class MGWebServiceLibrary
 	 * @return bool|\GuzzleHttp\Promise\PromiseInterface|mixed|\Psr\Http\Message\ResponseInterface|string
 	 * @throws MagentoWebserviceException
 	 */
-	public function getToken($callback='')
+	public function getToken($request_opt=array())
 	{
 		if (!empty($this->consumer_key) && !empty($this->consumer_secret) && !empty($this->token) && !empty($this->token_secret))
 		{
@@ -136,19 +136,19 @@ class MGWebServiceLibrary
 		}
 		else
 		{
-			$token = $this->executeRequest(
-				'POST'
-				, '/V1/integration/admin/token'
-				, array('Content-Type' => 'application/json')
-				, array(
-					'username' => $this->username
-					,'password' => $this->password
+			$token = $this->post(
+				array(
+					'resource' => '/V1/integration/admin/token'
+					,'headers' => array('Content-Type' => 'application/json')
+					,'params' => array(
+						'username' => $this->username
+						,'password' => $this->password
+					)
 				)
-				,null
-				,($callback ? array('handler' => $callback) : array())
+				,$request_opt
 			);
 
-			if (!empty($token))
+			if (!empty($token) && empty($request_opt['handler']))
 			{
 				return trim($token, '"');
 			}
@@ -166,7 +166,7 @@ class MGWebServiceLibrary
 	 */
 	public function get($options, $request_opt=array())
 	{
-		$response = $this->executeRequest('GET', $options['resource'], $this->headers, $options['params'], $options['body'], $request_opt);
+		$response = $this->executeRequest('GET', $options['resource'], (isset($options['headers']) ? $options['headers'] : $this->headers), $options['params'], $options['body'], $request_opt);
 
 		if ($response instanceof \GuzzleHttp\Psr7\Response)
 		{
@@ -185,7 +185,7 @@ class MGWebServiceLibrary
 	 */
 	public function post($options, $request_opt=array())
 	{
-		$response = $this->executeRequest('POST', $options['resource'], $this->headers, $options['params'], $options['body'], $request_opt);
+		$response = $this->executeRequest('POST', $options['resource'],  (isset($options['headers']) ? $options['headers'] : $this->headers), $options['params'], $options['body'], $request_opt);
 
 		if ($response instanceof \GuzzleHttp\Psr7\Response)
 		{
