@@ -335,7 +335,7 @@ if ($action == 'CompareCategoriesD2W')
 {
 	print '<input type="hidden" name="action" value="" />';
 	
-	print '<input id="sync_categories_d2w" data-action="SyncCategoriesD2W" class="button" value="'.$langs->trans('DolishopSyncCategoriesD2W').'" type="submit">';
+	print '<input id="sync_categories_d2w" data-action="SyncCategoriesD2W" class="button" value="'.$langs->trans('DolishopSyncCategoriesD2W', ucfirst($dolishop->api_name)).'" type="submit">';
 	print '<input id="sync_categories_w2d" data-action="SyncCategoriesW2D" class="button" value="'.$langs->trans('DolishopSyncCategoriesW2D').'" type="submit">';
 	print '
 		<script type="text/javascript">

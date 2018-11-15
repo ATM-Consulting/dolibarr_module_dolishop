@@ -1565,10 +1565,18 @@ class Webservice
 					$this->db->query('UPDATE '.MAIN_DB_PREFIX.'categorie SET import_key = \''.$web_id.'\' WHERE rowid = '.$dol_cat['id']);
 				}
 
+				if (isset($dol_cat['children'])) $dol_children = &$dol_cat['children'];
+				else if (isset($dol_cat['children_data'])) $dol_children = &$dol_cat['children_data'];
+				else $dol_children = array();
+
+				if (isset($web_cat['children'])) $web_children = &$web_cat['children'];
+				else if (isset($web_cat['children_data'])) $web_children = &$web_cat['children_data'];
+				else $web_children = array();
+
 				// Dolibarr & Prestashop => "children" ; Magento => "children_data"
 				$this->syncCategories_checker(
-					isset($dol_cat['children']) ? $dol_cat['children'] : $dol_cat['children_data']
-					,isset($web_cat['children']) ? $web_cat['children'] : $web_cat['children_data']
+					$dol_children
+					,$web_children
 					, $update_import_key
 				);
 			}
@@ -1716,11 +1724,17 @@ class Webservice
 				{
 					$dol_cat->label = $web_cat['name']['language'][0];
 					$dol_cat->description = is_string($web_cat['description']['language'][0]) ? $web_cat['description']['language'][0] : '';
-					$dol_cat->color = !empty($conf->global->DOLISHOP_COLOR_FOR_CATEGORY) ? $conf->global->DOLISHOP_COLOR_FOR_CATEGORY : '';
-					$dol_cat->import_key = $web_cat['id'];
-					$dol_cat->visible = 1;
-					$dol_cat->fk_parent = $fk_parent;
 				}
+				else if ($this->api_name == 'magento')
+				{
+					$dol_cat->label = $web_cat['name'];
+					$dol_cat->description = ''; // semble pas disponible
+				}
+
+				$dol_cat->color = !empty($conf->global->DOLISHOP_COLOR_FOR_CATEGORY) ? $conf->global->DOLISHOP_COLOR_FOR_CATEGORY : '';
+				$dol_cat->import_key = $web_cat['id'];
+				$dol_cat->visible = 1;
+				$dol_cat->fk_parent = $fk_parent;
 
 				$dol_cat->type = \Categorie::TYPE_PRODUCT;
 				if ($dol_cat->create($user) > 0)
@@ -1743,6 +1757,7 @@ class Webservice
 			}
 
 			if (!empty($web_cat['children'])) $this->syncCategoriesW2D_create($web_cat['children'], $fk_parent_for_children, $force_create_for_children);
+			else if (!empty($web_cat['children_data'])) $this->syncCategoriesW2D_create($web_cat['children_data'], $fk_parent_for_children, $force_create_for_children);
 		}
 	}
 

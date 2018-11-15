@@ -48,7 +48,7 @@ DolishopTreeDolibarrCategories_tip=Les <b>tags/catégories</b> en <b>rouge</b> i
 DolishopTreeWebCategories=Arborescence des tags/catégories produit de %s
 DolishopTreeWebCategories_tip=Les <b>tags/catégories</b> en <b>vert</b> indiquent qu'ils ne sont pas présent dans Dolibarr<br />Seuls les noms sur fond vert seront créés<br />Si quelque chose vous semble anormal, vous pouvez comparer avec l'arborescence de gauche et rectifier les niveaux manuellement depuis Dolibarr ou votre boutique
 DolishopCompareCategories=Comparer les catégories
-DolishopSyncCategoriesD2W=Synchroniser vers la boutique
+DolishopSyncCategoriesD2W=Synchroniser vers %s
 DolishopSyncCategoriesW2D=Synchroniser vers Dolibarr
 
 DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes Prestashop
