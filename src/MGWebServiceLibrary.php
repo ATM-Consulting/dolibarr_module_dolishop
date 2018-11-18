@@ -73,8 +73,9 @@ class MGWebServiceLibrary
 
 		$this->base_uri.= '/'.$this->store_code;
 
-		$this->client = new \GuzzleHttp\Client(array('base_uri' => $this->base_uri));
-
+		$this->client = new \GuzzleHttp\Client(array(
+			'base_uri' => $this->base_uri
+		));
 
 		// Used to get admin token (basic auth)
 		$this->username = $options['username'];
@@ -136,7 +137,7 @@ class MGWebServiceLibrary
 		}
 		else
 		{
-			$token = $this->post(
+			$response = $this->post(
 				array(
 					'resource' => '/V1/integration/admin/token'
 					,'headers' => array('Content-Type' => 'application/json')
@@ -148,12 +149,12 @@ class MGWebServiceLibrary
 				,$request_opt
 			);
 
-			if (!empty($token) && empty($request_opt['handler']))
+			if (!empty($response) && empty($request_opt['async']))
 			{
-				return trim($token, '"');
+				return trim($response, '"');
 			}
 
-			return false;
+			return $response;
 		}
 	}
 
@@ -196,6 +197,19 @@ class MGWebServiceLibrary
 		return $response;
 	}
 
+	public function put($options, $request_opt=array())
+	{
+		$response = $this->executeRequest('PUT', $options['resource'],  (isset($options['headers']) ? $options['headers'] : $this->headers), $options['params'], $options['body'], $request_opt);
+
+		if ($response instanceof \GuzzleHttp\Psr7\Response)
+		{
+			$as_array = !empty($options['return_as_array']) ? true : false;
+			return json_decode($response->getBody()->getContents(), $as_array);
+		}
+
+		return $response;
+	}
+
 
 	public function executeRequest($method, $resource, $headers, $params=null, $body=null, $request_opt=array())
 	{
@@ -221,7 +235,7 @@ class MGWebServiceLibrary
 			else $response = $this->client->send($request, $request_opt);
 
 			// check the response validity
-			if ($response instanceof \GuzzleHttp\Promise\FulfilledPromise) return true;
+			if ($response instanceof \GuzzleHttp\Promise\Promise) return $response;
 			else if ($this->checkStatusCode($response->getStatusCode())) return $response;
 
 		} catch (RequestException $e) {

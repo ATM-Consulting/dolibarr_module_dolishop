@@ -103,16 +103,16 @@ class Webservice
 
 				$now = dol_now();
 				$Tab = unserialize($conf->global->DOLISHOP_MAGENTO_ADMIN_TOKEN);
-				if (empty($Tab) || $Tab['time_limit'] <= $now)
+				if (empty($Tab) || $Tab['expiration_time'] <= $now)
 				{
 					try {
 						$token = self::$webService->getToken();
-						if ($token)
+						if (!empty($token))
 						{
 							$Tab = array(
 								'token' => $token
 								,'life_time' => 3600 * 4 // default life time is 4 hours TODO get it from REST call
-								,'time_limit' => strtotime('+4 hours', $now)
+								,'expiration_time' => strtotime('+4 hours', $now)
 							);
 
 							dolibarr_set_const($this->db, 'DOLISHOP_MAGENTO_ADMIN_TOKEN', serialize($Tab), 'chaine', 0, '', $conf->entity);
@@ -277,32 +277,35 @@ class Webservice
 	
 	/**
 	 * Retourne un objet en particulier via son identifiant
-	 * 
-	 * @param string	$resource_name	Nom de la ressource Prestashop
-	 * @param int		$id				Id de l'objet à charger
-	 * @return \SimpleXMLElement | boolean
+	 *
+	 * @param string		$resource_name	Nom de la ressource
+	 * @param int|string	$id
+	 * @param array			$more_opt
+	 * @param bool			$children
+	 * @return bool|PSWebServiceLibrary\SimpleXMLElement|\GuzzleHttp\Promise\PromiseInterface|mixed|\Psr\Http\Message\ResponseInterface
 	 */
 	public function getOne($resource_name, $id, $more_opt=array(), $children=true)
     {
-		if ($this->api_name == 'prestashop')
+		if ($this->api_name == 'prestashop') $opt = array('resource' => $resource_name, 'id' => $id);
+		else if ($this->api_name == 'magento') $opt = array('resource' => $resource_name.'/'.$id);
+
+		if (!empty($more_opt))
 		{
-			try
-			{
-				$opt = array('resource' => $resource_name, 'id' => $id);
-				if (!empty($more_opt))
-				{
-					foreach ($more_opt as $key => $value) $opt[$key] = $value;
-				}
-				$result_xml = self::$webService->get($opt);
-				if ($children) return $result_xml->children();
-				else return $result_xml;
-			}
-			catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
-			{
-				$this->setError($e);
-			}
+			foreach ($more_opt as $key => $value) $opt[$key] = $value;
 		}
-		
+
+		try {
+			$result = self::$webService->get($opt);
+
+			if ($this->api_name == 'prestashop' && $children) return $result->children();
+
+			return $result;
+		} catch (PSWebServiceLibrary\PrestaShopWebserviceException $e) {
+			$this->setError($e);
+		} catch (MGWebServiceLibrary\MagentoWebserviceException $e) {
+			$this->setError($e);
+		}
+
 		return false;
     }
 	
@@ -678,6 +681,13 @@ class Webservice
 				$this->syncProductToPrestashop($fk_product, $sync_images);
 			}
 		}
+		else if ($this->api_name == 'magento')
+		{
+			foreach ($TProductId as $fk_product)
+			{
+				$this->syncProductToMagento($fk_product, $sync_images);
+			}
+		}
 		
 		return 0;
 	}
@@ -723,7 +733,88 @@ class Webservice
 		
 		return $res;
 	}
-	
+
+	// TODO à finaliser
+	private function syncProductToMagento($fk_product, $sync_images=false)
+	{
+		$dol_product = new \Product($this->db);
+		if ($dol_product->fetch($fk_product) > 0)
+		{
+			if (empty($dol_product->array_options)) $dol_product->fetch_optionals();
+			if (!empty($dol_product->array_options['options_ps_id_product']))
+			{
+//				$opt = array('resource' => 'products', 'filter[id]' => '['.$dol_product->array_options['options_ps_id_product'].']');
+//				$alt_opt = array('resource' => 'products', 'filter[reference]' => '['.$dol_product->ref.']');
+			}
+			else
+			{
+//				$opt = array('resource' => 'products', 'filter[reference]' => '['.$dol_product->ref.']');
+//				$alt_opt = array();
+			}
+
+			$mg_product = $this->getOne('/V1/products', $dol_product->ref);
+			if (!$mg_product) $mg_product = new \stdClass();
+//			$response = $this->getOne('/V1/products', '24-MB01');
+
+//			var_dump($mg_product);
+//			exit;
+
+//			$mg_product['id'] = isset($data['id']) ? $data['id'] : null;
+//			$mg_product['sku'] = $dol_product->ref;
+			$mg_product->sku = $dol_product->ref;
+//			$mg_product['name'] = $dol_product->label;
+			$mg_product->name = $dol_product->label;
+//			$mg_product['attribute_set_id'] = 4; // 4 is id of Default attribute set here
+			$mg_product->attribute_set_id = 4; // 4 is id of Default attribute set here
+//			$mg_product['price'] = $dol_product->price;
+			$mg_product->price = $dol_product->price;
+//			$mg_product['status'] = $dol_product->status;
+			$mg_product->status = $dol_product->status;
+//			$mg_product['visibility'] = ($dol_product->status > 0 ? 4 : 1); // 1 = Non visible individuellement; 4 = Catalogue, recherche (2 = Catalogue; 3 = Rechercher)
+			$mg_product->visibility = ($dol_product->status > 0 ? 4 : 1); // 1 = Non visible individuellement; 4 = Catalogue, recherche (2 = Catalogue; 3 = Rechercher)
+//			$mg_product['type_id'] = 'simple';
+			$mg_product->type_id = 'simple'; // simple, bundle, virtual
+//			$mg_product['created_at'] = isset($data['created_at']) ? $data['created_at'] : null;
+//			$mg_product['updated_at'] = isset($data['updated_at']) ? $data['updated_at'] : null;
+			$coef = 1;
+//			if (isset(self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT']) && $dol_product->weight_units != self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'])
+//			{
+//				$delta = $dol_product->weight_units - self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
+//				$coef = pow(10, $delta);
+//			}
+//			$mg_product['weight'] = $dol_product->weight * $coef;
+			$mg_product->weight = $dol_product->weight * $coef;
+//			$mg_product['extension_attributes'] = isset($data['extension_attributes']) ? $data['extension_attributes'] : null;
+//			$mg_product['product_links'] = isset($data['product_links']) ? $data['product_links'] : null;
+//			$mg_product['options'] = isset($data['options']) ? $data['options'] : null;
+//			$mg_product['media_gallery_entries'] = isset($data['media_gallery_entries']) ? $data['media_gallery_entries'] : null;
+//			$mg_product['tier_prices'] = isset($data['tier_prices']) ? $data['tier_prices'] : null;
+//			$mg_product['custom_attributes'] = isset($data['custom_attributes']) ? $data['custom_attributes'] : null;
+
+//var_dump($mg_product);exit;
+
+
+			if (!empty($mg_product->id))
+			{
+				$mg_product_res = self::$webService->put(array(
+					'resource' => '/V1/products/'.$mg_product->sku
+					,'body' => array('product' => $mg_product)
+				));
+			}
+			else
+			{
+				$mg_product_res = self::$webService->post(array(
+					'resource' => '/V1/products'
+					,'body' => array('product' => $mg_product)
+				));
+			}
+
+//			var_dump($mg_product_res);exit;
+
+
+		}
+	}
+
 	/**
 	 * Fait un appel au webservice Prestashop pour trouver un produit avec $opt ou $opt_alt comme critères
 	 * Attention : cette méthode n'est pas prévu pour fonctionner avec l'argument $opt['id'], car si le produit n'existe pas
@@ -1280,14 +1371,27 @@ class Webservice
 	{
 		if ((float) DOL_VERSION < 6.0) return 0;
 
+		if ($this->api_name == 'prestashop')
+		{
+			$this->syncDolCombinationsOptionsToPrestashop();
+		}
+		else if ($this->api_name == 'magento')
+		{
+			$this->syncDolCombinationsOptionsToMagento();
+		}
+	}
+
+
+	private function syncDolCombinationsOptionsToPrestashop()
+	{
 		$ps_product_options = $this->getAll('product_options');
-		$ps_product_option_values = $this->getAll('product_option_values');
-		
 		if ($ps_product_options)
 		{
+			$ps_product_option_values = $this->getAll('product_option_values');
+
 			$TProdAttr = ProductAttributeDolishop::getAll('', true, false);
 			$TProdAttrValue = ProductAttributeValueDolishop::getAll('', true, false);
-			
+
 			foreach ($TProdAttr as $productAttr)
 			{
 				$error = 0;
@@ -1300,16 +1404,16 @@ class Webservice
 						break;
 					}
 				}
-				
+
 				if (!$found)
 				{
 					// need to create
 					$xml = $this->getSchema('product_options');
-					$product_option = $xml->children()->children();	
+					$product_option = $xml->children()->children();
 					$product_option->group_type = 'select';
 					$product_option->name->language[0] = $productAttr->ref;
 					$product_option->public_name->language[0] = $productAttr->label;
-					
+
 					try
 					{
 						$opt = array('resource' => 'product_options',  'postXml' => $xml->asXML());
@@ -1320,21 +1424,21 @@ class Webservice
 						$error++;
 						$this->setError($e);
 					}
-					
+
 					if ($error == 0)
 					{
 						$productAttr->ps_id_option_group = (int) $result_xml->product_option->id;
 						$productAttr->updatePsValue();
 					}
 				}
-				
+
 				// Get all values of object
 				$TVal = array();
 				foreach ($TProdAttrValue as $productAttrValue)
 				{
 					if ($productAttrValue->fk_product_attribute == $productAttr->id) $TVal[] = $productAttrValue;
 				}
-				
+
 				foreach ($TVal as $value)
 				{
 					$found = false;
@@ -1346,13 +1450,13 @@ class Webservice
 							break;
 						}
 					}
-					
+
 					if (!$found)
 					{
 						// need to create
 						$xml = $this->getSchema('product_option_values');
-			
-						$product_option_value = $xml->children()->children();	
+
+						$product_option_value = $xml->children()->children();
 						$product_option_value->id_attribute_group = $productAttr->ps_id_option_group;
 						$product_option_value->name->language[0] = $value->ref;
 
@@ -1378,7 +1482,12 @@ class Webservice
 			}
 		}
 	}
-	
+
+	private function syncDolCombinationsOptionsToMagento()
+	{
+
+	}
+
 	/**
 	 * Web2Dolibarr
 	 * Permet de synchroniser les groupes d'attributs et valeurs associées manquants (llx_product_attribute & llx_product_attribute_value)
@@ -1590,9 +1699,9 @@ class Webservice
 		foreach ($dol_fullarbo as $dol_cat)
 		{
 			$force_create_for_children = false;
-			if ($this->api_name == 'prestashop')
+			if ($force_create || !empty($dol_cat['need_to_create']))
 			{
-				if ($force_create || !empty($dol_cat['need_to_create']))
+				if ($this->api_name == 'prestashop')
 				{
 					$schema = $this->getSchema('categories', 'blank');
 					$ps_category = $schema->category;
@@ -1604,38 +1713,61 @@ class Webservice
 					$ps_category->active = true;
 					$ps_category->id_shop_default = $conf->global->DOLISHOP_SYNC_PS_SHOP_ID;
 					$ps_category->id_parent = $fk_parent;
-					try
-					{
-						$opt = array('resource' => 'categories',  'postXml' => $schema->asXML());
-						$result_xml = self::$webService->add($opt);
-						if ($result_xml)
-						{
-							$fk_parent_for_children = $result_xml->category->id;
-							$this->db->query('UPDATE '.MAIN_DB_PREFIX.'categorie SET import_key = \''.$fk_parent_for_children.'\' WHERE rowid = '.$dol_cat['id']);
 
-							$force_create_for_children = true;
-						}
-						else
-						{
-							// Error: this case should not happen
-							break;
-						}
-					}
-					catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
+					$opt = array('resource' => 'categories',  'postXml' => $schema->asXML());
+				}
+				else if ($this->api_name == 'magento')
+				{
+					$mg_category = array(
+						'category' => array(
+							'parent_id' => $fk_parent
+						,'name' => $dol_cat['label']
+						,'is_active' => true
+						,'include_in_menu' => true
+						)
+					);
+
+					$opt = array('resource' => '/V1/categories',  'body' => $mg_category);
+				}
+
+				try
+				{
+					if ($this->api_name == 'prestashop') $response = self::$webService->add($opt);
+					else $response = self::$webService->post($opt, array('handler' => '\Dolishop\DolishopTools::setCategoryImportKey', 'dolibarr' => array('fk_category_origin' => $dol_cat['id'])));
+
+					if ($response)
 					{
-//						$error++;
-						$this->setError($e);
+						if ($this->api_name == 'prestashop') $fk_parent_for_children = $response->category->id;
+						else $fk_parent_for_children = $response->id;
+
+						$this->db->query('UPDATE '.MAIN_DB_PREFIX.'categorie SET import_key = \''.$fk_parent_for_children.'\' WHERE rowid = '.$dol_cat['id']);
+
+						$force_create_for_children = true;
+					}
+					else
+					{
+						// Error: this case should not happen
 						break;
 					}
-					
 				}
-				else
+				catch (PSWebServiceLibrary\PrestaShopWebserviceException $e)
 				{
-					$fk_parent_for_children = $dol_cat['web_id'];
+					$this->setError($e);
+					break;
 				}
-
-				if (!empty($dol_cat['children'])) $this->syncCategoriesD2W_create($dol_cat['children'], $fk_parent_for_children, $force_create_for_children);
+				catch (MGWebServiceLibrary\MagentoWebserviceException $e)
+				{
+					$this->setError($e);
+					break;
+				}
 			}
+			else
+			{
+				$fk_parent_for_children = $dol_cat['web_id'];
+			}
+
+			if (!empty($dol_cat['children'])) $this->syncCategoriesD2W_create($dol_cat['children'], $fk_parent_for_children, $force_create_for_children);
+
 		}
 	}
 	
@@ -1706,7 +1838,8 @@ class Webservice
 			$this->syncCategories_checker($dol_fullarbo, $web_fullarbo);
 
 			// Sur Prestashop l'id de la catégorie root par défaut c'est 2 (Accueil)
-			$id_category_root = !empty($conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT) ? $conf->global->DOLISHOP_WEB_ID_CATEGORY_ROOT : 2;
+			// Et sur Magento il semble que la catégorie de base c'est aussi 2
+			$id_category_root = !empty($conf->global->DOLISHOP_STORE_ROOT_CATEGORY_ID) ? $conf->global->DOLISHOP_STORE_ROOT_CATEGORY_ID : 2;
 			$this->syncCategoriesD2W_create($dol_fullarbo, $id_category_root);
 		}
 	}
