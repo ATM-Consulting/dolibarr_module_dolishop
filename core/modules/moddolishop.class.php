@@ -347,6 +347,8 @@ class moddolishop extends DolibarrModules
 		$extrafield = new ExtraFields($this->db);
 		$extrafield->addExtraField('ps_id_product', 'ID produit Prestashop', 'int', $this->numero.$pos, 10, 'product', 0, 0, '', '', 0, '', -1, 0);
 		$pos+=10;
+		$extrafield->addExtraField('mg_id_product', 'ID produit Magento', 'int', $this->numero.$pos, 10, 'product', 0, 0, '', '', 0, '', -1, 0);
+		$pos+=10;
 		
 		$pos = 0;
 		$extrafield->addExtraField('web_id_order', 'ID commande boutique', 'int', $this->numero.$pos, 10, 'commande', 0, 0, '', '', 0, '', -1, 0);

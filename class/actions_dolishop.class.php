@@ -83,7 +83,7 @@ class Actionsdolishop
 		if (in_array('productdocuments', $TContext) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS) && !empty($conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES))
 		{
 			if (is_object($object) && empty($object->array_options)) $object->fetch_optionals();
-			if (!empty($object->array_options['options_ps_id_product']))
+			if (!empty($object->array_options['options_ps_id_product']) || !empty($object->array_options['options_mg_id_product']))
 			{
 				dol_include_once('/dolishop/class/webservice.class.php');
 
@@ -142,7 +142,7 @@ class Actionsdolishop
 					}
 
 					$dolishop = new \Dolishop\Webservice($this->db);
-					$dolishop->saveImages($object, $TFileName, $dir);
+					$dolishop->saveImages($object, $TFileName, $dir, GETPOST('savingdocmask'));
 					if (!empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
 					else setEventMessage($langs->trans('DolishopAddPsProductImagesSuccess'));
 				}

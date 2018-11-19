@@ -28,7 +28,7 @@ if (!class_exists('SeedObject'))
 	require_once __DIR__.'/../config.php';
 }
 
-if ((float) DOL_VERSION < 6.0) require_once __DIR__.'/override.class.php';
+require_once __DIR__.'/override.class.php';
 
 class Webservice
 {
@@ -385,6 +385,39 @@ class Webservice
 
 			return $xml_result->children();	
 		}
+		else if ($this->api_name == 'magento')
+		{
+			$info = pathinfo($image_path);
+			$data = file_get_contents($image_path);
+
+			$mg_image = array(
+				'media_type' => 'image'
+				,'label' => 'Image'
+				,'types' => array(
+					'image'
+					,'thumbnail'
+					,'small_image'
+				)
+				,'file' => $info['basename']
+				,'content' => array(
+					'base64_encoded_data' => base64_encode($data)
+					,'type' => mime_content_type($image_path)
+					,'name' => $info['basename']
+				)
+			);
+
+			try {
+				$mg_image_return = self::$webService->post(array(
+					'resource' => '/V1/products/'.$id_resource.'/media'
+					,'body' => array('entry' => $mg_image)
+				));
+
+				return $mg_image_return;
+			} catch (MGWebServiceLibrary\MagentoWebserviceException $e) {
+				$this->setError($e);
+			}
+
+		}
 		
 		return false;
 	}
@@ -398,38 +431,80 @@ class Webservice
 	 * @param string	$dir
 	 * @return int		1 = OK; 0 = RAF; -1 = Erreur, mais l'envoi peut être partiel
 	 */
-	public function saveImages(&$dol_product, $TFileName, $dir)
+	public function saveImages(&$dol_product, $TFileName, $dir, $savingdocmask='')
 	{
 		global $user;
-		
-		if (empty(self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products'])) return 0;
-		
-		foreach ($TFileName as $name)
-		{
-			$info = pathinfo($name);
-			$filename = dol_sanitizeFileName($info['filename'].'.'.strtolower($info['extension']));
-			$image_path = $dir.'/'.$filename;
-			$mime_type = mime_content_type($image_path);
-			if (in_array($mime_type, self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products']))
-			{
-				$ecm = new EcmFilesDolishop($this->db);
-				$ecm->fetchByFileNamePath($filename, $dol_product->ref);
 
-				$result = $this->postImage($image_path, 'products', $dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
-				if ($result === false)
+		if ($this->api_name == 'prestashop')
+		{
+			if (empty(self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products'])) return 0;
+			if (empty($dol_product->array_options['options_ps_id_product'])) return 0;
+
+			foreach ($TFileName as $name)
+			{
+				$info = pathinfo($name);
+				if (!empty($savingdocmask)) $info['filename'] = str_replace('__file__', $info['filename'], $savingdocmask);
+
+				$filename = dol_sanitizeFileName($info['filename'].'.'.strtolower($info['extension']));
+				$image_path = $dir.'/'.$filename;
+				$mime_type = mime_content_type($image_path);
+				if (in_array($mime_type, self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products']))
 				{
-					if ($ecm->ps_id_image > 0) $result = $result = $this->postImage($image_path, 'products', $dol_product->array_options['options_ps_id_product']);
-					if ($result === false) return -1;
-				}
-				
-				$ps_id_image_return = (int) $result->image->id;
-				if ($ecm->id > 0 && $ps_id_image_return != $ecm->ps_id_image)
-				{
-					$ecm->ps_id_image = $ps_id_image_return;
-					$ecm->update($user);
+					$ecm = new EcmFilesDolishop($this->db);
+					$ecm->fetchByFileNamePath($filename, $dol_product->ref);
+
+					$result = $this->postImage($image_path, 'products', $dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
+					if ($result === false)
+					{
+						if ($ecm->ps_id_image > 0) $result = $result = $this->postImage($image_path, 'products', $dol_product->array_options['options_ps_id_product']);
+						if ($result === false) return -1;
+					}
+
+					$ps_id_image_return = (int) $result->image->id;
+					if ($ecm->id > 0 && $ps_id_image_return != $ecm->ps_id_image)
+					{
+						$ecm->ps_id_image = $ps_id_image_return;
+						$ecm->update($user);
+					}
 				}
 			}
 		}
+		else if ($this->api_name == 'magento')
+		{
+			// TODO à recup en conf pour connaitre les types d'images autorisés
+//			if (empty(self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products'])) return 0;
+			if (empty($dol_product->array_options['options_mg_id_product'])) return 0;
+
+			foreach ($TFileName as $name)
+			{
+				$info = pathinfo($name);
+				if (!empty($savingdocmask)) $info['filename'] = str_replace('__file__', $info['filename'], $savingdocmask);
+
+				$filename = dol_sanitizeFileName($info['filename'].'.'.strtolower($info['extension']));
+				$image_path = $dir.'/'.$filename;
+				$mime_type = mime_content_type($image_path);
+//				if (in_array($mime_type, self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products']))
+//				{
+					$ecm = new EcmFilesDolishop($this->db);
+					$ecm->fetchByFileNamePath($filename, $dol_product->ref);
+
+					$result = $this->postImage($image_path, 'products', $dol_product->ref, $ecm->mg_id_image);
+					if ($result === false)
+					{
+						if ($ecm->mg_id_image > 0) $result = $result = $this->postImage($image_path, 'products', $dol_product->ref);
+						if ($result === false) return -1;
+					}
+
+					$mg_id_image_return = $result->id;
+					if ($ecm->id > 0 && $mg_id_image_return != $ecm->mg_id_image)
+					{
+						$ecm->mg_id_image = $mg_id_image_return;
+						$ecm->update($user);
+					}
+//				}
+			}
+		}
+
 		
 		return 1;
 	}
@@ -793,24 +868,41 @@ class Webservice
 
 //var_dump($mg_product);exit;
 
-
-			if (!empty($mg_product->id))
-			{
-				$mg_product_res = self::$webService->put(array(
-					'resource' => '/V1/products/'.$mg_product->sku
-					,'body' => array('product' => $mg_product)
-				));
+			$error = 0;
+			try {
+				if (!empty($mg_product->id))
+				{
+					$mg_product_res = self::$webService->put(array(
+						'resource' => '/V1/products/'.$mg_product->sku
+						,'body' => array('product' => $mg_product)
+					));
+				}
+				else
+				{
+					$mg_product_res = self::$webService->post(array(
+						'resource' => '/V1/products'
+						,'body' => array('product' => $mg_product)
+					));
+				}
+			} catch (MGWebServiceLibrary\MagentoWebserviceException $e) {
+				$error++;
+				$this->setError($e);
 			}
-			else
+
+			if (!$error)
 			{
-				$mg_product_res = self::$webService->post(array(
-					'resource' => '/V1/products'
-					,'body' => array('product' => $mg_product)
-				));
+				$mg_id_product_return = $mg_product_res->id;
+				if ($dol_product->array_options['options_mg_id_product'] != $mg_id_product_return)
+				{
+					$need_insert = false;
+					if (empty($dol_product->array_options)) $need_insert = true;
+
+					$dol_product->array_options['options_mg_id_product'] = $mg_id_product_return;
+
+					if ($need_insert) $res = $dol_product->insertExtraFields();
+					else $res = $dol_product->updateExtraField('mg_id_product');
+				}
 			}
-
-//			var_dump($mg_product_res);exit;
-
 
 		}
 	}

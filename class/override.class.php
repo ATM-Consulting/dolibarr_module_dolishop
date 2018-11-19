@@ -47,6 +47,7 @@ class EcmFilesDolishop extends \SeedObject
 	public $acl;
 	
 	public $ps_id_image=0;
+	public $mg_id_image=0;
 
 	public function __construct($db)
 	{
@@ -64,6 +65,8 @@ class EcmFilesDolishop extends \SeedObject
 
 			// Prestashop
 			,'ps_id_image'=>array('type'=>'integer', 'index'=>true)
+			// Magento
+			,'mg_id_image'=>array('type'=>'integer', 'index'=>true)
 		);
 		
 		$this->init();
@@ -74,7 +77,7 @@ class EcmFilesDolishop extends \SeedObject
 	{
 		global $conf;
 		
-		$sql = 'SELECT rowid, ps_id_image FROM '.MAIN_DB_PREFIX.$this->table_element;
+		$sql = 'SELECT rowid, ps_id_image, mg_id_image FROM '.MAIN_DB_PREFIX.$this->table_element;
 		$sql.= ' WHERE entity = '.$conf->entity;
 		$sql.= ' AND filename = \''.$this->db->escape($filename).'\'';
 		if ((float) DOL_VERSION < 6.0) $sql.= ' AND fullpath LIKE \'%'.$this->db->escape($ref_object).'\'';
@@ -87,6 +90,7 @@ class EcmFilesDolishop extends \SeedObject
 			{
 				$this->fetch($obj->rowid);
 				$this->ps_id_image = $obj->ps_id_image;
+				$this->mg_id_image = $obj->mg_id_image;
 				return 1;
 			}
 			
