@@ -393,6 +393,7 @@ class Webservice
 			$mg_image = array(
 				'media_type' => 'image'
 				,'label' => 'Image'
+				,'disabled' => false // permet de rendre l'image visible sur la boutique
 				,'types' => array(
 					'image'
 					,'thumbnail'
@@ -524,12 +525,23 @@ class Webservice
 			{
 				$ecm = new EcmFilesDolishop($this->db);
 				$ecm->fetchByFileNamePath($filename, $dol_product->ref);
-				if ($ecm->ps_id_image > 0)
+				if ($this->api_name == 'prestashop')
 				{
-					$res = $this->deleteImage('products', $dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
-//					if (empty($res)) return 1;
-//					else return -1;
+					if ($ecm->ps_id_image > 0)
+					{
+						$res = $this->deleteImage('products', $dol_product->array_options['options_ps_id_product'], $ecm->ps_id_image);
+					}
 				}
+				else if ($this->api_name == 'magento')
+				{
+					if ($ecm->mg_id_image > 0)
+					{
+						$res = $this->deleteImage('products', $dol_product->ref, $ecm->mg_id_image);
+					}
+				}
+
+
+
 			}
 		}
 		
@@ -544,20 +556,38 @@ class Webservice
 	 */
 	public function deleteImage($resource_name, $id_resource, $id_image)
 	{
-		$url = $this->url;
-		if (substr($url, -1, 1) !== '/') $url.= '/api/images/';
-		else $url.= 'api/images/';
+		$result = false;
 
-		$url.= $resource_name.'/'.$id_resource;
-		$url.= '/'.$id_image.'?ps_method=DELETE';
+		if ($this->api_name == 'prestashop')
+		{
+			$url = $this->url;
+			if (substr($url, -1, 1) !== '/') $url.= '/api/images/';
+			else $url.= 'api/images/';
 
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $url);
-		curl_setopt($ch, CURLOPT_POST, true);
-		curl_setopt($ch, CURLOPT_USERPWD, $this->key.':');
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		$result = curl_exec($ch);
-		curl_close($ch);
+			$url.= $resource_name.'/'.$id_resource;
+			$url.= '/'.$id_image.'?ps_method=DELETE';
+
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, $url);
+			curl_setopt($ch, CURLOPT_POST, true);
+			curl_setopt($ch, CURLOPT_USERPWD, $this->key.':');
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			$result = curl_exec($ch);
+			curl_close($ch);
+		}
+		else if ($this->api_name == 'magento')
+		{
+			$options = array(
+				'resource' => '/V1/products/'.$id_resource.'/media/'.$id_image
+			);
+
+			try {
+				$result = self::$webService->delete($options, array('async' => true));
+				$result->wait(false);
+			} catch (MGWebServiceLibrary\MagentoWebserviceException $e) {
+				$this->setError($e);
+			}
+		}
 
 		return $result;
 	}

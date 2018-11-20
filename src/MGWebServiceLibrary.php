@@ -210,6 +210,19 @@ class MGWebServiceLibrary
 		return $response;
 	}
 
+	public function delete($options, $request_opt=array())
+	{
+		$response = $this->executeRequest('DELETE', $options['resource'],  (isset($options['headers']) ? $options['headers'] : $this->headers), $options['params'], $options['body'], $request_opt);
+
+		if ($response instanceof \GuzzleHttp\Psr7\Response)
+		{
+			$as_array = !empty($options['return_as_array']) ? true : false;
+			return json_decode($response->getBody()->getContents(), $as_array);
+		}
+
+		return $response;
+	}
+
 
 	public function executeRequest($method, $resource, $headers, $params=null, $body=null, $request_opt=array())
 	{
