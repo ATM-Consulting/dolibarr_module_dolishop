@@ -488,11 +488,11 @@ class Webservice
 					$ecm = new EcmFilesDolishop($this->db);
 					$ecm->fetchByFileNamePath($filename, $dol_product->ref);
 
-					$result = $this->postImage($image_path, 'products', $dol_product->ref, $ecm->mg_id_image);
-					if ($result === false)
+					$mg_id_image_return = $this->postImage($image_path, 'products', $dol_product->ref, $ecm->mg_id_image);
+					if ($mg_id_image_return === false)
 					{
-						if ($ecm->mg_id_image > 0) $result = $result = $this->postImage($image_path, 'products', $dol_product->ref);
-						if ($result === false) return -1;
+						if ($ecm->mg_id_image > 0) $mg_id_image_return = $result = $this->postImage($image_path, 'products', $dol_product->ref);
+						if ($mg_id_image_return === false) return -1;
 					}
 
 					$mg_id_image_return = $result->id;
