@@ -777,7 +777,8 @@ class Webservice
 	public function updateWebProducts($TProductId, $sync_images=false)
 	{
 		if (empty($TProductId)) return 0;
-		
+		if ($sync_images) require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+
 		if ($this->api_name == 'prestashop')
 		{
 			$this->getSchema('products', 'synopsis'); // sert d'init
@@ -892,10 +893,36 @@ class Webservice
 //			$mg_product['extension_attributes'] = isset($data['extension_attributes']) ? $data['extension_attributes'] : null;
 //			$mg_product['product_links'] = isset($data['product_links']) ? $data['product_links'] : null;
 //			$mg_product['options'] = isset($data['options']) ? $data['options'] : null;
-//			$mg_product['media_gallery_entries'] = isset($data['media_gallery_entries']) ? $data['media_gallery_entries'] : null;
+
+
 //			$mg_product['tier_prices'] = isset($data['tier_prices']) ? $data['tier_prices'] : null;
 //			$mg_product['custom_attributes'] = isset($data['custom_attributes']) ? $data['custom_attributes'] : null;
+			$mg_product->custom_attributes = array();
+			$mg_product->custom_attributes[] = array('attribute_code' => 'description', 'value' => $dol_product->description);
+			if (!empty($conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT))
+			{
+				$mg_product->custom_attributes[] = array('attribute_code' => 'short_description', 'value' => DolishopTools::trunc($dol_product->description, $conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT, true, false));
+			}
 
+			$TCategory = $this->getTProductCategory($dol_product->id);
+			if (is_array($TCategory))
+			{
+				$TCatForMagento = array();
+				foreach ($TCategory as $cat)
+				{
+					if (empty($cat['import_key']) || in_array($cat['id'], $this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR)) continue;
+					$TCatForMagento[] = $cat['import_key'];
+				}
+
+				$mg_product->custom_attributes[] = array('attribute_code' => 'category_ids', 'value' => $TCatForMagento);
+			}
+
+
+//			'custom_attributes' => array(
+//			array( 'attribute_code' => 'category_ids', 'value' => ["42","41","32"] ),
+//			array( 'attribute_code' => 'description', 'value' => 'Simple Description' ),
+//			array( 'attribute_code' => 'short_description', 'value' => 'Simple  Short Description' ),
+//		)
 //var_dump($mg_product);exit;
 
 			$error = 0;
@@ -931,6 +958,19 @@ class Webservice
 
 					if ($need_insert) $res = $dol_product->insertExtraFields();
 					else $res = $dol_product->updateExtraField('mg_id_product');
+				}
+
+				if ($sync_images && $mg_id_product_return)
+				{
+					// TODO voir comment intégrer les images dans le create/update au dessus, car Magento permet d'envoyer en même temps une image ( voir si possible pour +sieurs )
+//					$mg_product['media_gallery_entries'] = isset($data['media_gallery_entries']) ? $data['media_gallery_entries'] : null;
+					$dir = DolishopTools::getProductDirScan($dol_product);
+					$TFileInfo = \dol_dir_list($dir, 'files', 0, '', '(\.meta|_preview.*\.png)$', 'position_name', SORT_ASC, 0);
+					$TFileName = array();
+					foreach ($TFileInfo as $info) $TFileName[] = $info['name'];
+
+					$res = $this->saveImages($dol_product, $TFileName, $dir);
+
 				}
 			}
 
@@ -1066,7 +1106,7 @@ class Webservice
 		{
 			$ps_product->name->language[0] = $dol_product->label;
 			$ps_product->description->language[0] = $dol_product->description;
-			if (!empty($conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT)) $ps_product->description_short->language[0] = $this->trunc($dol_product->description, $conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT, true, false);
+			if (!empty($conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT)) $ps_product->description_short->language[0] = DolishopTools::trunc($dol_product->description, $conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT, true, false);
 		}
 
 		// Association des catégories
@@ -1097,7 +1137,7 @@ class Webservice
 					$pp->id = $cat['import_key'];
 				}
 
-				// TODO si $ps_product->id_category_default ne fait pas partie des ids associés alors Prestashop de supprimera pas le lien
+				// TODO si $ps_product->id_category_default ne fait pas partie des ids associés alors Prestashop ne supprimera pas le lien
 				// Voir pour ajouter un extrafield "web_id_category_default" qui sera une liste issue d'une table (llx_category ::type=0 AND import_key>0)
 				// en attendant, s'il y qu'une seule catégorie alors c'est celle par défaut
 				if ($ps_product->associations->categories->children()->count() == 1) $ps_product->id_category_default = (int) $ps_product->associations->categories->category->id;
