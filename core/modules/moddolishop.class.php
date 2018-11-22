@@ -152,21 +152,39 @@ class moddolishop extends DolibarrModules
         	$conf->dolishop->enabled=0;
         }
 		$this->dictionaries=array();
-        /* Example:
+
         if (! isset($conf->dolishop->enabled)) $conf->dolishop->enabled=0;	// This is to avoid warnings
         $this->dictionaries=array(
-            'langs'=>'dolishop@dolishop',
-            'tabname'=>array(MAIN_DB_PREFIX."table1",MAIN_DB_PREFIX."table2",MAIN_DB_PREFIX."table3"),		// List of tables we want to see into dictonnary editor
-            'tablib'=>array("Table1","Table2","Table3"),													// Label of tables
-            'tabsql'=>array('SELECT f.rowid as rowid, f.code, f.label, f.active FROM '.MAIN_DB_PREFIX.'table1 as f','SELECT f.rowid as rowid, f.code, f.label, f.active FROM '.MAIN_DB_PREFIX.'table2 as f','SELECT f.rowid as rowid, f.code, f.label, f.active FROM '.MAIN_DB_PREFIX.'table3 as f'),	// Request to select fields
-            'tabsqlsort'=>array("label ASC","label ASC","label ASC"),																					// Sort order
-            'tabfield'=>array("code,label","code,label","code,label"),																					// List of fields (result of select to show dictionary)
-            'tabfieldvalue'=>array("code,label","code,label","code,label"),																				// List of fields (list of fields to edit a record)
-            'tabfieldinsert'=>array("code,label","code,label","code,label"),																			// List of fields (list of fields for insert)
-            'tabrowid'=>array("rowid","rowid","rowid"),																									// Name of columns with primary key (try to always name it 'rowid')
-            'tabcond'=>array($conf->dolishop->enabled,$conf->dolishop->enabled,$conf->dolishop->enabled)												// Condition to show each dictionary
+            'langs'=>'dolishop@dolishop'
+            ,'tabname'=>array(
+            	MAIN_DB_PREFIX."c_mg_sales_order_statuses"
+			)		// List of tables we want to see into dictonnary editor
+            ,'tablib'=>array(
+            	"MgSalesOrderStatusesTable"
+			)													// Label of tables
+            ,'tabsql'=>array(
+            	'SELECT f.rowid as rowid, f.code, f.label, f.entity, f.active FROM '.MAIN_DB_PREFIX.'c_mg_sales_order_statuses as f'
+			)	// Request to select fields
+            ,'tabsqlsort'=>array(
+            	"label ASC"
+			)																					// Sort order
+            ,'tabfield'=>array(
+            	"code,label"
+			)																					// List of fields (result of select to show dictionary)
+            ,'tabfieldvalue'=>array(
+            	"code,label"
+			)																				// List of fields (list of fields to edit a record)
+            ,'tabfieldinsert'=>array(
+            	"code,label,entity"
+			)																			// List of fields (list of fields for insert)
+            ,'tabrowid'=>array(
+            	"rowid"
+			)																									// Name of columns with primary key (try to always name it 'rowid')
+            ,'tabcond'=>array(
+            	$conf->dolishop->enabled && $conf->global->DOLISHOP_API_NAME == 'magento'
+			)												// Condition to show each dictionary
         );
-        */
+
 
         // Boxes
 		// Add here list of php file(s) stored in core/boxes that contains class to show a box.
@@ -368,54 +386,83 @@ class moddolishop extends DolibarrModules
 		
 		$result=$this->_load_tables('/dolishop/sql/');
 
-		
-		// TODO faire l'ajout de la tâche planifiée
+
 		require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
-		
 		$cronjob = new Cronjob($this->db);
-		$cronjob->label = $langs->trans('DolishopCronjobProductsD2P_label');
-		$cronjob->note = $langs->trans('DolishopCronjobProductsD2P_desc');
-		$cronjob->jobtype = 'method';
-		$cronjob->frequency = 1;
-		$cronjob->unitfrequency = 86400;
-		$cronjob->status = 0;
-		$cronjob->module_name = 'dolishop';
-		$cronjob->classesname = '/dolishop/class/webservice.class.php';
-		$cronjob->objectname = '\Dolishop\Webservice';
-		$cronjob->methodename = 'rsyncProducts';
-		$cronjob->params = $user->id.', dolibarr2website';
-		$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
-		$cronjob->create($user);
-		
-		$cronjob = new Cronjob($this->db);
-		$cronjob->label = $langs->trans('DolishopCronjobProductsP2D_label');
-		$cronjob->note = $langs->trans('DolishopCronjobProductsP2D_desc');
-		$cronjob->jobtype = 'method';
-		$cronjob->frequency = 1;
-		$cronjob->unitfrequency = 86400;
-		$cronjob->status = 0;
-		$cronjob->module_name = 'dolishop';
-		$cronjob->classesname = '/dolishop/class/webservice.class.php';
-		$cronjob->objectname = '\Dolishop\Webservice';
-		$cronjob->methodename = 'rsyncProducts';
-		$cronjob->params = $user->id.', website2dolibarr';
-		$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
-		$cronjob->create($user);
-		
-		$cronjob = new Cronjob($this->db);
-		$cronjob->label = $langs->trans('DolishopCronjobOrders_label');
-		$cronjob->note = $langs->trans('DolishopCronjobOrders_desc1')."\n".$langs->trans('DolishopCronjobOrders_desc2')."\n".$langs->trans('DolishopCronjobOrders_desc3')."\n".$langs->trans('DolishopCronjobOrders_desc4');
-		$cronjob->jobtype = 'method';
-		$cronjob->frequency = 15;
-		$cronjob->unitfrequency = 60;
-		$cronjob->status = 0;
-		$cronjob->module_name = 'dolishop';
-		$cronjob->classesname = '/dolishop/class/webservice.class.php';
-		$cronjob->objectname = '\Dolishop\Webservice';
-		$cronjob->methodename = 'rsyncOrders';
-		$cronjob->params = $user->id;
-		$cronjob->datestart = strtotime(date('Y-m-d 12:00:00'));
-		$cronjob->create($user);
+		$cronjob->fetch_all('DESC', 't.rowid', 0, 0 , -1, array('entity' => $conf->entity, 'module_name' => $this->rights_class));
+
+		$needCreateJob1 = $needCreateJob2 = $needCreateJob3 = true;
+		foreach ($cronjob->lines as $cronjobline)
+		{
+			switch ($cronjobline->label) {
+				case $langs->trans('DolishopCronjobProductsD2W_label'): // check #cronjob 1
+					$needCreateJob1 = false;
+					break;
+				case $langs->trans('DolishopCronjobProductsW2D_label'): // check #cronjob 2
+					$needCreateJob2 = false;
+					break;
+				case $langs->trans('DolishopCronjobOrders_label'): // check #cronjob 3
+					$needCreateJob3 = false;
+					break;
+			}
+		}
+
+		// #cronjob 1
+		if ($needCreateJob1)
+		{
+			$cronjob = new Cronjob($this->db);
+			$cronjob->label = $langs->trans('DolishopCronjobProductsD2W_label');
+			$cronjob->note = $langs->trans('DolishopCronjobProductsD2W_desc');
+			$cronjob->jobtype = 'method';
+			$cronjob->frequency = 1;
+			$cronjob->unitfrequency = 86400;
+			$cronjob->status = 0;
+			$cronjob->module_name = $this->rights_class;
+			$cronjob->classesname = '/dolishop/class/webservice.class.php';
+			$cronjob->objectname = '\Dolishop\Webservice';
+			$cronjob->methodename = 'rsyncProducts';
+			$cronjob->params = $user->id.', dolibarr2website';
+			$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
+			$cronjob->create($user);
+		}
+
+		// #cronjob 2
+		if ($needCreateJob2)
+		{
+			$cronjob = new Cronjob($this->db);
+			$cronjob->label = $langs->trans('DolishopCronjobProductsW2D_label');
+			$cronjob->note = $langs->trans('DolishopCronjobProductsW2D_desc');
+			$cronjob->jobtype = 'method';
+			$cronjob->frequency = 1;
+			$cronjob->unitfrequency = 86400;
+			$cronjob->status = 0;
+			$cronjob->module_name = $this->rights_class;
+			$cronjob->classesname = '/dolishop/class/webservice.class.php';
+			$cronjob->objectname = '\Dolishop\Webservice';
+			$cronjob->methodename = 'rsyncProducts';
+			$cronjob->params = $user->id.', website2dolibarr';
+			$cronjob->datestart = strtotime(date('Y-m-d 23:00:00'));
+			$cronjob->create($user);
+		}
+
+		// #cronjob 3
+		if ($needCreateJob3)
+		{
+			$cronjob = new Cronjob($this->db);
+			$cronjob->label = $langs->trans('DolishopCronjobOrders_label');
+			$cronjob->note = $langs->trans('DolishopCronjobOrders_desc1')."\n".$langs->trans('DolishopCronjobOrders_desc2')."\n".$langs->trans('DolishopCronjobOrders_desc3')."\n".$langs->trans('DolishopCronjobOrders_desc4');
+			$cronjob->jobtype = 'method';
+			$cronjob->frequency = 15;
+			$cronjob->unitfrequency = 60;
+			$cronjob->status = 0;
+			$cronjob->module_name = $this->rights_class;
+			$cronjob->classesname = '/dolishop/class/webservice.class.php';
+			$cronjob->objectname = '\Dolishop\Webservice';
+			$cronjob->methodename = 'rsyncOrders';
+			$cronjob->params = $user->id;
+			$cronjob->datestart = strtotime(date('Y-m-d 12:00:00'));
+			$cronjob->create($user);
+		}
 		
 		return $this->_init($sql, $options);
 	}

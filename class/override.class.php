@@ -294,8 +294,8 @@ if ((float) DOL_VERSION >= 6.0)
 			$this->ref = strtoupper($this->ref);
 
 			$sql = "INSERT INTO ".MAIN_DB_PREFIX."product_attribute_value (fk_product_attribute, ref, value, entity, ps_id_option_value, ps_id_option_group)
-		VALUES ('".(int) $this->fk_product_attribute."', '".$this->db->escape($this->ref)."',
-		'".$this->db->escape($this->value)."', ".(int) $this->entity.", ".(int) $this->ps_id_option_value.", ".(int) $this->ps_id_option_group.")";
+			VALUES ('".(int) $this->fk_product_attribute."', '".$this->db->escape($this->ref)."',
+			'".$this->db->escape($this->value)."', ".(int) $this->entity.", ".(int) $this->ps_id_option_value.", ".(int) $this->ps_id_option_group.")";
 
 			$query = $this->db->query($sql);
 

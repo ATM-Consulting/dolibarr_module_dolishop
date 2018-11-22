@@ -28,7 +28,9 @@ if (!class_exists('SeedObject'))
 	require_once __DIR__.'/../config.php';
 }
 
+require_once __DIR__.'/dictionaries.class.php';
 require_once __DIR__.'/override.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 
 class Webservice
 {
@@ -115,7 +117,7 @@ class Webservice
 								,'expiration_time' => strtotime('+4 hours', $now)
 							);
 
-							dolibarr_set_const($this->db, 'DOLISHOP_MAGENTO_ADMIN_TOKEN', serialize($Tab), 'chaine', 0, '', $conf->entity);
+							\dolibarr_set_const($this->db, 'DOLISHOP_MAGENTO_ADMIN_TOKEN', serialize($Tab), 'chaine', 0, '', $conf->entity);
 
 						}
 					} catch (MGWebServiceLibrary\MagentoWebserviceException $e) {
@@ -831,6 +833,7 @@ class Webservice
 			{
 				$dir = DolishopTools::getProductDirScan($dol_product);
 				$TFileInfo = \dol_dir_list($dir, 'files', 0, '', '(\.meta|_preview.*\.png)$', 'position_name', SORT_ASC, 0);
+				$TFileName = array();
 				foreach ($TFileInfo as $info) $TFileName[] = $info['name'];
 				
 				$res = $this->saveImages($dol_product, $TFileName, $dir);
@@ -846,6 +849,8 @@ class Webservice
 		$dol_product = new \Product($this->db);
 		if ($dol_product->fetch($fk_product) > 0)
 		{
+			global $conf;
+
 			if (empty($dol_product->array_options)) $dol_product->fetch_optionals();
 			if (!empty($dol_product->array_options['options_ps_id_product']))
 			{
@@ -2118,7 +2123,7 @@ class Webservice
 		}
 		$user->getrights();
 		
-		if (empty($conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES))
+		if ($this->api_name == 'prestashop' && empty($conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES))
 		{
 			$this->output = $langs->trans('DolishopMissingPsOrderStatesConf');
 			return 1;
@@ -2168,8 +2173,89 @@ class Webservice
 					// de plus, une commande peut passer plusieurs fois par là sans avoir de facture au 1er passage mais un id au 2eme
 					
 				}
-
 			}
+		}
+		else if ($this->api_name == 'magento')
+		{
+			// DOLISHOP_SYNC_MAGENTO_STORE_CODE
+			$options = array(
+				'params' => array(
+					'searchCriteria' => ''
+//					'searchCriteria[filterGroups][0][filters][0][field]' => 'base_currency_code'
+//					,'searchCriteria[filterGroups][0][filters][0][value]' => 'EUR'
+//					,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'neq'
+				)
+			);
+
+			$mg_orders = $this->getAll('/V1/orders', $options);
+
+//			var_dump($mg_orders->items, $this->errors);
+//			exit;
+
+			if ($mg_orders)
+			{
+				foreach ($mg_orders->items as $mg_order)
+				{
+					if ( $mg_order->increment_id != '000000004' ) continue;
+					if (!DolishopTools::checkOrderExist($mg_order->increment_id))
+					{
+						$this->createDolOrder($mg_order);
+					}
+				}
+			}
+
+//			if ($search_criteria_filter_groups_filters_field !== null) {
+//				$queryParams['searchCriteria[filterGroups][][filters][][field]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_field);
+//			}
+//			// query params
+//			if ($search_criteria_filter_groups_filters_value !== null) {
+//				$queryParams['searchCriteria[filterGroups][][filters][][value]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_value);
+//			}
+//			// query params
+//			if ($search_criteria_filter_groups_filters_condition_type !== null) {
+//				$queryParams['searchCriteria[filterGroups][][filters][][conditionType]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_condition_type);
+//			}
+//			// query params
+//			if ($search_criteria_sort_orders_field !== null) {
+//				$queryParams['searchCriteria[sortOrders][][field]'] = ObjectSerializer::toQueryValue($search_criteria_sort_orders_field);
+//			}
+//			// query params
+//			if ($search_criteria_sort_orders_direction !== null) {
+//				$queryParams['searchCriteria[sortOrders][][direction]'] = ObjectSerializer::toQueryValue($search_criteria_sort_orders_direction);
+//			}
+//			// query params
+//			if ($search_criteria_page_size !== null) {
+//				$queryParams['searchCriteria[pageSize]'] = ObjectSerializer::toQueryValue($search_criteria_page_size);
+//			}
+//			// query params
+//			if ($search_criteria_current_page !== null) {
+//				$queryParams['searchCriteria[currentPage]'] = ObjectSerializer::toQueryValue($search_criteria_current_page);
+//			}
+//
+//
+//			$apiInstance = new \Swagger\Client\Api\SalesOrderRepositoryV1Api(
+//			// If you want use custom http client, pass your client which implements `GuzzleHttp\ClientInterface`.
+//			// This is optional, `GuzzleHttp\Client` will be used as default.
+//				new GuzzleHttp\Client()
+//			);
+//			$search_criteria_filter_groups_filters_field = "search_criteria_filter_groups_filters_field_example"; // string | Field
+//			$search_criteria_filter_groups_filters_value = "search_criteria_filter_groups_filters_value_example"; // string | Value
+//			$search_criteria_filter_groups_filters_condition_type = "search_criteria_filter_groups_filters_condition_type_example"; // string | Condition type
+//			$search_criteria_sort_orders_field = "search_criteria_sort_orders_field_example"; // string | Sorting field.
+//			$search_criteria_sort_orders_direction = "search_criteria_sort_orders_direction_example"; // string | Sorting direction.
+//			$search_criteria_page_size = 56; // int | Page size.
+//			$search_criteria_current_page = 56; // int | Current page.
+//
+//			try {
+//				$result = $apiInstance->salesOrderRepositoryV1GetListGet($search_criteria_filter_groups_filters_field, $search_criteria_filter_groups_filters_value, $search_criteria_filter_groups_filters_condition_type, $search_criteria_sort_orders_field, $search_criteria_sort_orders_direction, $search_criteria_page_size, $search_criteria_current_page);
+//				print_r($result);
+//			} catch (Exception $e) {
+//				echo 'Exception when calling SalesOrderRepositoryV1Api->salesOrderRepositoryV1GetListGet: ', $e->getMessage(), PHP_EOL;
+//			}
+
+
+
+
 		}
 		
 		$this->output.='FIN';
@@ -2186,143 +2272,29 @@ class Webservice
 		
 		$TState = explode('|', $conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES);
 		$commande = new \Commande($this->db);
-		
-		if ($this->api_name == 'prestashop')
-		{
-			$commande->array_options['options_web_id_order'] = (int) $web_order->id;
-			
-			$current_state = (int) $web_order->current_state;
-			if (!in_array($current_state, $TState)) return 0;
-		
-			$commande->ref_client = $web_order->reference->__toString();
-			
-			list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddress((int) $web_order->id_customer, (int) $web_order->id_address_delivery, (int) $web_order->id_address_invoice);
-			if (empty($fk_soc) && empty($fk_socpeople_delivery) && empty($fk_socpeople_billing))
-			{
-				$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
-				return 0;
-			}
-			
-			$commande->socid = $fk_soc;
-			$commande->date = strtotime($web_order->date_add->__toString());
-			$commande->date_commande = $commande->date;
-			$commande->note_private = ''; // TODO à voir avec la ressource "messages"
-			$commande->note_public = '';
+		if ($this->api_name == 'prestashop') $fk_commande = $this->createDolOrderFromPrestashop($commande, $web_order);
+		else if ($this->api_name == 'magento') $fk_commande = $this->createDolOrderFromMagento($commande, $web_order);
 
-	//		$commande->cond_reglement_id = GETPOST('cond_reglement_id');
-	//		$commande->mode_reglement_id = GETPOST('mode_reglement_id');
-	//		$commande->fk_account = GETPOST('fk_account', 'int'); // TODO peut être une conf global
-	//		$commande->availability_id = GETPOST('availability_id'); // Delai de livraison
-	//		$commande->demand_reason_id = GETPOST('demand_reason_id'); // Channel => dictionnaire llx_c_input_reason (Origines des propales/commandes)
+	exit;
 
-			if ($web_order->delivery_date > '1000-00-00 00:00:00') $commande->date_livraison = strtotime($web_order->delivery_date->__toString());
+		if ($fk_commande < 0) $error++;
 
-			if (!empty(self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $web_order->id_carrier])) $commande->shipping_method_id = self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $web_order->id_carrier];
-	//		$commande->warehouse_id = GETPOST('warehouse_id', 'int'); // TODO conf global ? ->id_warehouse
-	//		$commande->fk_delivery_address = GETPOST('fk_address');
-	//		$commande->contactid = GETPOST('contactid');
-
-	//		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
-			$commande->multicurrency_tx = (double) $web_order->conversion_rate;
-			
-			if ($commande->create($user) < 0)
-			{
-				$error++;
-				$this->error = $langs->trans('DolishopErrorOrderCreate', $web_order->reference, $commande->db->lasterror());
-				$this->errors[] = $this->error;
-				return -1;
-			}
-			
-			
-			
-			// Ajout contact livraison / facturation
-			if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY) && $fk_socpeople_delivery > 0) $commande->add_contact($fk_socpeople_delivery, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'external');
-			if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING) && $fk_socpeople_billing > 0) $commande->add_contact($fk_socpeople_billing, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'external');
-			
-			// Ajout des lignes de la commande
-			$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $web_order->id).']'));
-			foreach ($order_details->children() as $order_detail)
-			{
-				$fk_product = DolishopTools::getDolProductId((int) $order_detail->product_id, $order_detail->product_reference->__toString(), (int) $order_detail->product_attribute_id);
-				if ($fk_product == -1)
-				{
-					if ($this->from_cron_job)
-					{
-						$this->output.= $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString())."\n";
-					}
-					else
-					{
-						$this->error = $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString());
-						$this->errors[] = $this->error;
-					}
-					
-					return -2;
-				}
-				else if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
-				{
-					$fk_product = $this->createProductFromWebProductId((int) $order_detail->product_id, (int) $order_detail->product_attribute_id);
-				}
-				
-				if ($fk_product > 0) $desc = '';
-				else $desc = $order_detail->product_name->__toString();
-
-				$r=$commande->addline(
-					$desc
-					,(double) $order_detail->unit_price_tax_excl
-					,(double) $order_detail->product_quantity
-					,DolishopTools::getVatRate((int) $order_detail->associations->taxes->tax->id)
-					,0 // $txlocaltax1
-					,0 // $txlocaltax2
-					,$fk_product
-					,0 // $remise_percent
-					,0 // $info_bits
-					,0 // $fk_remise_except
-					,'HT'
-					,0 // PU TTC
-					,'' // date_start
-					,'' // date_end
-					,0 // type
-					,-1 // rang
-					,0
-					,0
-					,null
-					,0 // pa_ht
-					,'' // label
-					,array() // array_options
-				);
-				if ($r < 0) $error++;
-			}
-
-			if (!empty($web_order->total_shipping))
-			{
-				$fk_product = !empty($conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE) ? $conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE : 0;
-				$desc = ($fk_product > 0) ? '' : $langs->trans('DolishopShippingCosts');
-				$r=$commande->addline(
-					$desc
-					,$web_order->total_shipping_tax_excl
-					,1
-					,$web_order->carrier_tax_rate
-					,0 // $txlocaltax1
-					,0 // $txlocaltax2
-					,$fk_product
-				);
-				if ($r < 0) $error++;
-			}
-		}
-		
 //		$this->debugXml($web_order);
-		$res = $commande->valid($user);
-		if ($res < 0) $error++;
-		else
+		if (!$error && $fk_commande > 0)
 		{
-			if ($this->api_name == 'prestashop')
+			$res = $commande->valid($user);
+			if ($res < 0) $error++;
+			else
 			{
-				// Creation d'une expédition brouillon, par défaut Prestashop créé en automatique après chaque commande un order_carriers (expédition)
-				$ps_order_carriers = $this->getAll('order_carriers', array('filter[id_order]' => '['.$web_order->id.']'));
-				if ($ps_order_carriers && $ps_order_carriers->children()->count() > 0)
+				if ($this->api_name == 'prestashop')
 				{
-					$commande->fetch_lines();
-					$res = $this->createDolExpeditionDraft($commande, $ps_order_carriers->children()->order_carrier);
+					// Creation d'une expédition brouillon, par défaut Prestashop créé en automatique après chaque commande un order_carriers (expédition)
+					$ps_order_carriers = $this->getAll('order_carriers', array('filter[id_order]' => '['.$web_order->id.']'));
+					if ($ps_order_carriers && $ps_order_carriers->children()->count() > 0)
+					{
+						$commande->fetch_lines();
+						$res = $this->createDolExpeditionDraft($commande, $ps_order_carriers->children()->order_carrier);
+					}
 				}
 			}
 		}
@@ -2332,15 +2304,296 @@ class Webservice
 			$this->db->rollback();
 			return -1;
 		}
-		
-		$this->output.= $langs->trans('DolishopNewOrderCreated', $commande->ref, $commande->ref_client)."\n";
-		
+
 		$this->db->commit();
+		$this->output.= $langs->trans('DolishopNewOrderCreated', $commande->ref, $commande->ref_client)."\n";
 
 		return $commande->id;
 	}
-	
-	
+
+	/**
+	 * @param $commande
+	 * @param $ps_order
+	 * @return int
+	 */
+	private function createDolOrderFromPrestashop(&$commande, $ps_order)
+	{
+		global $conf,$langs,$user;
+
+		$error = 0;
+
+		$TState = explode('|', $conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES);
+
+		$commande->array_options['options_web_id_order'] = (int) $ps_order->id;
+
+		$current_state = (int) $ps_order->current_state;
+		if (!in_array($current_state, $TState)) return 0;
+
+		$commande->ref_client = $ps_order->reference->__toString();
+
+		list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddress((int) $ps_order->id_customer, (int) $ps_order->id_address_delivery, (int) $ps_order->id_address_invoice);
+		if (empty($fk_soc) && empty($fk_socpeople_delivery) && empty($fk_socpeople_billing))
+		{
+			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
+			return -1;
+		}
+
+		$commande->socid = $fk_soc;
+		$commande->date = strtotime($ps_order->date_add->__toString());
+		$commande->date_commande = $commande->date;
+		$commande->note_private = ''; // TODO à voir avec la ressource "messages"
+		$commande->note_public = '';
+
+//		$commande->cond_reglement_id = GETPOST('cond_reglement_id');
+//		$commande->mode_reglement_id = GETPOST('mode_reglement_id');
+//		$commande->fk_account = GETPOST('fk_account', 'int'); // TODO peut être une conf global
+//		$commande->availability_id = GETPOST('availability_id'); // Delai de livraison
+//		$commande->demand_reason_id = GETPOST('demand_reason_id'); // Channel => dictionnaire llx_c_input_reason (Origines des propales/commandes)
+
+		if ($ps_order->delivery_date > '1000-00-00 00:00:00') $commande->date_livraison = strtotime($ps_order->delivery_date->__toString());
+
+		if (!empty(self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $ps_order->id_carrier])) $commande->shipping_method_id = self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $ps_order->id_carrier];
+//		$commande->warehouse_id = GETPOST('warehouse_id', 'int'); // TODO conf global ? ->id_warehouse
+//		$commande->fk_delivery_address = GETPOST('fk_address');
+//		$commande->contactid = GETPOST('contactid');
+
+//		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
+		$commande->multicurrency_tx = (double) $ps_order->conversion_rate;
+
+		if ($commande->create($user) < 0)
+		{
+			$error++;
+			$this->error = $langs->trans('DolishopErrorOrderCreate', $ps_order->reference, $commande->db->lasterror());
+			$this->errors[] = $this->error;
+			return -2;
+		}
+
+		// Ajout contact livraison / facturation
+		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY) && $fk_socpeople_delivery > 0) $commande->add_contact($fk_socpeople_delivery, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'external');
+		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING) && $fk_socpeople_billing > 0) $commande->add_contact($fk_socpeople_billing, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'external');
+
+		// Ajout des lignes de la commande
+		$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $ps_order->id).']'));
+		foreach ($order_details->children() as $order_detail)
+		{
+			$fk_product = DolishopTools::getDolProductId((int) $order_detail->product_id, $order_detail->product_reference->__toString(), (int) $order_detail->product_attribute_id);
+			if ($fk_product == -1)
+			{
+				if ($this->from_cron_job)
+				{
+					$this->output.= $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString())."\n";
+				}
+				else
+				{
+					$this->error = $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString());
+					$this->errors[] = $this->error;
+				}
+
+				return -3;
+			}
+			else if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
+			{
+				$fk_product = $this->createProductFromWebProductId((int) $order_detail->product_id, (int) $order_detail->product_attribute_id);
+			}
+
+			if ($fk_product > 0) $desc = '';
+			else $desc = $order_detail->product_name->__toString();
+
+			$r=$commande->addline(
+				$desc
+				,(double) $order_detail->unit_price_tax_excl
+				,(double) $order_detail->product_quantity
+				,DolishopTools::getVatRate((int) $order_detail->associations->taxes->tax->id)
+				,0 // $txlocaltax1
+				,0 // $txlocaltax2
+				,$fk_product
+				,0 // $remise_percent
+				,0 // $info_bits
+				,0 // $fk_remise_except
+				,'HT'
+				,0 // PU TTC
+				,'' // date_start
+				,'' // date_end
+				,0 // type
+				,-1 // rang
+				,0
+				,0
+				,null
+				,0 // pa_ht
+				,'' // label
+				,array() // array_options
+			);
+			if ($r < 0) return -4;
+		}
+
+		if (!empty($ps_order->total_shipping))
+		{
+			$fk_product = !empty($conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE) ? $conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE : 0;
+			$desc = ($fk_product > 0) ? '' : $langs->trans('DolishopShippingCosts');
+			$r=$commande->addline(
+				$desc
+				,$ps_order->total_shipping_tax_excl
+				,1
+				,$ps_order->carrier_tax_rate
+				,0 // $txlocaltax1
+				,0 // $txlocaltax2
+				,$fk_product
+			);
+			if ($r < 0) return -5;
+		}
+
+		return $commande->id;
+	}
+
+	/**
+	 * @param \Commande $commande
+	 * @param $mg_order
+	 * @return int
+	 */
+	private function createDolOrderFromMagento(&$commande, $mg_order)
+	{
+		global $conf,$langs,$user;
+
+		$error = 0;
+
+
+		$TState = \MgSalesOrderStatuses::getAllLabelByCode();
+var_dump($TState, $mg_order
+	, $mg_order->extension_attributes->shipping_assignments[0]
+	, $mg_order->status_histories);exit;
+
+// $mg_orders->items[3]->extension_attributes->shipping_assignments[0]
+
+		$commande->array_options['options_web_id_order'] = $mg_order->quote_id; // ou peut être bien "entity_id"
+
+		$current_state = $mg_order->status; // ou "state", à voir s'il y en a un qui est en @deprecated
+		if (!isset($TState[$current_state])) return 0;
+
+		$commande->ref_client = $mg_order->increment_id;
+
+		// TODO gérer les adresses
+//		list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddress($mg_order->customer_id, $mg_order->id_address_delivery, $mg_order->billing_address_id);
+		if (empty($fk_soc) && empty($fk_socpeople_delivery) && empty($fk_socpeople_billing))
+		{
+			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
+			return -1;
+		}
+
+		$commande->socid = $fk_soc;
+		$commande->date = strtotime($mg_order->updated_at);
+		$commande->date_commande = $commande->date;
+		$commande->note_private = ''; // TODO à voir avec la ressource "messages"
+		if (!empty($mg_order->status_histories))
+		{
+			foreach($mg_order->status_histories as $commentaire)
+			{
+				$commande->note_private.= '['.$commentaire->created_at.'] ('.$TState[$current_state].')'."\n";
+				$commande->note_private.= $commentaire->comment."\n\n";
+			}
+		}
+		$commande->note_public = '';
+
+//		$commande->cond_reglement_id = GETPOST('cond_reglement_id');
+//		$commande->mode_reglement_id = GETPOST('mode_reglement_id');
+//		$commande->fk_account = GETPOST('fk_account', 'int'); // TODO peut être une conf global
+//		$commande->availability_id = GETPOST('availability_id'); // Delai de livraison
+//		$commande->demand_reason_id = GETPOST('demand_reason_id'); // Channel => dictionnaire llx_c_input_reason (Origines des propales/commandes)
+
+		// TODO Méthode d'expédition
+//		if (!empty(self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $ps_order->id_carrier])) $commande->shipping_method_id = self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $ps_order->id_carrier];
+//		$commande->warehouse_id = GETPOST('warehouse_id', 'int'); // TODO conf global ? ->id_warehouse
+//		$commande->fk_delivery_address = GETPOST('fk_address');
+//		$commande->contactid = GETPOST('contactid');
+
+//		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
+		$commande->multicurrency_tx = (double) $mg_order->base_to_order_rate; // TODO à déterminer si c'est bien la bonne valeur, autrement il y a l'attribut "base_currency_code" (ex: EUR)
+
+		if ($commande->create($user) < 0)
+		{
+			$error++;
+			$this->error = $langs->trans('DolishopErrorOrderCreate', $mg_order->increment_id, $commande->db->lasterror());
+			$this->errors[] = $this->error;
+			return -2;
+		}
+
+		// TODO Ajout contact livraison / facturation
+//		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY) && $fk_socpeople_delivery > 0) $commande->add_contact($fk_socpeople_delivery, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'external');
+//		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING) && $fk_socpeople_billing > 0) $commande->add_contact($fk_socpeople_billing, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'external');
+
+		// Ajout des lignes de la commande
+//		$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $ps_order->id).']'));
+		foreach ($mg_order->items as $mg_order_line)
+		{
+			// TODO voir comment identifier s'il s'agit d'un produit décliné ou composé
+			$fk_product = DolishopTools::getDolProductId($mg_order_line->product_id, $mg_order_line->sku, 0);
+			if ($fk_product == -1)
+			{
+				if ($this->from_cron_job)
+				{
+					$this->output.= $langs->trans('DolishopErrorMultipleReferenceFound', $mg_order_line->product_id, $mg_order_line->sku)."\n";
+				}
+				else
+				{
+					$this->error = $langs->trans('DolishopErrorMultipleReferenceFound', $mg_order_line->product_id, $mg_order_line->sku);
+					$this->errors[] = $this->error;
+				}
+
+				return -3;
+			}
+			else if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
+			{
+				// TODO ici aussi voir comment récupérer l'info s'il s'agit d'un produit décliné ou composé
+				$fk_product = $this->createProductFromWebProductId($mg_order_line->sku, 0);
+			}
+
+			if ($fk_product > 0) $desc = '';
+			else $desc = $mg_order_line->name;
+
+			$r=$commande->addline(
+				$desc
+				,(double) $mg_order_line->price
+				,(double) $mg_order_line->qty_ordered
+				,$mg_order_line->tax_percent
+				,0 // $txlocaltax1
+				,0 // $txlocaltax2
+				,$fk_product
+				,0 // $remise_percent
+				,0 // $info_bits
+				,0 // $fk_remise_except
+				,'HT'
+				,0 // PU TTC
+				,'' // date_start
+				,'' // date_end
+				,0 // type
+				,-1 // rang
+				,0
+				,0
+				,null
+				,0 // pa_ht
+				,'' // label
+				,array() // array_options
+			);
+			if ($r < 0) return -4;
+		}
+
+		if (!empty($mg_order->shipping_amount))
+		{
+			$fk_product = !empty($conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE) ? $conf->global->DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE : 0;
+			$desc = ($fk_product > 0) ? '' : $langs->trans('DolishopShippingCosts');
+			$r=$commande->addline(
+				$desc
+				,$mg_order->shipping_amount
+				,1
+				,(($mg_order->shipping_incl_tax / $mg_order->shipping_amount) - 1) * 100 // Calcul de la tva
+				,0 // $txlocaltax1
+				,0 // $txlocaltax2
+				,$fk_product
+			);
+			if ($r < 0) return -5;
+		}
+
+		return $commande->id;
+	}
 	
 	private function saveDolCustomerAddress($web_id_customer, $web_id_address_delivery, $web_id_address_invoice)
 	{
@@ -2723,6 +2976,22 @@ class Webservice
 				asort($TCateg);
 			}
 		}
+		else if ($this->api_name == 'prestashop')
+		{
+			$mg_categories = $this->getAll('/V1/categories', array(
+				'return_as_array' => true
+				,'params' => array(
+					'rootCategoryId' => 2 // 1 = root, 2 default cat (both seems no deletable)
+//					,'depth' => 10
+				)
+			));
+
+			// TODO untree before returning values
+//			if ($mg_categories && !empty($mg_categories['children_data']))
+//			{
+//				return $mg_categories['children_data'];
+//			}
+		}
 		
 		
 		return $TCateg;
@@ -2785,6 +3054,55 @@ class Webservice
 		echo($this->error);
 
 		return $TShop;
+	}
+
+	public function WsGetAllOrderStates()
+	{
+		$TOrderState = array();
+
+		if ($this->api_name == 'prestashop')
+		{
+			$order_states = $this->getAll('order_states', array());
+			if ($order_states)
+			{
+				foreach ($order_states->children() as $order_state)
+				{
+					$TOrderState[(int) $order_state->id] = $order_state->name->language[0]->__toString();
+				}
+			}
+		}
+		else if ($this->api_name == 'magento')
+		{
+			// Non récupérable par l'API, il faut avoir saisie les codes dans le dictionnaire c_mg_sales_order_statuses avant
+			$TOrderState = \MgSalesOrderStatuses::getAllLabelByCode();
+		}
+
+		return $TOrderState;
+	}
+
+	public function WsGetAllShippingMethods()
+	{
+		$TShippingMethod = array();
+
+		if ($this->api_name == 'prestashop')
+		{
+			$carriers = $this->getAll('carriers', array());
+			foreach ($carriers->children() as $carrier)
+			{
+				$TShippingMethod[(int) $carrier->id] = array(
+					'id' => (int) $carrier->id
+					,'label' => $carrier->name->__toString()
+					,'selected' => !empty(self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $carrier->id]) ? self::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $carrier->id] : ''
+				);
+			}
+		}
+		else if ($this->api_name == 'magento')
+		{
+			// Non récupérable par l'API, il faut avoir saisie les codes dans le dictionnaire c_shipment_mode avant
+			$TShippingMethod = \MgShippingMethod::getAllLabelByCode();
+		}
+
+		return $TShippingMethod;
 	}
 	
 	public function debugXml($xml)

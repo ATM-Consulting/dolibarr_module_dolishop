@@ -38,3 +38,7 @@ $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_value ADD COLUMN ps_
 $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_value ADD COLUMN ps_id_option_group integer');
 
 $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_combination ADD COLUMN ps_id_combination integer');
+
+
+$o=new MgSalesOrderStatuses($db);
+$o->init_db_by_vars();

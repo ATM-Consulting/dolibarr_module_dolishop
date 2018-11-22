@@ -99,15 +99,8 @@ if ($action == 'save_carriers')
 }
 
 
-$TOrderState = array();
-$order_states = $dolishop->getAll('order_states', array());
-if ($order_states)
-{
-	foreach ($order_states->children() as $order_state)
-	{
-		$TOrderState[(int) $order_state->id] = $order_state->name->language[0]->__toString();
-	}
-}
+$TOrderState = $dolishop->WsGetAllOrderStates();
+
 
 //require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
 //$exp = new \Expedition($db);
@@ -169,8 +162,15 @@ print '</tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_SYNC_ORDERS');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_ORDERS_DESC').'</small>';
+print '<td>'.$langs->trans('DOLISHOP_SYNC_ORDERS', ucfirst($dolishop->api_name));
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_ORDERS_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -184,6 +184,10 @@ print '</td></tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_SYNC_WEB_ORDER_STATES');
+if ($dolishop->api_name == 'magento')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_WEB_ORDER_STATES_DESC_MG', $langs->trans('MgSalesOrderStatusesTable')).'</small>';
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -244,7 +248,14 @@ print '</td></tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS_DESC').'</small>';
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -274,7 +285,14 @@ print '</td></tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC').'</small>';
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -289,7 +307,14 @@ print '</td></tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED');
-print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED_DESC').'</small>';
+if ($dolishop->api_name == 'prestashop')
+{
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED_DESC').'</small>';
+}
+else if ($dolishop->api_name == 'magento')
+{
+
+}
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
@@ -315,27 +340,36 @@ print '<td colspan="2">'.$langs->trans('WebCarriersAssociations').'</td>'."\n";
 print '<td>'.$langs->trans('DolibarrShippingMethod').'</td>'."\n";
 print '</tr>';
 
-$carriers = $dolishop->getAll('carriers', array());
-if ($carriers)
+if ($dolishop->api_name == 'prestashop')
 {
-	foreach ($carriers->children() as $carrier)
+	$TShippingMethod = $dolishop->WsGetAllShippingMethods();
+}
+
+if ($TShippingMethod)
+{
+	foreach ($TShippingMethod as $TInfo)
 	{
 		$var=!$var;
 		print '<tr '.$bc[$var].'>';
-		print '<td width="2%" align="center">'.$carrier->id.'</td>';
-		print '<td width="20%">'.$carrier->name.'</td>';
+		print '<td width="2%" align="center">'.$TInfo['id'].'</td>';
+		print '<td width="20%">'.$TInfo['label'].'</td>';
 		print '<td width="20%">';
-		$selected = '';
-		if (!empty($dolishop::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $carrier->id])) $selected = $dolishop::$ps_configuration['WEB_SHIPPING_ASSOC'][(int) $carrier->id];
-		$form->selectShippingMethod($selected, 'TCarrierAssociation['.$carrier->id.']', '', 1);
+		$form->selectShippingMethod($TInfo['selected'], 'TCarrierAssociation['.$TInfo['id'].']', '', 1);
 		print '</td>';
 		print '</tr>';
 	}
 }
 else
 {
-	print '<td colspan="3" align="center">'.$langs->trans('WebCarriersAssociationsHelp').'</td>';
+	print '<tr>';
+	print '<td colspan="3" align="center">';
+	if ($dolishop->api_name == 'prestashop') print $langs->trans('WebCarriersAssociationsHelp');
+	else if ($dolishop->api_name == 'magento') print $langs->trans('WebCarriersAssociationsHelpMg', $langs->transnoentities('DictionarySendingMethods'));
+	print '</td>';
+	print '</tr>';
+
 }
+
 print '</table>';
 print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
 print '</form>';

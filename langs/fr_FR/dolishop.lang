@@ -8,6 +8,10 @@ dolishopAbout = A propos du module dolishop
 
 dolishop=dolishop
 
+### DICTIONARIES
+MgSalesOrderStatusesTable=Magento : Statuts des commandes
+
+
 ### SETUP
 ParamLabel=Nom du paramètre
 ParamDesc=Une description si besoin
@@ -51,9 +55,10 @@ DolishopCompareCategories=Comparer les catégories
 DolishopSyncCategoriesD2W=Synchroniser vers %s
 DolishopSyncCategoriesW2D=Synchroniser vers Dolibarr
 
-DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes Prestashop
+DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes %s
 DOLISHOP_SYNC_ORDERS_DESC=Les ressources <b>orders, order_details, order_states, carriers, customers, addresses</b> doivent être accessibles en <b>GET</b>
 DOLISHOP_SYNC_WEB_ORDER_STATES=Statuts des commandes à synchroniser
+DOLISHOP_SYNC_WEB_ORDER_STATES_DESC_MG=Les valeurs de cette liste sont modifiable depuis le menu Accueil > Configuration > Dictionnaires > %s (vous devez faire correspondre les codes avec ceux de Magento)
 DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY=Type de contact à appliquer pour l'association de l'adresse livraison dans Dolibarr (laisser vide pour ne pas associer d'adresse à la commande)
 DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING=Type de contact à appliquer pour l'association de l'adresse facturation dans Dolibarr (laisser vide pour ne pas associer d'adresse à la commande)
 DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE=Produit/Service à utiliser pour les frais de livraison (si vide, alors une ligne libre sera ajoutée)
@@ -66,6 +71,7 @@ DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED=Classer une commande Dolibarr co
 DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED_DESC=La ressource <b>orders</b> doit être accessible en <b>PUT</b>
 WebCarriersAssociations=Associations des méthodes d'expédition
 WebCarriersAssociationsHelp=La ressource <b>carriers</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les méthodes d'expédition de votre boutique avec celles de Dolibarr
+WebCarriersAssociationsHelpMg=Le dictionnaire "%s" doit être renseigné pour faire correspondre les codes avec ceux de Magento depuis le menu Accueil > Configuration > Dictionnaires > %1$s
 DolibarrShippingMethod=Méthode Dolibarr
 WebPaymentsAssociations=Associations des méthodes de paiement
 DolibarrPaymentMethod=Méthode Dolibarr
@@ -103,14 +109,14 @@ DolishopPsImagesMimeTypes=Type d'images autorisées
 DolishopPsImagesMimeTypesAllowed=<b>Pour les produits :</b> %s
 DolishopPsTaxes=TVA
 
-DolishopCronjobProductsD2P_label=[DOLISHOP - Produits] Synchronisation des produits Dolibarr vers Prestashop
-DolishopCronjobProductsD2P_desc=2 paramètres obligatoires : "fk_user", "direction" (dolibarr2website) et "sync_images" (valeur 1, optionnel)
-DolishopCronjobProductsP2D_label=[DOLISHOP - Produits] Synchronisation des produits Prestashop vers Dolibarr
-DolishopCronjobProductsP2D_desc=2 paramètres obligatoires : "fk_user", "direction" (website2dolibarr)
-DolishopCronjobOrders_label=[DOLISHOP - Commandes] Synchronisation des commandes Prestashop vers Dolibarr
+DolishopCronjobProductsD2W_label=[DOLISHOP - Produits] Synchronisation des produits Dolibarr vers votre boutique
+DolishopCronjobProductsD2W_desc=2 paramètres obligatoires : "fk_user", "direction" (dolibarr2website) et "sync_images" (valeur 1, optionnel)
+DolishopCronjobProductsW2D_label=[DOLISHOP - Produits] Synchronisation des produits de votre boutique vers Dolibarr
+DolishopCronjobProductsW2D_desc=2 paramètres obligatoires : "fk_user", "direction" (website2dolibarr)
+DolishopCronjobOrders_label=[DOLISHOP - Commandes] Synchronisation des commandes de votre boutique vers Dolibarr
 DolishopCronjobOrders_desc1=Il est possible de passer jusqu'à 3 paramètres ($fk_user, $minutes=30, $date_min='')
-DolishopCronjobOrders_desc2=- fk_user => pour la création des commandes (obligatoire et il doit avoir les droits nécessaires pour créer/valider les commandes)
-DolishopCronjobOrders_desc3=- minutes => chaque exécution ira chercher les commandes des 30 dernières minutes par défaut
+DolishopCronjobOrders_desc2=- fk_user => id utilisateur pour la création des commandes (obligatoire et il doit avoir les droits nécessaires pour créer/valider les commandes)
+DolishopCronjobOrders_desc3=- minutes => chaque exécution ira chercher les commandes des X dernières minutes (30 par défaut)
 DolishopCronjobOrders_desc4=- date_min => une date au format YYYY-MM-DD HH-mm-ss pour remonter les commandes depuis cette date
 
 ### MESG WARNING
