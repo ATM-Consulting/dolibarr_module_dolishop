@@ -152,7 +152,7 @@ DolishopMissingPsOrderStatesConf=Aucune association entre les statuts de command
 DolishopParameterUserIdNotFound=L'identifiant passé en paramètre ne correspond pas à un utilisateur connu ou actif
 DolishopParameterDateWithWrongFormat=Le paramètre date n'a pas le bon format [Y-m-d H:i:s] (exemple : 2018-07-19 12:30:00)
 DolishopErrorOrderCreate=Erreur : impossible de créer la commande %s (message = %s)
-DolishopNewOrderCreated=Nouvelle commande %s créée portant la référence Prestashop %s
+DolishopNewOrderCreated=Nouvelle commande %s créée portant la référence client %s
 DolishopShippingCosts=Frais d'expédition
 DolishopSyncProductsIsDisabled=La configuration de synchronisation des produits est désactivée
 DolishopSyncOrdersIsDisabled=La configuration de synchronisation des commandes est désactivée

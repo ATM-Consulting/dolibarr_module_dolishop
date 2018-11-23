@@ -282,9 +282,10 @@ if ((float) DOL_VERSION >= 6.0)
 		 * @override
 		 * Creates a value for a product attribute
 		 *
-		 * @return int <0 KO >0 OK
+		 * @param	\User	$user		Object user
+		 * @return 	int 				<0 KO >0 OK
 		 */
-		public function create()
+		public function create(\User $user)
 		{
 			if (!$this->fk_product_attribute) {
 				return -1;

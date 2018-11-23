@@ -585,7 +585,7 @@ class Webservice
 
 			try {
 				$result = self::$webService->delete($options, array('async' => true));
-				$result->wait(false);
+				$result->wait(false); // Obligation d'attendre la réponse pour que la supression soit effective
 			} catch (MGWebServiceLibrary\MagentoWebserviceException $e) {
 				$this->setError($e);
 			}
@@ -2184,6 +2184,10 @@ class Webservice
 //					'searchCriteria[filterGroups][0][filters][0][field]' => 'base_currency_code'
 //					,'searchCriteria[filterGroups][0][filters][0][value]' => 'EUR'
 //					,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'neq'
+//					,'searchCriteria[sortOrders][0][field]' => ''
+//					,'searchCriteria[sortOrders][0][direction]' => ''
+//					,'searchCriteria[pageSize]' => ''
+//					,'searchCriteria[currentPage]' => ''
 				)
 			);
 
@@ -2275,7 +2279,8 @@ class Webservice
 		if ($this->api_name == 'prestashop') $fk_commande = $this->createDolOrderFromPrestashop($commande, $web_order);
 		else if ($this->api_name == 'magento') $fk_commande = $this->createDolOrderFromMagento($commande, $web_order);
 
-	exit;
+//		var_dump($fk_commande, $this->errors, $commande);
+//	exit;
 
 		if ($fk_commande < 0) $error++;
 
@@ -2295,6 +2300,10 @@ class Webservice
 						$commande->fetch_lines();
 						$res = $this->createDolExpeditionDraft($commande, $ps_order_carriers->children()->order_carrier);
 					}
+				}
+				else if ($this->api_name == 'magento')
+				{
+					// TODO gestion des expéditions ...?
 				}
 			}
 		}
@@ -2331,8 +2340,8 @@ class Webservice
 
 		$commande->ref_client = $ps_order->reference->__toString();
 
-		list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddress((int) $ps_order->id_customer, (int) $ps_order->id_address_delivery, (int) $ps_order->id_address_invoice);
-		if (empty($fk_soc) && empty($fk_socpeople_delivery) && empty($fk_socpeople_billing))
+		list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddressFromPrestashop((int) $ps_order->id_customer, (int) $ps_order->id_address_delivery, (int) $ps_order->id_address_invoice);
+		if (empty($fk_soc) || empty($fk_socpeople_delivery) || empty($fk_socpeople_billing))
 		{
 			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
 			return -1;
@@ -2455,29 +2464,22 @@ class Webservice
 		global $conf,$langs,$user;
 
 		$error = 0;
+//var_dump($mg_order->items);exit;
 
+		$current_state = $mg_order->status;
 
 		$TState = \MgSalesOrderStatuses::getAllLabelByCode();
-var_dump($TState, $mg_order
-	, $mg_order->extension_attributes->shipping_assignments[0]
-	, $mg_order->status_histories);exit;
-
-// $mg_orders->items[3]->extension_attributes->shipping_assignments[0]
-
-		$commande->array_options['options_web_id_order'] = $mg_order->quote_id; // ou peut être bien "entity_id"
-
-		$current_state = $mg_order->status; // ou "state", à voir s'il y en a un qui est en @deprecated
 		if (!isset($TState[$current_state])) return 0;
 
-		$commande->ref_client = $mg_order->increment_id;
-
-		// TODO gérer les adresses
-//		list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddress($mg_order->customer_id, $mg_order->id_address_delivery, $mg_order->billing_address_id);
-		if (empty($fk_soc) && empty($fk_socpeople_delivery) && empty($fk_socpeople_billing))
+		list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddressFromMagento($mg_order);
+		if (empty($fk_soc) || empty($fk_socpeople_delivery) || empty($fk_socpeople_billing))
 		{
 			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
 			return -1;
 		}
+
+		$commande->array_options['options_web_id_order'] = $mg_order->entity_id;
+		$commande->ref_client = $mg_order->increment_id;
 
 		$commande->socid = $fk_soc;
 		$commande->date = strtotime($mg_order->updated_at);
@@ -2494,7 +2496,7 @@ var_dump($TState, $mg_order
 		$commande->note_public = '';
 
 //		$commande->cond_reglement_id = GETPOST('cond_reglement_id');
-//		$commande->mode_reglement_id = GETPOST('mode_reglement_id');
+//		$commande->mode_reglement_id = GETPOST('mode_reglement_id'); // TODO * => $mg_order->payment->method (ex: banktransfer)
 //		$commande->fk_account = GETPOST('fk_account', 'int'); // TODO peut être une conf global
 //		$commande->availability_id = GETPOST('availability_id'); // Delai de livraison
 //		$commande->demand_reason_id = GETPOST('demand_reason_id'); // Channel => dictionnaire llx_c_input_reason (Origines des propales/commandes)
@@ -2510,7 +2512,6 @@ var_dump($TState, $mg_order
 
 		if ($commande->create($user) < 0)
 		{
-			$error++;
 			$this->error = $langs->trans('DolishopErrorOrderCreate', $mg_order->increment_id, $commande->db->lasterror());
 			$this->errors[] = $this->error;
 			return -2;
@@ -2594,104 +2595,219 @@ var_dump($TState, $mg_order
 
 		return $commande->id;
 	}
-	
-	private function saveDolCustomerAddress($web_id_customer, $web_id_address_delivery, $web_id_address_invoice)
-	{
-		global $user,$conf;
-		
-		if ($this->api_name == 'prestashop')
-		{
-			$fk_soc = DolishopTools::getSociete($web_id_customer);
-			$ps_customer = $this->getOne('customers', $web_id_customer);
-			if ($ps_customer)
-			{
-				$ps_customer = $ps_customer->customer;
-				$societe = new \Societe($this->db);
-				if ($fk_soc > 0) $societe->fetch($fk_soc);
-				
-				$societe->name = dolGetFirstLastname($ps_customer->firstname->__toString(), $ps_customer->lastname->__toString());
-				$societe->name_bis = $ps_customer->lastname->__toString();
-				$societe->firstname = $ps_customer->firstname->__toString();
-				if ((int) $ps_customer->id_gender == 1) $societe->civility_id = 'MR';
-				else $societe->civility_id = 'MME';
-				$societe->email = $ps_customer->email->__toString();
-				if (!empty($societe->id))
-				{
-//					$societe->default_lang = ''; // en_US, fr_FR ...
-					$societe->update('', $user);
-				}
-				else
-				{
-					$societe->default_lang = ''; // en_US, fr_FR ...
-					$societe->entity = $conf->entity;
-					$societe->status = 1;
-					$societe->client = 1;
-					$societe->code_client = 'auto';
-					$societe->fournisseur = 0;
-					$societe->tva_assuj = 1;
-					$societe->typent_id = 8; // Particulier
-					$societe->typent_code = dol_getIdFromCode($this->db, $societe->typent_id, 'c_typent', 'id', 'code');	// Force typent_code too so check in verify() will be done on new type
-					$societe->array_options['options_web_id_customer'] = $web_id_customer;
-					$societe->create($user);
-				}
-			}
-			
-			$fk_socpeople_delivery = $this->saveDolContact($societe, $ps_customer, $web_id_address_delivery);
-			
-			if ($web_id_address_delivery == $web_id_address_invoice) $fk_socpeople_billing = $fk_socpeople_delivery;
-			else $fk_socpeople_billing = $this->saveDolContact($societe, $ps_customer, $web_id_address_invoice);
-			
-			return array($societe->id, $fk_socpeople_delivery, $fk_socpeople_billing);
-		}
-		
-		return false;
-	}
-	
-	private function saveDolContact(&$societe, &$ps_customer, $web_id_address)
+
+	/**
+	 * @param int    $web_id_customer
+	 * @param string $name
+	 * @param string $email
+	 * @param string $firstname
+	 * @param string $lastname
+	 * @param string $civility_id
+	 * @param int    $entity
+	 * @param string $code_client
+	 * @param int    $status
+	 * @param int    $client
+	 * @param int    $fournisseur
+	 * @param int    $tva_assuj
+	 * @param int    $typent_id			8 = Particulier
+	 * @param string $default_lang		en_US, fr_FR ...
+	 */
+	private function saveSociete($web_id_customer, $name, $email, $firstname='', $lastname='', $civility_id='MR', $entity=1, $code_client='auto', $status=1, $client=1, $fournisseur=0, $tva_assuj=1, $typent_id = 8, $default_lang='')
 	{
 		global $user;
-		
-		if (!class_exists('\Contact')) require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
-		
+
+		$fk_soc = DolishopTools::getSociete($web_id_customer);
+		$societe = new \Societe($this->db);
+		if ($fk_soc > 0) $societe->fetch($fk_soc);
+
+		$societe->name = $name;
+		$societe->email = $email;
+		$societe->firstname = $firstname;
+		$societe->name_bis = $lastname;
+		$societe->civility_id = $civility_id;
+		$societe->status = $status;
+		$societe->client = $client;
+		$societe->code_client = $code_client;
+		$societe->fournisseur = $fournisseur;
+
+		$societe->tva_assuj = $tva_assuj;
+		$societe->typent_id = $typent_id; // Particulier // TODO mettre en conf module ?
+		$societe->typent_code = dol_getIdFromCode($this->db, $societe->typent_id, 'c_typent', 'id', 'code');	// Force typent_code too so check in verify() will be done on new type
+
+		$societe->entity = $entity;
+		$societe->default_lang = $default_lang;
+
+		if (!empty($societe->id))
+		{
+			$societe->update('', $user);
+		}
+		else
+		{
+			$societe->array_options['options_web_id_customer'] = $web_id_customer;
+			$societe->create($user);
+		}
+
+		return $societe;
+	}
+
+	private function saveDolCustomerAddressFromPrestashop($web_id_customer, $web_id_address_delivery, $web_id_address_invoice)
+	{
+		global $conf;
+
+		$ps_customer = $this->getOne('customers', $web_id_customer);
+		if ($ps_customer)
+		{
+			$ps_customer = $ps_customer->customer;
+
+			if ((int) $ps_customer->id_gender == 1) $civility_id = 'MR';
+			else if ((int) $ps_customer->id_gender == 2) $civility_id = 'MME';
+			else $civility_id = '';
+
+			$societe = $this->saveSociete($web_id_customer, dolGetFirstLastname($ps_customer->firstname->__toString(), $ps_customer->lastname->__toString()), $ps_customer->email->__toString(), $ps_customer->firstname->__toString(), $ps_customer->lastname->__toString(), $civility_id, $conf->entity);
+
+			$fk_socpeople_delivery = $this->saveDolContactFromPrestashop($societe, $ps_customer, $web_id_address_delivery);
+
+			if ($web_id_address_delivery == $web_id_address_invoice) $fk_socpeople_billing = $fk_socpeople_delivery;
+			else $fk_socpeople_billing = $this->saveDolContactFromPrestashop($societe, $ps_customer, $web_id_address_invoice);
+
+			return array($societe->id, $fk_socpeople_delivery, $fk_socpeople_billing);
+		}
+
+		return array(0, 0, 0);
+	}
+
+	private function saveDolContactFromPrestashop(&$societe, &$ps_customer, $web_id_address)
+	{
 		$ps_address = $this->getOne('addresses', $web_id_address);
 		if ($ps_address)
 		{
 			$ps_address = $ps_address->address;
 
-			// Contact livraison
-			$contact = new \Contact($this->db);
-			$fk_socpeople = DolishopTools::getContact($web_id_address);
-			if ($fk_socpeople > 0) $contact->fetch($fk_socpeople);
+			$contact = $this->saveDolContact(
+				$societe
+				,$web_id_address
+				,$ps_address->lastname->__toString()
+				,$ps_address->firstname->__toString()
+				,array($ps_address->address1->__toString(), $ps_address->address2->__toString())
+				,$ps_address->postcode->__toString()
+				,$ps_address->city->__toString()
+				,$ps_address->phone->__toString()
+				,strtotime($ps_customer->birthday->__toString().' 12:00:00')
+				,!empty(self::$ps_configuration['COUNTRIES_ID'][(int) $ps_address->id_country]) ? !empty(self::$ps_configuration['COUNTRIES_ID'][(int) $ps_address->id_country]) : null
+				,1
+				,0
+			);
 
-			$contact->name = $ps_address->lastname->__toString();
-			$contact->firstname = $ps_address->firstname->__toString();
-			$contact->civility_id = $societe->civility_id;
-			$contact->address = implode("\n", array($ps_address->address1->__toString(), $ps_address->address2->__toString()));
-			$contact->email = $societe->email;
-			$contact->zip = $ps_address->postcode->__toString();
-			$contact->town = $ps_address->city->__toString();
-			$contact->phone_pro = $ps_address->phone->__toString();
-			$contact->birthday = strtotime($ps_customer->birthday->__toString().' 12:00:00');
-			if (!empty(self::$ps_configuration['COUNTRIES_ID'][(int) $ps_address->id_country])) $contact->country_id = self::$ps_configuration['COUNTRIES_ID'][(int) $ps_address->id_country];
-//			$contact->state_id          = $societe->state_id;
-
-			if (!empty($contact->id))
-			{
-				$result = $contact->update($contact->id, $user);
-			}
-			else
-			{
-				$contact->statut = 1;
-				$contact->priv = 0;
-				$contact->socid = $societe->id;	// fk_soc
-				$contact->array_options['options_web_id_address'] = $web_id_address;
-				$result = $contact->create($user);
-			}
-			
 			return $contact->id;
 		}
 
 		return 0;
+	}
+
+	private function saveDolCustomerAddressFromMagento(&$mg_order)
+	{
+		if ($mg_order->customer_gender == 1) $civility_id = 'MR';
+		else if ($mg_order->customer_gender == 2) $civility_id = 'MME';
+		else $civility_id = '';
+
+// TODO faire la gestion d'erreur si les create societe/contact ne fonctionnent pas
+		$societe = $this->saveSociete($mg_order->customer_id, dolGetFirstLastname($mg_order->customer_firstname, $mg_order->customer_lastname), $mg_order->customer_email, $mg_order->customer_firstname, $mg_order->customer_lastname, $civility_id, $conf->entity);
+
+		$contact_billing = $this->saveDolContact(
+			$societe
+			,$mg_order->billing_address->customer_address_id
+			,$mg_order->billing_address->lastname
+			,$mg_order->billing_address->firstname
+			,$mg_order->billing_address->street // il s'agit d'un tableau
+			,$mg_order->billing_address->postcode
+			,$mg_order->billing_address->city
+			,$mg_order->billing_address->telephone
+			,strtotime($mg_order->customer_dob)
+			,\DolCountry::getIdFromCode($mg_order->billing_address->country_id)
+			,1
+			,0
+		);
+
+		if (
+			!empty($mg_order->extension_attributes->shipping_assignments[0]->shipping->address)
+			&& $mg_order->extension_attributes->shipping_assignments[0]->shipping->address != $mg_order->billing_address->customer_address_id
+		)
+		{
+			$address_delivery = &$mg_order->extension_attributes->shipping_assignments[0]->shipping->address;
+			$contact_delivery = $this->saveDolContact(
+				$societe
+				,$address_delivery->customer_address_id
+				,$address_delivery->lastname
+				,$address_delivery->firstname
+				,$address_delivery->street // il s'agit d'un tableau
+				,$address_delivery->postcode
+				,$address_delivery->city
+				,$address_delivery->telephone
+				,strtotime($mg_order->customer_dob)
+				,\DolCountry::getIdFromCode($address_delivery->country_id)
+				,1
+				,0
+			);
+		}
+		else
+		{
+			$contact_delivery = $contact_billing; // Même adresse
+		}
+
+		return array($societe->id, $contact_delivery->id, $contact_billing->id);
+	}
+
+	/**
+	 * @param \Societe		$societe
+	 * @param int			$web_id_address
+	 * @param string		$lastname
+	 * @param string		$firstname
+	 * @param string|array	$address
+	 * @param string		$zip
+	 * @param string		$town
+	 * @param string		$phone_pro
+	 * @param int			$birthday_timestamp
+	 * @param int			$country_id
+	 * @param int			$statut
+	 * @param int			$priv
+	 * @return \Contact
+	 */
+	private function saveDolContact(&$societe, $web_id_address, $lastname, $firstname, $address, $zip, $town, $phone_pro, $birthday_timestamp, $country_id, $statut = 1, $priv = 0)
+	{
+		global $user;
+
+		if (!class_exists('\Contact')) require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
+
+		$contact = new \Contact($this->db);
+		$fk_socpeople = DolishopTools::getContact($web_id_address);
+		if ($fk_socpeople > 0) $contact->fetch($fk_socpeople);
+
+		$contact->name = $lastname;
+		$contact->firstname = $firstname;
+		$contact->civility_id = $societe->civility_id;
+		$contact->address = is_array($address) ? implode("\n", $address) : $address;
+		$contact->email = $societe->email;
+		$contact->zip = $zip;
+		$contact->town = $town;
+		$contact->phone_pro = $phone_pro;
+		$contact->birthday = $birthday_timestamp;
+		$contact->country_id = $country_id;
+//		$contact->state_id          = $societe->state_id;
+
+		if (!empty($contact->id))
+		{
+			$result = $contact->update($contact->id, $user);
+		}
+		else
+		{
+			$contact->statut = $statut;
+			$contact->priv = $priv;
+			$contact->socid = $societe->id;	// fk_soc
+			$contact->array_options['options_web_id_address'] = $web_id_address;
+			$result = $contact->create($user);
+		}
+
+		return $contact;
 	}
 	
 	private function createDolExpeditionDraft(\Commande &$commande, \SimpleXMLElement $web_order_carrier)
