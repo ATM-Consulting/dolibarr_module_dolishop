@@ -140,8 +140,8 @@ DolishopWebOrderSetAsShipped=Commande boutique mis à jour comme expédié
 DolishopWebOrderSetAsDelivered=Commande boutique mis à jour comme livrée
 
 ### CRONJOB
-DolishopCronjob_SyncProductSuccess=[%s] synchronisé avec l'identifiant Prestashop [%s]
-DolishopCronjob_SyncProductFailUpdateExtrafield=Échec : [%s] => identifiant Prestashop retourné [%s]
+DolishopCronjob_SyncProductSuccess=[%s] synchronisé avec l'identifiant boutique [%s]
+DolishopCronjob_SyncProductFailUpdateExtrafield=Échec : [%s] => identifiant boutique retourné [%s]
 DolishopCronjob_SyncProductError=Erreur : message retour [%s]
 DolishopCronjob_ErrorSyncCustomersAndAdresses=Impossible de créer la fiche client (vérifiez les droits côté Prestashop)
 DolishopCronjob_SyncProductCombinationSuccess=Déclinaison OK : [%s]

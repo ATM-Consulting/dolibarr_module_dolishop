@@ -1220,33 +1220,16 @@ class Webservice
 	 */
 	private function saveProductFromWebProduct($web_product, $sync_images)
 	{
-		global $conf,$user,$langs;
-		
+		global $conf,$langs;
+
+		if (!DolishopTools::checkProductCategoriesP2D($this->api_name, $web_product)) return 0;
+
 		$default_iso_code = $langs->getDefaultLang();
-		
-		$dol_product = new \Product($this->db);
-		
+		$multilangs = array();
+		$label = $description = '';
+
 		if ($this->api_name == 'prestashop')
 		{
-			if (!DolishopTools::checkProductCategoriesP2D($this->api_name, $web_product)) return 0;
-			
-			$fk_product = DolishopTools::getDolProductId((int) $web_product->id, $web_product->reference->__toString());
-			if ($fk_product == -1)
-			{
-				$this->error = $langs->trans('DolishopErrorMultipleReferenceFound', (int) $web_product->id, $web_product->reference->__toString());
-				$this->errors[] = $this->error;
-				return -2;
-			}
-			else if ($fk_product > 0)
-			{
-				$dol_product->fetch($fk_product);
-			}
-			else
-			{
-				$dol_product->array_options['options_ps_id_product'] = (int) $web_product->id;
-				$dol_product->ref = $web_product->reference->__toString();	
-			}
-			
 			if (!empty($conf->global->MAIN_MULTILANGS) && !empty(self::$ps_configuration['PS_LANGUAGES']))
 			{
 				$TProperty = array('name' => 'label', 'description' => 'description');
@@ -1257,44 +1240,76 @@ class Webservice
 						if (!empty(self::$ps_configuration['PS_LANGUAGES'][(int) $language->attributes()->id]))
 						{
 							$dol_iso_code = self::$ps_configuration['PS_LANGUAGES'][(int) $language->attributes()->id]['dol_iso_code'];
-							if ($dol_iso_code == $default_iso_code) $dol_product->{$dol_index} = $language[0]->__toString();
-							if (empty($dol_product->multilangs[$dol_iso_code])) $dol_product->multilangs[$dol_iso_code] = array('other'=>'');
-							$dol_product->multilangs[$dol_iso_code][$dol_index] = $language[0]->__toString();
+							if ($dol_iso_code == $default_iso_code) ${$dol_index} = $language[0]->__toString(); // add value dynamically in $label & $description
+							if (empty($multilangs[$dol_iso_code])) $multilangs[$dol_iso_code] = array('other'=>'');
+							$multilangs[$dol_iso_code][$dol_index] = $language[0]->__toString();
 						}
 					}
 				}
 			}
 			else
 			{
-				$dol_product->label = $web_product->name->language[0]->__toString();
-				$dol_product->description = $web_product->description->language[0]->__toString();
+				$label = $web_product->name->language[0]->__toString();
+				$description = $web_product->description->language[0]->__toString();
 			}
 
-			$dol_product->price = $web_product->price->__toString();
-			$dol_product->tva_tx = DolishopTools::getVatRate(0, (int) $web_product->id_tax_rules_group);
-			$dol_product->status = $web_product->active->__toString();
-			$dol_product->seuil_stock_alerte = $web_product->low_stock_threshold->__toString();
-			
-			$dol_product->length = (float) $web_product->width;
-			$dol_product->width = (float) $web_product->depth;
-			$dol_product->height = (float) $web_product->height;
-			$dol_product->length_units = self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT'];
-			
-			$dol_product->weight = (float) $web_product->weight;
-			$dol_product->weight_units = self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT'];
+			$dol_product = $this->saveProduct(
+				(int) $web_product->id
+				,$web_product->reference->__toString()
+				,$label
+				,$description
+				,$multilangs
+				,$web_product->price
+				,DolishopTools::getVatRate(0, $web_product->id_tax_rules_group)
+				,$web_product->active->__toString()
+				,$web_product->low_stock_threshold->__toString()
+				,(float) $web_product->width
+				,(float) $web_product->depth
+				,(float) $web_product->height
+				,self::$ps_configuration['MESURING_UNITS']['DIMENSION_UNIT']
+				,(float) $web_product->weight
+				,self::$ps_configuration['MESURING_UNITS']['WEIGHT_UNIT']
+			);
 		}
-		
-		if (!empty($dol_product->id)) $res = $dol_product->update($dol_product->id, $user);
-		else $res = $dol_product->create($user);
-		if ($res < 0)
+		else if ($this->api_name == 'magento')
+		{
+			foreach ($web_product->custom_attributes as &$cattr)
+			{
+				if ($cattr->attribute_code == 'description')
+				{
+					$description = $cattr->value;
+					break;
+				}
+			}
+
+			$dol_product = $this->saveProduct(
+				$web_product->id
+				,$web_product->sku
+				,$web_product->name
+				,$description
+				,$multilangs
+				,$web_product->price
+				,null // Les produits Magento sont associés à un id de règle de taxe et non pas à un taux directement
+				,$web_product->status
+				,$web_product->extension_attributes->stock_item->notify_stock_qty
+				,null
+				,null
+				,null
+				,null
+				,$web_product->weight
+				,0 // 0 = Kg, TODO conf paramétrable
+			);
+		}
+
+		if (!empty($dol_product->error))
 		{
 			$this->error = $dol_product->error;
 			$this->errors[] = $this->error;
 			return -1;
 		}
 
-		if ($res > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $dol_product->array_options['options_ps_id_product'])."\n";
-		else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $dol_product->array_options['options_ps_id_product'])."\n";
+		if ($dol_product->id > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $dol_product->array_options['options_ps_id_product'])."\n";
+		else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $dol_product->array_options['options_ps_id_product'])."\n"; // TODO à vérifier sur une version Dolibarr 6.0, mais je pense qu'il n'est plus possible d'arriver dans ce cas l`après modification du code pour intégrer la synchro Magento
 
 		$TCatToAdd = array();
 
@@ -1302,12 +1317,26 @@ class Webservice
 		$firstK = key($this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR);
 		if (!empty($this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR[$firstK])) $TCatToAdd[] = $this->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR[$firstK];
 
-		if ($web_product->associations->categories->children()->count() > 0)
+		if ($this->api_name == 'prestashop')
 		{
-			$TCategory = $this->getTProductCategory(0, false, 'import_key');
-			foreach ($web_product->associations->categories->children() as $ps_category)
+			if ($web_product->associations->categories->children()->count() > 0)
 			{
-				if (isset($TCategory[(int) $ps_category->id])) $TCatToAdd[] = $TCategory[(int) $ps_category->id]['id'];
+				$TCategory = $this->getTProductCategory(0, false, 'import_key');
+				foreach ($web_product->associations->categories->children() as $ps_category)
+				{
+					if (isset($TCategory[(int) $ps_category->id])) $TCatToAdd[] = $TCategory[(int) $ps_category->id]['id'];
+				}
+			}
+		}
+		else if ($this->api_name == 'magento')
+		{
+			if (!empty($web_product->extension_attributes->category_links))
+			{
+				$TCategory = $this->getTProductCategory(0, false, 'import_key');
+				foreach ($web_product->extension_attributes->category_links as $mg_category_link)
+				{
+					if (isset($TCategory[$mg_category_link->category_id])) $TCatToAdd[] = $TCategory[$mg_category_link->category_id]['id'];
+				}
 			}
 		}
 
@@ -1319,6 +1348,51 @@ class Webservice
 		$this->saveDolCombinationsFromWebProduct($web_product, $dol_product, $sync_images);
 		
 		return $dol_product->id;
+	}
+
+	private function saveProduct($web_product_id, $ref, $label='', $description='', $multilangs=array(), $price=0, $tva_tx=0, $status=1, $seuil_stock_alerte=null, $length = null, $width = null, $height = null, $length_units = null, $weight = null, $weight_units = null)
+	{
+		global $langs,$user;
+
+		$dol_product = new \Product($this->db);
+
+		// TODO attention magento c'est par la ref bien que l'id soit synchro
+		$fk_product = DolishopTools::getDolProductId($web_product_id, $ref);
+		if ($fk_product == -1)
+		{
+			$dol_product->error = $langs->trans('DolishopErrorMultipleReferenceFound',$web_product_id, $ref);
+			return $dol_product;
+		}
+		else if ($fk_product > 0)
+		{
+			$dol_product->fetch($fk_product);
+		}
+
+		if ($this->api_name == 'prestashop') $dol_product->array_options['options_ps_id_product'] = $web_product_id;
+		else if ($this->api_name == 'magento') $dol_product->array_options['options_mg_id_product'] = $web_product_id;
+
+		$dol_product->ref = $ref;
+		$dol_product->label = $label;
+		$dol_product->description = $description;
+		$dol_product->multilangs = $multilangs;
+
+		$dol_product->price = $price;
+		if (!is_null($tva_tx)) $dol_product->tva_tx = $tva_tx;
+		$dol_product->status = $status;
+		$dol_product->seuil_stock_alerte = $seuil_stock_alerte;
+
+		$dol_product->length = $length;
+		$dol_product->width = $width;
+		$dol_product->height = $height;
+		$dol_product->length_units = $length_units;
+
+		$dol_product->weight = $weight;
+		$dol_product->weight_units = $weight_units;
+
+		if (!empty($dol_product->id)) $res = $dol_product->update($dol_product->id, $user);
+		else $res = $dol_product->create($user);
+
+		return $dol_product;
 	}
 	
 	/**
@@ -1404,6 +1478,10 @@ class Webservice
 					}
 				}
 			}
+		}
+		else if ($this->api_name == 'magento')
+		{
+			// TODO sync bundle
 		}
 		
 		return 1;
@@ -2096,6 +2174,20 @@ class Webservice
 				}
 			}
 		}
+		else if ($this->api_name == 'magento')
+		{
+			$mg_product = $this->getOne('/V1/products', $web_id_product);
+			if ($mg_product)
+			{
+				$fk_product = $this->saveProductFromWebProduct($mg_product, (bool) $conf->global->DOLISHOP_SYNC_PRODUCTS_IMAGES);
+				if ($fk_product > 0)
+				{
+					// TODO voir pour la gestion des variantes
+					if ($web_product_attribute_id > 0) return DolishopTools::getDolProductId(0, '', $web_product_attribute_id);
+					else return $fk_product;
+				}
+			}
+		}
 		
 		return 0;
 	}
@@ -2178,6 +2270,7 @@ class Webservice
 		else if ($this->api_name == 'magento')
 		{
 			// DOLISHOP_SYNC_MAGENTO_STORE_CODE
+			// TODO mettre les bons filtres
 			$options = array(
 				'params' => array(
 					'searchCriteria' => ''
@@ -2200,7 +2293,9 @@ class Webservice
 			{
 				foreach ($mg_orders->items as $mg_order)
 				{
+					// TODO remove condition
 					if ( $mg_order->increment_id != '000000004' ) continue;
+
 					if (!DolishopTools::checkOrderExist($mg_order->increment_id))
 					{
 						$this->createDolOrder($mg_order);
@@ -2273,8 +2368,8 @@ class Webservice
 		$error = 0;
 		
 		$this->db->begin();
-		
-		$TState = explode('|', $conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES);
+
+
 		$commande = new \Commande($this->db);
 		if ($this->api_name == 'prestashop') $fk_commande = $this->createDolOrderFromPrestashop($commande, $web_order);
 		else if ($this->api_name == 'magento') $fk_commande = $this->createDolOrderFromMagento($commande, $web_order);
@@ -2464,7 +2559,6 @@ class Webservice
 		global $conf,$langs,$user;
 
 		$error = 0;
-//var_dump($mg_order->items);exit;
 
 		$current_state = $mg_order->status;
 
@@ -2518,8 +2612,8 @@ class Webservice
 		}
 
 		// TODO Ajout contact livraison / facturation
-//		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY) && $fk_socpeople_delivery > 0) $commande->add_contact($fk_socpeople_delivery, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'external');
-//		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING) && $fk_socpeople_billing > 0) $commande->add_contact($fk_socpeople_billing, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'external');
+		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY) && $fk_socpeople_delivery > 0) $commande->add_contact($fk_socpeople_delivery, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'external');
+		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING) && $fk_socpeople_billing > 0) $commande->add_contact($fk_socpeople_billing, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'external');
 
 		// Ajout des lignes de la commande
 //		$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $ps_order->id).']'));
