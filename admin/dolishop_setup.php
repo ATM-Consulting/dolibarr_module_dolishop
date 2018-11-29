@@ -198,7 +198,7 @@ print '<td align="right">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 print '<input type="hidden" name="action" value="set_DOLISHOP_API_NAME">';
-print $form->selectarray('DOLISHOP_API_NAME', array('prestashop' => 'Prestashop', 'magento' => 'Magento'), $conf->global->DOLISHOP_API_NAME, 0, 0, 0, '', 0, 0, 0, '', 'minwidth200', 1);
+print Form::selectarray('DOLISHOP_API_NAME', array('prestashop' => 'Prestashop', 'magento' => 'Magento'), $conf->global->DOLISHOP_API_NAME, 0, 0, 0, '', 0, 0, 0, '', 'minwidth200', 1);
 print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
 print '</form>';
 print '</td></tr>';
@@ -327,7 +327,7 @@ if ($dolishop->isConfigured())
 		print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 		print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_PS_SHOP_ID">';
 		$TShop = $dolishop->WsGetAllShops();
-		print $form->selectarray('DOLISHOP_SYNC_PS_SHOP_ID', $TShop, $conf->global->DOLISHOP_SYNC_PS_SHOP_ID, 1, 0, 0, '', 0, 0, 0, '', 'minwidth200', 1);
+		print Form::selectarray('DOLISHOP_SYNC_PS_SHOP_ID', $TShop, $conf->global->DOLISHOP_SYNC_PS_SHOP_ID, 1, 0, 0, '', 0, 0, 0, '', 'minwidth200', 1);
 		print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
 		print '</form>';
 		print '</td></tr>';
@@ -344,7 +344,7 @@ if ($dolishop->isConfigured())
 		print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 		print '<input type="hidden" name="action" value="set_DOLISHOP_SYNC_MAGENTO_STORE_CODE">';
 		$TShop = $dolishop->WsGetAllShops();
-		print $form->selectarray('DOLISHOP_SYNC_MAGENTO_STORE_CODE', $TShop, $conf->global->DOLISHOP_SYNC_MAGENTO_STORE_CODE, 0, 0, 0, '', 1, 0, 0, '', 'minwidth200', 1);
+		print Form::selectarray('DOLISHOP_SYNC_MAGENTO_STORE_CODE', $TShop, $conf->global->DOLISHOP_SYNC_MAGENTO_STORE_CODE, 0, 0, 0, '', 1, 0, 0, '', 'minwidth200', 1);
 		print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
 		print '</form>';
 		print '</td></tr>';

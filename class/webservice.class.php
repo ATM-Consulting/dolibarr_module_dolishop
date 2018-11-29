@@ -498,7 +498,6 @@ class Webservice
 						if ($mg_id_image_return === false) return -1;
 					}
 
-					$mg_id_image_return = $result->id;
 					if ($ecm->id > 0 && $mg_id_image_return != $ecm->mg_id_image)
 					{
 						$ecm->mg_id_image = $mg_id_image_return;
@@ -2409,6 +2408,39 @@ class Webservice
 			return -1;
 		}
 
+
+		if ($conf->global->DOLISHOP_STATUS_TO_CREATE_INVOICE === '0' || $conf->global->DOLISHOP_STATUS_TO_CREATE_INVOICE === '1')
+		{
+			if (empty($commande->lines)) $commande->fetch_lines();
+
+			if (!class_exists('Facture')) require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+			$facture = new \Facture($this->db);
+			$res = $facture->createFromOrder($commande, $user);
+			if ($res <= 0)
+			{
+				$error++;
+				$this->error = '('.$commande->ref_client.') '.$facture->error;
+				$this->errors[] = $this->error;
+				$this->output.= $this->error."\n";
+				$this->db->rollback();
+				return -2;
+			}
+
+			if ($conf->global->DOLISHOP_STATUS_TO_CREATE_INVOICE === '1')
+			{
+				$res = $facture->validate($user, '', $conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID);
+				if ($res <= 0)
+				{
+					$error++;
+					$this->error = '('.$commande->ref_client.') '.$facture->error;
+					$this->errors[] = $this->error;
+					$this->output.= $this->error."\n";
+					$this->db->rollback();
+					return -3;
+				}
+			}
+		}
+
 		$this->db->commit();
 		$this->output.= $langs->trans('DolishopNewOrderCreated', $commande->ref, $commande->ref_client)."\n";
 
@@ -2638,6 +2670,7 @@ class Webservice
 			else if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
 			{
 				// TODO ici aussi voir comment récupérer l'info s'il s'agit d'un produit décliné ou composé
+//				var_dump($mg_order_line);exit;
 				$fk_product = $this->createProductFromWebProductId($mg_order_line->sku, 0);
 			}
 
