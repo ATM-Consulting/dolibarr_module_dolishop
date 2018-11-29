@@ -244,7 +244,7 @@ class MGWebServiceLibrary
 		if ($this->debug) $request_opt[\GuzzleHttp\RequestOptions::DEBUG] = true;
 
 		try {
-			if (!empty($request_opt['handler'])) $response = $this->client->sendAsync($request, $request_opt);
+			if (isset($request_opt['async']) && $request_opt['async'] === true) $response = $this->client->sendAsync($request, $request_opt);
 			else $response = $this->client->send($request, $request_opt);
 
 			// check the response validity
