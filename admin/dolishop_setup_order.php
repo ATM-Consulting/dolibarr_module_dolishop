@@ -285,6 +285,21 @@ print '</td></tr>';
 
 $var=!$var;
 print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_STATUS_TO_CREATE_INVOICE');
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_STATUS_TO_CREATE_INVOICE">';
+print Form::selectarray('DOLISHOP_STATUS_TO_CREATE_INVOICE', array(Facture::STATUS_DRAFT => $langs->trans('Draft'), Facture::STATUS_VALIDATED => $langs->trans('Validate')), $conf->global->DOLISHOP_STATUS_TO_CREATE_INVOICE, 1, 0, 0, 'minwidth200 maxwidth300', 0, 0, array(), '', 'minwidth200 maxwidth300', 1);
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
 if ($dolishop->api_name == 'prestashop')
 {
@@ -330,6 +345,7 @@ print '</td></tr>';
 print '</table>';
 
 dol_fiche_end();
+
 
 print '<div class="fichehalfleft">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';

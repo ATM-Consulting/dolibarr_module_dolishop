@@ -54,7 +54,6 @@ DolishopTreeWebCategories_tip=Les <b>tags/catégories</b> en <b>vert</b> indique
 DolishopCompareCategories=Comparer les catégories
 DolishopSyncCategoriesD2W=Synchroniser vers %s
 DolishopSyncCategoriesW2D=Synchroniser vers Dolibarr
-
 DOLISHOP_SYNC_ORDERS=Activer la synchronisation des commandes %s
 DOLISHOP_SYNC_ORDERS_DESC=Les ressources <b>orders, order_details, order_states, carriers, customers, addresses</b> doivent être accessibles en <b>GET</b>
 DOLISHOP_SYNC_WEB_ORDER_STATES=Statuts des commandes à synchroniser

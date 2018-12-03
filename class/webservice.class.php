@@ -2269,7 +2269,7 @@ class Webservice
 		else if ($this->api_name == 'magento')
 		{
 			// DOLISHOP_SYNC_MAGENTO_STORE_CODE
-			// TODO mettre les bons filtres
+			// TODO mettre les bons filtres [DOLISHOP_SYNC_WEB_ORDER_STATES]
 			$options = array(
 				'params' => array(
 					'searchCriteria' => ''
