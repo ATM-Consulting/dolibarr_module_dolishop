@@ -2268,32 +2268,41 @@ class Webservice
 		}
 		else if ($this->api_name == 'magento')
 		{
-			// DOLISHOP_SYNC_MAGENTO_STORE_CODE
-			// TODO mettre les bons filtres [DOLISHOP_SYNC_WEB_ORDER_STATES]
 			$options = array(
 				'params' => array(
-					'searchCriteria' => ''
-//					'searchCriteria[filterGroups][0][filters][0][field]' => 'base_currency_code'
-//					,'searchCriteria[filterGroups][0][filters][0][value]' => 'EUR'
-//					,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'neq'
-//					,'searchCriteria[sortOrders][0][field]' => ''
-//					,'searchCriteria[sortOrders][0][direction]' => ''
+//					'searchCriteria' => ''
+					'searchCriteria[filterGroups][0][filters][0][field]' => 'updated_at'
+					,'searchCriteria[filterGroups][0][filters][0][value]' => $date_min
+//					,'searchCriteria[filterGroups][0][filters][0][value]' => '2018-07-12 12:00:00'
+					,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'gteq' // Greater than or equal
+					,'searchCriteria[sortOrders][0][field]' => 'entity_id'
+					,'searchCriteria[sortOrders][0][direction]' => 'ASC'
 //					,'searchCriteria[pageSize]' => ''
 //					,'searchCriteria[currentPage]' => ''
 				)
 			);
 
-			$mg_orders = $this->getAll('/V1/orders', $options);
+			$i=1;
+			$TState = explode('|', $conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES);
+			foreach ($TState as $state)
+			{
+				if (!empty($state))
+				{
+					$options['params']['searchCriteria[filterGroups]['.$i.'][filters][0][field]'] = 'status';
+					$options['params']['searchCriteria[filterGroups]['.$i.'][filters][0][value]'] = implode(',', $TState);
+					$options['params']['searchCriteria[filterGroups]['.$i.'][filters][0][conditionType]'] = 'in';
+					break;
+				}
+			}
 
-//			var_dump($mg_orders->items, $this->errors);
-//			exit;
+			$mg_orders = $this->getAll('/V1/orders', $options);
 
 			if ($mg_orders)
 			{
 				foreach ($mg_orders->items as $mg_order)
 				{
 					// TODO remove condition
-					if ( $mg_order->increment_id != '000000004' ) continue;
+//					if ( $mg_order->increment_id != '000000004' ) continue;
 
 					if (!DolishopTools::checkOrderExist($mg_order->increment_id))
 					{
@@ -2301,58 +2310,6 @@ class Webservice
 					}
 				}
 			}
-
-//			if ($search_criteria_filter_groups_filters_field !== null) {
-//				$queryParams['searchCriteria[filterGroups][][filters][][field]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_field);
-//			}
-//			// query params
-//			if ($search_criteria_filter_groups_filters_value !== null) {
-//				$queryParams['searchCriteria[filterGroups][][filters][][value]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_value);
-//			}
-//			// query params
-//			if ($search_criteria_filter_groups_filters_condition_type !== null) {
-//				$queryParams['searchCriteria[filterGroups][][filters][][conditionType]'] = ObjectSerializer::toQueryValue($search_criteria_filter_groups_filters_condition_type);
-//			}
-//			// query params
-//			if ($search_criteria_sort_orders_field !== null) {
-//				$queryParams['searchCriteria[sortOrders][][field]'] = ObjectSerializer::toQueryValue($search_criteria_sort_orders_field);
-//			}
-//			// query params
-//			if ($search_criteria_sort_orders_direction !== null) {
-//				$queryParams['searchCriteria[sortOrders][][direction]'] = ObjectSerializer::toQueryValue($search_criteria_sort_orders_direction);
-//			}
-//			// query params
-//			if ($search_criteria_page_size !== null) {
-//				$queryParams['searchCriteria[pageSize]'] = ObjectSerializer::toQueryValue($search_criteria_page_size);
-//			}
-//			// query params
-//			if ($search_criteria_current_page !== null) {
-//				$queryParams['searchCriteria[currentPage]'] = ObjectSerializer::toQueryValue($search_criteria_current_page);
-//			}
-//
-//
-//			$apiInstance = new \Swagger\Client\Api\SalesOrderRepositoryV1Api(
-//			// If you want use custom http client, pass your client which implements `GuzzleHttp\ClientInterface`.
-//			// This is optional, `GuzzleHttp\Client` will be used as default.
-//				new GuzzleHttp\Client()
-//			);
-//			$search_criteria_filter_groups_filters_field = "search_criteria_filter_groups_filters_field_example"; // string | Field
-//			$search_criteria_filter_groups_filters_value = "search_criteria_filter_groups_filters_value_example"; // string | Value
-//			$search_criteria_filter_groups_filters_condition_type = "search_criteria_filter_groups_filters_condition_type_example"; // string | Condition type
-//			$search_criteria_sort_orders_field = "search_criteria_sort_orders_field_example"; // string | Sorting field.
-//			$search_criteria_sort_orders_direction = "search_criteria_sort_orders_direction_example"; // string | Sorting direction.
-//			$search_criteria_page_size = 56; // int | Page size.
-//			$search_criteria_current_page = 56; // int | Current page.
-//
-//			try {
-//				$result = $apiInstance->salesOrderRepositoryV1GetListGet($search_criteria_filter_groups_filters_field, $search_criteria_filter_groups_filters_value, $search_criteria_filter_groups_filters_condition_type, $search_criteria_sort_orders_field, $search_criteria_sort_orders_direction, $search_criteria_page_size, $search_criteria_current_page);
-//				print_r($result);
-//			} catch (Exception $e) {
-//				echo 'Exception when calling SalesOrderRepositoryV1Api->salesOrderRepositoryV1GetListGet: ', $e->getMessage(), PHP_EOL;
-//			}
-
-
-
 
 		}
 		
