@@ -763,6 +763,40 @@ class Webservice
 					}
 				}
 			}
+			else if ($this->api_name == 'magento')
+			{
+//				$TCatFilter = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE);
+//				if (isset($TCatFilter[0]) && $TCatFilter[0] === '') unset($TCatFilter[0]);
+
+				$options = array(
+					'params' => array(
+						'searchCriteria' => ''
+//						'searchCriteria[filterGroups][0][filters][0][field]' => 'updated_at'
+//						,'searchCriteria[filterGroups][0][filters][0][value]' => $date_min
+//	//					,'searchCriteria[filterGroups][0][filters][0][value]' => '2018-07-12 12:00:00'
+//						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'gteq' // Greater than or equal
+//						,'searchCriteria[sortOrders][0][field]' => 'entity_id'
+//						,'searchCriteria[sortOrders][0][direction]' => 'ASC'
+//						,'searchCriteria[pageSize]' => '5'
+//						,'searchCriteria[currentPage]' => '1'
+					)
+				);
+
+				$mg_products = $this->getAll('/V1/products', $options);
+
+//				var_dump( $mg_products->items[0]->custom_attributes,$mg_products);
+//				exit;
+
+				if ($mg_products)
+				{
+					foreach ($mg_products->items as $mg_product)
+					{
+						$this->saveProductFromWebProduct($mg_product, $sync_images);
+					}
+				}
+
+			}
+
 		}
 		
 		return 0;
@@ -1221,7 +1255,7 @@ class Webservice
 	{
 		global $conf,$langs;
 
-		if (!DolishopTools::checkProductCategoriesP2D($this->api_name, $web_product)) return 0;
+		if (!DolishopTools::checkProductCategoriesW2D($this->api_name, $web_product)) return 0;
 
 		$default_iso_code = $langs->getDefaultLang();
 		$multilangs = array();
@@ -2197,7 +2231,7 @@ class Webservice
 	public function rsyncOrders($fk_user, $minutes=30, $date_min='')
 	{
 		global $langs,$user,$conf;
-		
+
 		$this->from_cron_job = true;
 		
 		if (empty($conf->global->DOLISHOP_SYNC_ORDERS))
@@ -3170,30 +3204,38 @@ class Webservice
 			{
 				foreach ($xml->children() as $child) 
 				{
-					$TCateg[(int) $child->id] = $child->name->language[0]->__toString(); 
+					$TCateg[(int) $child->id] = $child->name->language[0]->__toString();
 				}
 				
 				asort($TCateg);
 			}
 		}
-		else if ($this->api_name == 'prestashop')
+		else if ($this->api_name == 'magento')
 		{
-			$mg_categories = $this->getAll('/V1/categories', array(
-				'return_as_array' => true
-				,'params' => array(
-					'rootCategoryId' => 2 // 1 = root, 2 default cat (both seems no deletable)
-//					,'depth' => 10
-				)
-			));
+//			$mg_categories = $this->getAll('/V1/categories', array(
+//				'return_as_array' => true
+//				,'params' => array(
+//					'rootCategoryId' => 2 // 1 = root, 2 default cat (both seems no deletable)
+////					,'depth' => 10
+//				)
+//			));
 
-			// TODO untree before returning values
-//			if ($mg_categories && !empty($mg_categories['children_data']))
-//			{
-//				return $mg_categories['children_data'];
-//			}
+			$sql = 'SELECT label, import_key FROM '.MAIN_DB_PREFIX.'categorie';
+			$sql.= ' WHERE import_key > 0';
+			$sql.= ' AND entity = '.$conf->entity;
+			$sql.= ' AND type = 0'; // 0 = TYPE_PRODUCT
+			$sql.= ' ORDER BY fk_parent, label';
+
+			$resql = $this->db->query($sql);
+			if ($resql)
+			{
+				while ($row = $this->db->fetch_object($resql))
+				{
+					$TCateg[$row->import_key] = $row->label;
+				}
+			}
 		}
-		
-		
+
 		return $TCateg;
 	}
 	
@@ -3416,11 +3458,11 @@ class DolishopTools
 	/**
 	 * Méthode qui vérifie si le produit web fait bien partie d'une des catégories produits à synchroniser
 	 * 
-	 * @param string				$api_name
-	 * @param \SimpleXMLElement		$web_product
+	 * @param string							$api_name
+	 * @param \stdClass|\SimpleXMLElement		$web_product
 	 * @return boolean
 	 */
-	public static function checkProductCategoriesP2D($api_name, $web_product)
+	public static function checkProductCategoriesW2D($api_name, $web_product)
 	{
 		global $conf;
 		
@@ -3432,6 +3474,18 @@ class DolishopTools
 			foreach ($web_product->associations->categories->children() as $category)
 			{
 				if (in_array((int) $category->id, $TCat)) return true;
+			}
+		}
+		else if ($api_name == 'magento')
+		{
+			foreach ($web_product->custom_attributes as $custom_attributes)
+			{
+				if ($custom_attributes->attribute_code == 'category_ids')
+				{
+					$intersect = array_intersect($TCat, $custom_attributes->value);
+					if (!empty($intersect)) return true;
+					break;
+				}
 			}
 		}
 		
