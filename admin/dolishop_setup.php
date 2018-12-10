@@ -143,11 +143,22 @@ if ($action == 'testConnection')
 	}
 	else setEventMessage($langs->trans('DolishopTestConnectionSuccess', $shopName));
 }
-elseif ($action == 'syncPsConf')
+else if ($action == 'syncPsConf')
 {
 	$res = $dolishop->syncConf();
 	if (!$res) setEventMessages('', $dolishop->errors, 'errors');
 	else setEventMessage($langs->trans('DolishopSyncPsConfSuccess'));
+}
+else if ($action == 'syncMgConf')
+{
+	dol_include_once('/dolishop/class/disctionaries.class.php');
+
+	MgShippingMethod::createDefaultValues();
+	MgPaymentMethod::createDefaultValues();
+	setEventMessage('SetupSaved');
+
+	header('Location: '.dol_buildpath('/dolishop/admin/dolishop_setup.php', 1));
+	exit;
 }
 
 
@@ -239,7 +250,6 @@ else if ($dolishop->api_name == 'magento')
 	$var=!$var;
 	print '<tr '.$bc[$var].'>';
 	print '<td>'.$langs->trans('DOLISHOP_MAGENTO_USERNAME');
-	print '<br /><small>'.$langs->trans('DOLISHOP_MAGENTO_USERNAME_desc').'</small>';
 	print '</td>';
 	print '<td align="center">&nbsp;</td>';
 	print '<td align="right">';
@@ -254,7 +264,6 @@ else if ($dolishop->api_name == 'magento')
 	$var=!$var;
 	print '<tr '.$bc[$var].'>';
 	print '<td>'.$langs->trans('DOLISHOP_MAGENTO_PASSWORD');
-	print '<br /><small>'.$langs->trans('DOLISHOP_MAGENTO_PASSWORD_desc').'</small>';
 	print '</td>';
 	print '<td align="center">&nbsp;</td>';
 	print '<td align="right">';
@@ -346,6 +355,20 @@ if ($dolishop->isConfigured())
 		$TShop = $dolishop->WsGetAllShops();
 		print Form::selectarray('DOLISHOP_SYNC_MAGENTO_STORE_CODE', $TShop, $conf->global->DOLISHOP_SYNC_MAGENTO_STORE_CODE, 0, 0, 0, '', 1, 0, 0, '', 'minwidth200', 1);
 		print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+		print '</form>';
+		print '</td></tr>';
+
+		$var=!$var;
+		print '<tr '.$bc[$var].'>';
+		print '<td>'.$langs->trans('DOLISHOP_CREATE_DEFAULT_VALUES');
+		print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_CREATE_DEFAULT_VALUES_DESC').'</small>';
+		print '</td>';
+		print '<td align="center">&nbsp;</td>';
+		print '<td align="right">';
+		print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+		print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+		print '<input type="hidden" name="action" value="syncMgConf">';
+		print '<input type="submit" class="butAction" value="'.$langs->trans("DolishopSyncMgConf").'">';
 		print '</form>';
 		print '</td></tr>';
 	}

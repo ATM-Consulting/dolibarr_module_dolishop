@@ -64,6 +64,9 @@ class DolCountry extends SeedObject
 	}
 }
 
+/**
+ * Class MgSalesOrderStatuses
+ */
 class MgSalesOrderStatuses extends SeedObject
 {
 	/** @var array $fields */
@@ -122,11 +125,15 @@ class MgSalesOrderStatuses extends SeedObject
 	}
 }
 
+/**
+ * Class MgShippingMethod Mirror of llx_c_shipment_mode
+ */
 class MgShippingMethod extends SeedObject
 {
 	/** @var array $fields */
 	public $fields = array(
-		'code' => array('type' => 'string', 'length' => '30')
+		'rowid' => array('type' => 'integer')
+		,'code' => array('type' => 'string', 'length' => '30')
 		,'libelle' => array('type' => 'string', 'length' => '50')
 		,'description' => array('type' => 'text')
 		,'tracking' => array('type' => 'string', 'length' => '256')
@@ -147,6 +154,15 @@ class MgShippingMethod extends SeedObject
 	{
 		$this->db = $db;
 		$this->init();
+	}
+
+	protected function init()
+	{
+		parent::init();
+
+		unset($this->fields['date_creation']);
+		unset($this->fields['tms']);
+//		unset($this->fields['rowid']);
 	}
 
 	public static function getAllLabelByCode()
@@ -173,5 +189,319 @@ class MgShippingMethod extends SeedObject
 		}
 
 		return $TRes;
+	}
+
+	/**
+	 * https://github.com/magento-engcom/msi/wiki/Step-8.-Configure-shipping-and-payment-methods-%5BWeb-API-Tutorial%5D#configure-supported-shipping-methods-optional
+	 */
+	static public function createDefaultValues()
+	{
+		global $db,$user;
+
+		$o = new MgShippingMethod($db);
+		$o->fetchBy('flatrate', 'code');
+		if (empty($o->id))
+		{
+			$o->code = 'flatrate';
+			$o->libelle = 'Flat rate';
+			$o->active = 1;
+			$o->create($user);
+		}
+
+		$o = new MgShippingMethod($db);
+		$o->fetchBy('tablerate', 'code');
+		if (empty($o->id))
+		{
+			$o->code = 'tablerate';
+			$o->libelle = 'Table rate';
+			$o->active = 1;
+			$o->create($user);
+		}
+
+		$o = new MgShippingMethod($db);
+		$o->fetchBy('freeshipping', 'code');
+		if (empty($o->id))
+		{
+			$o->code = 'freeshipping';
+			$o->libelle = 'Free shipping';
+			$o->active = 0;
+			$o->create($user);
+		}
+	}
+}
+
+/**
+ * Class MgPaymentMethod Mirror of llx_c_paiement
+ */
+class MgPaymentMethod extends SeedObject
+{
+	/** @var array $fields */
+	public $fields = array(
+		'entity' => array('type' => 'integer')
+		,'code' => array('type' => 'string', 'length' => '6') // default is 6 char u_U
+		,'libelle' => array('type' => 'string', 'length' => '62')
+		,'type' => array('type' => 'integer')
+		,'active' => array('type' => 'integer')
+	);
+
+	/** @var string  */
+	public $table_element = 'c_paiement';
+	/** @var string  */
+	public $element = 'paiement';
+
+	/**
+	 * MgShippingMethod constructor.
+	 * @param $db
+	 */
+	public function __construct($db)
+	{
+		$this->db = $db;
+		$this->init();
+	}
+
+	protected function init()
+	{
+		parent::init();
+
+		unset($this->fields['date_creation']);
+		unset($this->fields['tms']);
+	}
+
+	/**
+	 * https://github.com/magento-engcom/msi/wiki/Step-8.-Configure-shipping-and-payment-methods-%5BWeb-API-Tutorial%5D#set-the-payment-method
+	 */
+	static public function createDefaultValues()
+	{
+		global $db,$user,$conf;
+
+		// Extend varchar limit, default is 6 and it's to short
+		$sql = 'ALTER TABLE '.MAIN_DB_PREFIX.'c_paiement MODIFY code VARCHAR(30)';
+		$db->query($sql);
+
+		$o = new MgPaymentMethod($db);
+		$o->entity = $conf->entity;
+		$o->code = 'checkmo';
+		$o->libelle = 'Check/Money Order';
+		$o->type = 2;
+		$o->active = 1;
+		$o->create($user);
+
+		$o = new MgPaymentMethod($db);
+		$o->entity = $conf->entity;
+		$o->code = 'banktransfer';
+		$o->libelle = 'Bank Transfer Paymen';
+		$o->type = 2;
+		$o->active = 0;
+		$o->create($user);
+
+		$o = new MgPaymentMethod($db);
+		$o->entity = $conf->entity;
+		$o->code = 'cashondelivery';
+		$o->libelle = 'Cash on Delivery';
+		$o->type = 2;
+		$o->active = 0;
+		$o->create($user);
+
+		$o = new MgPaymentMethod($db);
+		$o->entity = $conf->entity;
+		$o->code = 'purchaseorder';
+		$o->libelle = 'Purchase Order';
+		$o->type = 2;
+		$o->active = 0;
+		$o->create($user);
+
+		$o = new MgPaymentMethod($db);
+		$o->entity = $conf->entity;
+		$o->code = 'free';
+		$o->libelle = 'Zero Subtotal Checkout';
+		$o->type = 2;
+		$o->active = 0;
+		$o->create($user);
+
+	}
+
+	/**
+	 * Load object in memory from the database
+	 *
+	 * @param	int    $id				Id object
+	 * @param	string $ref				Ref
+	 * @param	string	$morewhere		More SQL filters (' AND ...')
+	 * @return 	int         			<0 if KO, 0 if not found, >0 if OK
+	 */
+	public function fetchCommon($id, $ref = null, $morewhere = '')
+	{
+		if (empty($id) && empty($ref) && empty($morewhere)) return -1;
+
+		$sql = 'SELECT '.$this->getFieldList();
+		$sql.= ' FROM '.MAIN_DB_PREFIX.$this->table_element;
+
+		if (!empty($id))  $sql.= ' WHERE id = '.$id;
+		elseif (!empty($ref)) $sql.= " WHERE ref = ".$this->quote($ref, $this->fields['ref']);
+		else $sql.=' WHERE 1 = 1';	// usage with empty id and empty ref is very rare
+		if ($morewhere)   $sql.= $morewhere;
+		$sql.=' LIMIT 1';	// This is a fetch, to be sure to get only one record
+
+		$res = $this->db->query($sql);
+		if ($res)
+		{
+			$obj = $this->db->fetch_object($res);
+			if ($obj)
+			{
+				$this->setVarsFromFetchObj($obj);
+				return $this->id;
+			}
+			else
+			{
+				return 0;
+			}
+		}
+		else
+		{
+			$this->error = $this->db->lasterror();
+			$this->errors[] = $this->error;
+			return -1;
+		}
+	}
+
+	/**
+	 * Update object into database
+	 *
+	 * @param  User $user      	User that modifies
+	 * @param  bool $notrigger 	false=launch triggers after, true=disable triggers
+	 * @return int             	<0 if KO, >0 if OK
+	 */
+	public function updateCommon(User $user, $notrigger = false)
+	{
+		global $conf, $langs;
+
+		$error = 0;
+
+		$now=dol_now();
+
+		$fieldvalues = $this->setSaveQuery();
+		if (array_key_exists('date_modification', $fieldvalues) && empty($fieldvalues['date_modification'])) $fieldvalues['date_modification']=$this->db->idate($now);
+		if (array_key_exists('fk_user_modif', $fieldvalues) && ! ($fieldvalues['fk_user_modif'] > 0)) $fieldvalues['fk_user_modif']=$user->id;
+		unset($fieldvalues['rowid']);	// The field 'rowid' is reserved field name for autoincrement field so we don't need it into update.
+
+		$keys=array();
+		$values = array();
+		foreach ($fieldvalues as $k => $v) {
+			$keys[$k] = $k;
+			$value = $this->fields[$k];
+			$values[$k] = $this->quote($v, $value);
+			$tmp[] = $k.'='.$this->quote($v, $this->fields[$k]);
+		}
+
+		// Clean and check mandatory
+		foreach($keys as $key)
+		{
+			if (preg_match('/^integer:/i', $this->fields[$key]['type']) && $values[$key] == '-1') $values[$key]='';		// This is an implicit foreign key field
+			if (! empty($this->fields[$key]['foreignkey']) && $values[$key] == '-1') $values[$key]='';					// This is an explicit foreign key field
+
+			//var_dump($key.'-'.$values[$key].'-'.($this->fields[$key]['notnull'] == 1));
+			/*
+			if ($this->fields[$key]['notnull'] == 1 && empty($values[$key]))
+			{
+				$error++;
+				$this->errors[]=$langs->trans("ErrorFieldRequired", $this->fields[$key]['label']);
+			}*/
+		}
+
+		$sql = 'UPDATE '.MAIN_DB_PREFIX.$this->table_element.' SET '.implode( ',', $tmp ).' WHERE id='.$this->id ;
+
+		$this->db->begin();
+		if (! $error)
+		{
+			$res = $this->db->query($sql);
+			if ($res===false)
+			{
+				$error++;
+				$this->errors[] = $this->db->lasterror();
+			}
+		}
+
+		// Update extrafield
+		if (! $error && empty($conf->global->MAIN_EXTRAFIELDS_DISABLED) && is_array($this->array_options) && count($this->array_options)>0)
+		{
+			$result=$this->insertExtraFields();
+			if ($result < 0)
+			{
+				$error++;
+			}
+		}
+
+		// Triggers
+		if (! $error && ! $notrigger)
+		{
+			// Call triggers
+			$result=$this->call_trigger(strtoupper(get_class($this)).'_MODIFY',$user);
+			if ($result < 0) { $error++; } //Do also here what you must do to rollback action if trigger fail
+			// End call triggers
+		}
+
+		// Commit or rollback
+		if ($error) {
+			$this->db->rollback();
+			return -1;
+		} else {
+			$this->db->commit();
+			return $this->id;
+		}
+	}
+
+	/**
+	 * Delete object in database
+	 *
+	 * @param User $user       User that deletes
+	 * @param bool $notrigger  false=launch triggers after, true=disable triggers
+	 * @return int             <0 if KO, >0 if OK
+	 */
+	public function deleteCommon(User $user, $notrigger = false)
+	{
+		$error=0;
+
+		$this->db->begin();
+
+		if (! $error) {
+			if (! $notrigger) {
+				// Call triggers
+				$result=$this->call_trigger(strtoupper(get_class($this)).'_DELETE', $user);
+				if ($result < 0) { $error++; } // Do also here what you must do to rollback action if trigger fail
+				// End call triggers
+			}
+		}
+
+		if (! $error && ! empty($this->isextrafieldmanaged))
+		{
+			$sql = "DELETE FROM " . MAIN_DB_PREFIX . $this->table_element."_extrafields";
+			$sql.= " WHERE fk_object=" . $this->id;
+
+			$resql = $this->db->query($sql);
+			if (! $resql)
+			{
+				$this->errors[] = $this->db->lasterror();
+				$error++;
+			}
+		}
+
+		if (! $error)
+		{
+			$sql = 'DELETE FROM '.MAIN_DB_PREFIX.$this->table_element.' WHERE id='.$this->id;
+
+			$res = $this->db->query($sql);
+			if($res===false) {
+				$error++;
+				$this->errors[] = $this->db->lasterror();
+			}
+		}
+
+		// Commit or rollback
+		if ($error) {
+			$this->db->rollback();
+			return -1;
+		} else {
+			$this->db->commit();
+			return 1;
+		}
 	}
 }
