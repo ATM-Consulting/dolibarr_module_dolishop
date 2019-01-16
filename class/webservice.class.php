@@ -584,7 +584,7 @@ class Webservice
 
 			try {
 				$result = self::$webService->delete($options, array('async' => true));
-				$result->wait(false); // Obligation d'attendre la réponse pour que la supression soit effective
+				$result->wait(false); // Obligation d'attendre la réponse pour que la suppression soit effective
 			} catch (MGWebServiceLibrary\MagentoWebserviceException $e) {
 				$this->setError($e);
 			}
@@ -1385,7 +1385,7 @@ class Webservice
 
 	private function saveProduct($web_product_id, $ref, $label='', $description='', $multilangs=array(), $price=0, $tva_tx=0, $status=1, $seuil_stock_alerte=null, $length = null, $width = null, $height = null, $length_units = null, $weight = null, $weight_units = null)
 	{
-		global $langs,$user;
+		global $langs,$user,$conf;
 
 		$dol_product = new \Product($this->db);
 
@@ -1998,7 +1998,7 @@ class Webservice
 				{
 					$mg_category = array(
 						'category' => array(
-							'parent_id' => $fk_parent
+						'parent_id' => $fk_parent
 						,'name' => $dol_cat['label']
 						,'is_active' => true
 						,'include_in_menu' => true
@@ -2011,7 +2011,7 @@ class Webservice
 				try
 				{
 					if ($this->api_name == 'prestashop') $response = self::$webService->add($opt);
-					else $response = self::$webService->post($opt, array('handler' => '\Dolishop\DolishopTools::setCategoryImportKey', 'dolibarr' => array('fk_category_origin' => $dol_cat['id'])));
+					else $response = self::$webService->post($opt, array());
 
 					if ($response)
 					{

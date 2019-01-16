@@ -27,6 +27,9 @@ DOLISHOP_STORE_PATH=Adresse URL de votre boutique %s
 DOLISHOP_PS_WS_AUTH_KEY=Clé du service web Prestashop
 DOLISHOP_PS_WS_AUTH_KEY_desc=Il s'agit d'une clé webservice que vous devez générer depuis le backoffice de votre boutique
 
+DOLISHOP_MAGENTO_USERNAME=Login d'accès
+DOLISHOP_MAGENTO_PASSWORD=Mot de passe
+
 DOLISHOP_STORE_WS_DEBUG=Activer le mode "DEBUG" des appels
 
 DOLISHOP_SYNC_PRODUCTS=Activer la synchronisation de vos fiches produits
@@ -96,6 +99,10 @@ DOLISHOP_SYNC_PS_CONF=Récupérer les configurations des langues/taxes de Presta
 DOLISHOP_SYNC_PS_CONF_DESC=Les ressources <b>languages, tax_rules, taxes, images</b> doivent être accessibles en <b>GET</b>
 DolishopSyncPsConf=Récupérer la conf
 DolishopSyncPsConfNeeded=Attention : des configurations présentes sur votre boutique Prestashop doivent être synchronisées avant l'utilisation du module
+
+DOLISHOP_CREATE_DEFAULT_VALUES=Créer les valeurs par défauts
+DOLISHOP_CREATE_DEFAULT_VALUES_DESC=Ceci aura pour effet d'alimenter les dictionnaires "c_shipment_mode" et "c_paiement" avec des valeurs par défaut que votre boutique Magento est susceptible d'utiliser
+DolishopSyncMgConf=Créer
 
 DOLISHOP_SYNC_PS_SHOP_ID=Synchroniser l'entité courante avec la boutique :
 DOLISHOP_SYNC_PS_SHOP_ID_DESC=La ressource <b>shops</b> doit être accessible en <b>GET</b>

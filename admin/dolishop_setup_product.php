@@ -340,12 +340,13 @@ if ($action == 'CompareCategoriesD2W')
 	print '
 		<script type="text/javascript">
 			$(function() {
+			    $("#sync_categories_d2w, #sync_categories_w2d").click(function(event) {
+			        $("#sync_categories [name=action]").val(this.dataset.action);
+			    });
+			    
 				$("#sync_categories").submit(function(event) {
 					if (confirm("'.dol_escape_js($langs->transnoentities('DolishopConfirmSyncCategories')).'") === true) {
 						$("#sync_categories_d2w, #sync_categories_w2d").prop("disabled", true);
-
-						var action = event.originalEvent.explicitOriginalTarget.dataset.action;
-						$(this).children("input[name=action]").val(action);
 					} else {
 						event.preventDefault();
 					}
