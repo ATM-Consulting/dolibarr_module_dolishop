@@ -33,9 +33,12 @@ $o->init_db_by_vars();
 
 
 $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute ADD COLUMN ps_id_option_group integer');
+$db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute ADD COLUMN mg_eav_attribute_id integer');
 
 $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_value ADD COLUMN ps_id_option_value integer');
 $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_value ADD COLUMN ps_id_option_group integer');
+$db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_value ADD COLUMN mg_eav_attribute_option_id integer');
+$db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_value ADD COLUMN mg_eav_attribute_id integer');
 
 $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_combination ADD COLUMN ps_id_combination integer');
 

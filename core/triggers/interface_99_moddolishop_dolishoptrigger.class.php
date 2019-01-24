@@ -134,28 +134,30 @@ class InterfaceDolishoptrigger
 					$combination = new ProductCombination($db);
 					if ($combination->fetchByFkProductChild($object->id) > 0) $is_combination = true;
 				}
-				
+
 				if (!$is_combination)
 				{
 					dol_include_once('/dolishop/class/webservice.class.php');
 
-					$from_prodcut_card = in_array(GETPOST('action'), array('update', 'add')) && strpos($_SERVER['REQUEST_URI'], '/product/card.php') !== false;
+					if (!Dolishop\Webservice::$from_cron_job)
+					{
+						$from_product_card = in_array(GETPOST('action'), array('update', 'add')) && strpos($_SERVER['REQUEST_URI'], '/product/card.php') !== false;
+						$dolishop = new Dolishop\Webservice($db, $from_product_card);
 
-					$dolishop = new Dolishop\Webservice($db, $from_prodcut_card);
-
-					// Si je proviens du formulaire de création/édition
-					$TCategory = GETPOST('categories');
-					if (
-						( !empty($TCategory) && array_intersect($TCategory, $dolishop->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR) )
-						|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategoriesD2P($object->id) )
-					) {
+						// Si je proviens du formulaire de création/édition
+						$TCategory = GETPOST('categories');
+						if (
+							( !empty($TCategory) && array_intersect($TCategory, $dolishop->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR) )
+							|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategoriesD2P($object->id) )
+						) {
 //						$dolishop->syncCategoriesD2W();
-						$dolishop->syncDolCombinationsOptions();
-						
-						$dolishop->updateWebProducts(array($object->id));
-						if (!$dolishop->from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
-						else setEventMessage($langs->trans('DolishopSyncPsProductSuccess'));
-					}	
+							$dolishop->syncDolCombinationsOptions();
+
+							$dolishop->updateWebProducts(array($object->id));
+							if (!Dolishop\Webservice::$from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
+							else setEventMessage($langs->trans('DolishopSyncPsProductSuccess'));
+						}
+					}
 				}
 			}
 		}

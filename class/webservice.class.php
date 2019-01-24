@@ -51,7 +51,7 @@ class Webservice
 	public $error;
 	public $errors = array();
 	
-	public $from_cron_job = false;
+	public static $from_cron_job = false;
 	public $from_product_card = false;
 
 	public $schema_products_blank;
@@ -276,7 +276,7 @@ class Webservice
 		
 		return false;
 	}
-	
+
 	/**
 	 * Retourne un objet en particulier via son identifiant
 	 *
@@ -424,7 +424,7 @@ class Webservice
 		
 		return false;
 	}
-	
+
 	/**
 	 * Méthode qui upload count($TFileName) image(s) vers Prestashop pour un produit Dolibarr déjà synchonisé
 	 * 
@@ -715,12 +715,15 @@ class Webservice
 	 * @global Conf $conf
 	 * @return int
 	 */
-	public function rsyncProducts($fk_user, $direction, $sync_images=false)
+	public function rsyncProducts($fk_user, $direction, $sync_images=false, $minutes=30)
 	{
 		global $conf,$langs;
 		
-		$this->from_cron_job = true;
-		
+		self::$from_cron_job = true;
+
+		if (!is_numeric($minutes)) $minutes = 30;
+		$date_min = date('Y-m-d H:i:s', strtotime('-'.$minutes.' minutes'));
+
 		if (empty($conf->global->DOLISHOP_SYNC_PRODUCTS))
 		{
 			$this->outpout = $langs->trans('DolishopSyncProductsIsDisabled');
@@ -739,20 +742,22 @@ class Webservice
 		}
 		$user->getrights();
 
+		if ($sync_images) require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+
 		if ($direction == 'dolibarr2website')
 		{
 			$this->syncDolCombinationsOptions();
 			
-			if ($sync_images) require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 			$TProductId = DolishopTools::getTProductIdToSync();
 			$this->updateWebProducts($TProductId, $sync_images);
 		}
 		else // website2dolibarr
 		{
-			$this->syncWebCombinationsOptions();
-			
+			$this->syncWebCombinationsOptions($date_min);
+
 			if ($this->api_name == 'prestashop')
 			{
+				// TODO mettre en place le filtre avec $date_min vis à vis de la date de dernière mis à jour
 				$more_opt = array('filter[id_shop_default]' => '['.$conf->global->DOLISHOP_SYNC_PS_SHOP_ID.']');
 				$ps_products = $this->getAll('products', $more_opt);
 				if ($ps_products)
@@ -765,35 +770,80 @@ class Webservice
 			}
 			else if ($this->api_name == 'magento')
 			{
-//				$TCatFilter = explode(',', $conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_WEBSITE);
-//				if (isset($TCatFilter[0]) && $TCatFilter[0] === '') unset($TCatFilter[0]);
+				/**
+				 * =simple = produit
+				 * grouped = produit + lien produit virtuel
+				 * configurable = produit + variante
+				 * =virtual = service
+				 * bundle = produit + lien produit virtuel * => puis sur récuépration de la commande on verra ce qu'il y a
+				 * =downloadable = produit
+				 */
+				// TODO REMOVE NEXT LINE
+				$date_min = '2018-11-06 11:00:00';
 
-				$options = array(
+				$mg_configurables_products = $this->getAll('/V1/products', array(
 					'params' => array(
-						'searchCriteria' => ''
-//						'searchCriteria[filterGroups][0][filters][0][field]' => 'updated_at'
-//						,'searchCriteria[filterGroups][0][filters][0][value]' => $date_min
-//	//					,'searchCriteria[filterGroups][0][filters][0][value]' => '2018-07-12 12:00:00'
-//						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'gteq' // Greater than or equal
-//						,'searchCriteria[sortOrders][0][field]' => 'entity_id'
-//						,'searchCriteria[sortOrders][0][direction]' => 'ASC'
-//						,'searchCriteria[pageSize]' => '5'
-//						,'searchCriteria[currentPage]' => '1'
+//						'searchCriteria[filterGroups][0][filters][0][field]' => 'type_id'
+//						,'searchCriteria[filterGroups][0][filters][0][value]' => 'configurable'
+//						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'eq' // Greater than or equal
+						'searchCriteria[filterGroups][0][filters][0][field]' => 'type_id'
+						,'searchCriteria[filterGroups][0][filters][0][value]' => 'configurable'
+						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'eq' // Greater than or equal
+						,'searchCriteria[filterGroups][1][filters][0][field]' => 'updated_at'
+						,'searchCriteria[filterGroups][1][filters][0][value]' => $date_min
+						,'searchCriteria[filterGroups][1][filters][0][conditionType]' => 'gteq' // Greater than or equal
+						,'searchCriteria[currentPage]'=>1
+						,'searchCriteria[pageSize]'=>80
 					)
-				);
+				));
 
-				$mg_products = $this->getAll('/V1/products', $options);
+				foreach ($mg_configurables_products->items as &$mg_product)
+				{
+					var_dump($mg_product->sku);
+					$this->saveProductFromWebProduct($mg_product, $sync_images);
+					exit;
+				}
 
-//				var_dump( $mg_products->items[0]->custom_attributes,$mg_products);
-//				exit;
+				var_dump($mg_configurables_products);exit;
+
+
+
+				$mg_products = $this->getAll('/V1/products', array(
+					'params' => array(
+//						'searchCriteria[filterGroups][0][filters][0][field]' => 'type_id'
+//						,'searchCriteria[filterGroups][0][filters][0][value]' => 'configurable'
+//						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'eq' // Greater than or equal
+						'searchCriteria[filterGroups][0][filters][0][field]' => 'type_id'
+						,'searchCriteria[filterGroups][0][filters][0][value]' => 'bundle'
+						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'neq' // Greater than or equal
+						,'searchCriteria[filterGroups][1][filters][0][field]' => 'updated_at'
+						,'searchCriteria[filterGroups][1][filters][0][value]' => $date_min
+						,'searchCriteria[filterGroups][1][filters][0][conditionType]' => 'gteq' // Greater than or equal
+						,'searchCriteria[currentPage]'=>1
+						,'searchCriteria[pageSize]'=>80
+					)
+				));
 
 				if ($mg_products)
 				{
-					foreach ($mg_products->items as $mg_product)
+					$TProductConfigurable = array();
+					foreach ($mg_products->items as &$mg_product)
 					{
-						$this->saveProductFromWebProduct($mg_product, $sync_images);
+						if ($mg_product->type_id == 'configurable') $TProductConfigurable[] = $mg_product;
+						else
+						{
+							if ($mg_product->sku == 'MH01-XS-Black')
+							{
+								var_dump($mg_product);
+							}
+							var_dump($mg_product->sku);
+							continue; // TODO REMOVE THIS LINE
+							$this->saveProductFromWebProduct($mg_product, $sync_images);
+						}
 					}
 				}
+
+
 
 			}
 
@@ -1222,7 +1272,7 @@ class Webservice
 				else $res = $dol_product->updateExtraField('ps_id_product');
 			}
 			
-			if ($this->from_cron_job)
+			if (self::$from_cron_job)
 			{
 				if ($res > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $ps_id_product_return)."\n";
 				else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $ps_id_product_return)."\n";
@@ -1234,7 +1284,7 @@ class Webservice
 		}
 		else
 		{
-			if ($this->from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductError', $this->error)."\n";
+			if (self::$from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductError', $this->error)."\n";
 		}
 		
 		return 0;
@@ -1306,14 +1356,15 @@ class Webservice
 		}
 		else if ($this->api_name == 'magento')
 		{
+			$mg_category_ids = array();
 			foreach ($web_product->custom_attributes as &$cattr)
 			{
-				if ($cattr->attribute_code == 'description')
-				{
-					$description = $cattr->value;
-					break;
-				}
+				if ($cattr->attribute_code == 'description') $description = $cattr->value;
+				else if ($cattr->attribute_code == 'category_ids') $mg_category_ids = $cattr->value;
 			}
+
+			$fk_product_type=0;
+			if ($web_product->type_id == 'virtual') $fk_product_type = 1;
 
 			$dol_product = $this->saveProduct(
 				$web_product->id
@@ -1331,6 +1382,7 @@ class Webservice
 				,null
 				,$web_product->weight
 				,0 // 0 = Kg, TODO conf paramétrable
+				,$fk_product_type
 			);
 		}
 
@@ -1363,27 +1415,92 @@ class Webservice
 		}
 		else if ($this->api_name == 'magento')
 		{
-			if (!empty($web_product->extension_attributes->category_links))
+//			var_dump($web_product->custom_attributes[5]);exit;
+//			if (!empty($web_product->extension_attributes->category_links))
+			if (!empty($mg_category_ids))
 			{
 				$TCategory = $this->getTProductCategory(0, false, 'import_key');
-				foreach ($web_product->extension_attributes->category_links as $mg_category_link)
+//				foreach ($web_product->extension_attributes->category_links as $mg_category_link)
+				foreach ($mg_category_ids as $mg_category_id)
 				{
-					if (isset($TCategory[$mg_category_link->category_id])) $TCatToAdd[] = $TCategory[$mg_category_link->category_id]['id'];
+//					if (isset($TCategory[$mg_category_link->category_id])) $TCatToAdd[] = $TCategory[$mg_category_link->category_id]['id'];
+					if (isset($TCategory[$mg_category_id])) $TCatToAdd[] = $TCategory[$mg_category_id]['id'];
 				}
 			}
 		}
 
 		if (!empty($TCatToAdd)) $dol_product->setCategories($TCatToAdd);
 
-		// TODO voir si je passe $TCatToAdd pour les associations avec les déclinaisons
 		// TODO gérér la récupération des images si $sync_images = true
-		
+		if ($sync_images)
+		{
+			$this->saveProductImageFromWebProduct($dol_product, $web_product);
+		}
+
+		// TODO voir si je passe $TCatToAdd pour les associations avec les déclinaisons
 		$this->saveDolCombinationsFromWebProduct($web_product, $dol_product, $sync_images);
 		
 		return $dol_product->id;
 	}
 
-	private function saveProduct($web_product_id, $ref, $label='', $description='', $multilangs=array(), $price=0, $tva_tx=0, $status=1, $seuil_stock_alerte=null, $length = null, $width = null, $height = null, $length_units = null, $weight = null, $weight_units = null)
+	private function saveProductImageFromWebProduct($dol_product, $web_product)
+	{
+		global $conf;
+
+		if (! empty($conf->product->enabled)) $upload_dir = $conf->product->multidir_output[$dol_product->entity].'/'.get_exdir(0, 0, 0, 0, $dol_product, 'product').dol_sanitizeFileName($dol_product->ref);
+		elseif (! empty($conf->service->enabled)) $upload_dir = $conf->service->multidir_output[$dol_product->entity].'/'.get_exdir(0, 0, 0, 0, $dol_product, 'product').dol_sanitizeFileName($dol_product->ref);
+
+		if (! empty($conf->global->PRODUCT_USE_OLD_PATH_FOR_PHOTO))    // For backward compatiblity, we scan also old dirs
+		{
+			if (! empty($conf->product->enabled)) $upload_dir = $conf->product->multidir_output[$dol_product->entity].'/'.substr(substr("000".$dol_product->id, -2),1,1).'/'.substr(substr("000".$dol_product->id, -2),0,1).'/'.$dol_product->id."/photos";
+			else $upload_dir = $conf->service->multidir_output[$dol_product->entity].'/'.substr(substr("000".$dol_product->id, -2),1,1).'/'.substr(substr("000".$dol_product->id, -2),0,1).'/'.$dol_product->id."/photos";
+		}
+
+		$upload_dir_tmp = $upload_dir.'/temp';
+		if (!is_dir($upload_dir_tmp)) dol_mkdir($upload_dir_tmp);
+
+		if ($this->api_name == 'prestashop')
+		{
+
+		}
+		else if ($this->api_name == 'magento')
+		{
+			$image_name = '';
+			foreach ($web_product->custom_attributes as &$cattr)
+			{
+				if ($cattr->attribute_code == 'image')
+				{
+					$image_name = $cattr->value;
+					break;
+				}
+			}
+
+			if (empty($image_name)) return -1;
+
+			$full_url = $this->url.'/pub/media/catalog/product'.$image_name;
+
+			$info = pathinfo($full_url);
+			$destfile = dol_sanitizeFileName($info['filename'].'.'.strtolower($info['extension']));
+
+			$tmp_image = $upload_dir_tmp.'/'.$destfile;
+
+			dol_copy($full_url, $tmp_image);
+			if (dol_mkdir($upload_dir) >= 0)
+			{
+				$destfull = $upload_dir.'/'.$destfile;
+
+				// TODO EcmFiles do not save mg_id_image yet (whatever I don't this ID, must make another REST call)
+				$resmove = dol_move($tmp_image, $destfull);
+				return $resmove;
+			}
+
+			return -2;
+		}
+
+		return 0;
+	}
+
+	private function saveProduct($web_product_id, $ref, $label='', $description='', $multilangs=array(), $price=0, $tva_tx=0, $status=1, $seuil_stock_alerte=null, $length = null, $width = null, $height = null, $length_units = null, $weight = null, $weight_units = null, $fk_product_type=0)
 	{
 		global $langs,$user,$conf;
 
@@ -1422,12 +1539,69 @@ class Webservice
 		$dol_product->weight = $weight;
 		$dol_product->weight_units = $weight_units;
 
+		$dol_product->fk_product_type = $fk_product_type;
+		$dol_product->fk_default_warehouse = $conf->global->DOLISHOP_DEFAULT_WAREHOUSE;
+
 		if (!empty($dol_product->id)) $res = $dol_product->update($dol_product->id, $user);
-		else $res = $dol_product->create($user);
+		else
+		{
+			$res = $dol_product->create($user);
+			$dol_product->entity = $conf->entity;
+			if ($res > 0 && !empty($conf->global->DOLISHOP_SYNC_STOCK))
+			{
+				$this->initStockFromWebProduct($dol_product, $web_product_id, $ref);
+			}
+		}
 
 		return $dol_product;
 	}
-	
+
+	/**
+	 * @param \Product 	$dol_product
+	 * @param integer 	$web_product_id
+	 * @param string 	$ref
+	 */
+	private function initStockFromWebProduct($dol_product, $web_product_id, $ref)
+	{
+		global $user,$conf;
+
+		if (empty($conf->global->DOLISHOP_DEFAULT_WAREHOUSE)) return 0;
+
+		if ($this->api_name == 'prestashop')
+		{
+			// TODO ...
+		}
+		else if ($this->api_name == 'magento')
+		{
+			$mg_stock = $this->getOne('/V1/stockItems', $ref);
+			if ($mg_stock)
+			{
+				$this->db->begin();
+
+				require_once DOL_DOCUMENT_ROOT .'/product/stock/class/mouvementstock.class.php';
+
+				$movementstock=new \MouvementStock($this->db);
+				$result=$movementstock->_create($user,$dol_product->id,$conf->global->DOLISHOP_DEFAULT_WAREHOUSE,$mg_stock->qty,0,0,'Init Magento','');
+
+				if ($result >= 0)
+				{
+					$this->db->commit();
+					return 1;
+				}
+				else
+				{
+					$this->error=$movementstock->error;
+					$this->errors=$movementstock->errors;
+
+					$this->db->rollback();
+					return -1;
+				}
+			}
+		}
+
+		return 0;
+	}
+
 	/**
 	 * Crée ou met à jour les combinaisons dans Dolibarr
 	 * API "combinations" accessible en GET
@@ -1466,7 +1640,7 @@ class Webservice
 						{
 							if (!isset($TProdAttrValByPsId[(int) $ps_product_option_value->id]))
 							{
-								if ($this->from_cron_job)
+								if (self::$from_cron_job)
 								{
 									$this->output.= $langs->trans('SyncProductCombinationFailAttributeMissing', $dol_product->ref, (int) $ps_product_option_value->id)."\n";
 								}
@@ -1514,7 +1688,69 @@ class Webservice
 		}
 		else if ($this->api_name == 'magento')
 		{
-			// TODO sync bundle
+//			$TProdAttrGroupByMgId = ProductAttributeDolishop::getAllByMgId();
+			$TProdAttrGroupByRef = ProductAttributeDolishop::getAll('ref', true, true, 'magento');
+			$TProdAttrValByMgId = ProductAttributeValueDolishop::getAllByMgId();
+//			var_dump($TProdAttrGroupByMgId);
+//var_dump($TProdAttrGroupByMgId, $TProdAttrValByMgId);
+			// TODO sync Configurable
+			$mg_products = $this->getAll('/V1/configurable-products/'.$web_product->sku.'/children');
+
+			// Ici, pas d'attribut "items"
+			if (!empty($mg_products))
+			{
+				$sanit_features = array();
+				$TAttrGroupUsed = array();
+				// J'identifie la liste des groupes d'attribut possible (size, color,...)
+				foreach ($mg_products[0]->custom_attributes as $k => $mg_custom_attributes)
+				{
+					if (isset($TProdAttrGroupByRef[strtoupper($mg_custom_attributes->attribute_code)]))
+					{
+						$TAttrGroupUsed[$k] = strtoupper($mg_custom_attributes->attribute_code);
+					}
+				}
+
+				foreach ($mg_products as $mg_product)
+				{
+					foreach ($TAttrGroupUsed as $k => $group)
+					{
+//						var_dump($TProdAttrGroupByRef[$group]->id);exit;
+						$sanit_features[$TProdAttrGroupByRef[$group]->id] = $TProdAttrValByMgId[$mg_product->custom_attributes[$k]->value]->id;
+					}
+// TODO faire la création/maj de la combinaison
+//					$comb = new ProductCombinationDolishop($this->db);
+//					$product_comb = $comb->fetchByProductCombination2ValuePairs($dol_product->id, $sanit_features);
+//					if (! $product_comb)
+//					{
+//						$dol_product->array_options['options_ps_id_product'] = null; // Les déclinaisons ne doivent pas être rattachées directement à cet identifiant
+//						$comb->ps_id_combination = (int) $ps_combination->id;
+//						$res = $comb->createProductCombination($dol_product, $sanit_features, array(), false, (double) $ps_combination->price, (double) $ps_combination->weight);
+//						if ($res < 0)
+//						{
+//							$this->error = $comb->db->lasterror();
+//							$this->errors = $this->error;
+//						}
+//					}
+//					else
+//					{
+//						$product_comb->variation_price_percentage = false;
+//						$product_comb->variation_price = (double) $ps_combination->price;
+//						$product_comb->variation_weight = (double) $ps_combination->weight;
+//
+//						if ($product_comb->update($user) < 0)
+//						{
+//							$this->error = $this->db->lasterror(); // $product_comb->db interdit car attribut en private (j'utilise celui de l'objet courrant, ça doit normalement le faire car les objets passés en paramètre sont naturellement des références)
+//							$this->errors = $this->error;
+//						}
+//					}
+					var_dump($sanit_features);
+				}
+			}
+
+//			var_dump($sanit_features);
+			var_dump($mg_products[0]->sku, $mg_products[0]->custom_attributes);exit;
+
+//			var_dump('FIN', $TProductConfigurable);exit;
 		}
 		
 		return 1;
@@ -1600,11 +1836,11 @@ class Webservice
 				
 				if ($error == 0)
 				{
-					if ($this->from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductCombinationSuccess', $comb->ref)."\n";
+					if (self::$from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductCombinationSuccess', $comb->ref)."\n";
 				}
 				else
 				{
-					if ($this->from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductCombinationFail', $comb->ref)."\n";
+					if (self::$from_cron_job) $this->output.= $langs->trans('DolishopCronjob_SyncProductCombinationFail', $comb->ref)."\n";
 				}
 			}
 		}
@@ -1770,15 +2006,17 @@ class Webservice
 	 * Web2Dolibarr
 	 * Permet de synchroniser les groupes d'attributs et valeurs associées manquants (llx_product_attribute & llx_product_attribute_value)
 	 * API product_options & product_option_values accessibles en GET
-	 * 
+	 *
+	 * @var string	$date_min	Date formated Y-m-d H:i:s (utile que pour une synchro via magento qui ne permet pas d'obtenir une liste simple des atributs de déclinaison sans passer la une fiche produit)
+	 *
 	 * @global \User $user
 	 * @global \Conf $conf
 	 * @global \User $user
 	 */
-	private function syncWebCombinationsOptions()
+	private function syncWebCombinationsOptions($date_min=null)
 	{
-		global $conf,$user;
-		
+		global $conf;
+
 		if ($this->api_name == 'prestashop')
 		{
 			$TProdAttrGroupByPsId = ProductAttributeDolishop::getAllByPsId();
@@ -1789,13 +2027,15 @@ class Webservice
 				{
 					if (!isset($TProdAttrGroupByPsId[(int) $ps_product_option->id]))
 					{
-						$product_attribute = new ProductAttributeDolishop($this->db);
-						$product_attribute->label = $ps_product_option->name->language[0]->__toString();
-						$product_attribute->ref = dol_string_nospecial(dol_sanitizeFileName($product_attribute->label));
-						$product_attribute->entity = $conf->entity;
-						$product_attribute->rang = (int) $ps_product_option->position;
-						$product_attribute->ps_id_option_group = (int) $ps_product_option->id;
-						if ($product_attribute->create($user) < 0)
+						$product_attribute = $this->createDolProductAttribute(
+							$ps_product_option->name->language[0]->__toString()
+							,$ps_product_option->name->language[0]->__toString()
+							,$conf->entity
+							,(int) $ps_product_option->position
+							,(int) $ps_product_option->id
+						);
+
+						if ($product_attribute === false)
 						{
 							$this->error = $product_attribute->db->lasterror();
 							$this->errors[] = $this->error;
@@ -1816,15 +2056,16 @@ class Webservice
 				{
 					if (!isset($TProdAttrValByPsId[(int) $ps_product_option_value->id]))
 					{
-						$product_attribute_value = new ProductAttributeValueDolishop($this->db);
-						$product_attribute_value->value = $ps_product_option_value->name->language[0]->__toString();
-						$product_attribute_value->ref = dol_string_nospecial(dol_sanitizeFileName($product_attribute_value->value));
-						if (!empty($ps_product_option_value->color)) $product_attribute_value->value.= ' ('.$ps_product_option_value->color->__toString().')';
-						$product_attribute_value->entity = $conf->entity;
-						$product_attribute_value->fk_product_attribute = $TProdAttrGroupByPsId[(int) $ps_product_option_value->id_attribute_group]->id;
-						$product_attribute_value->ps_id_option_value = (int) $ps_product_option_value->id;
-						$product_attribute_value->ps_id_option_group = (int) $ps_product_option_value->id_attribute_group;
-						if ($product_attribute_value->create() < 0)
+						$product_attribute_value = $this->createDolProductAttributeValue(
+							$ps_product_option_value->name->language[0]->__toString() . (!empty($ps_product_option_value->color) ? ' ('.$ps_product_option_value->color->__toString().')' : '')
+							,$ps_product_option_value->name->language[0]->__toString()
+							,$TProdAttrGroupByPsId[(int) $ps_product_option_value->id_attribute_group]->id
+							,$conf->entity
+							,(int) $ps_product_option_value->id_attribute_group
+							,(int) $ps_product_option_value->id
+						);
+
+						if ($product_attribute_value === false)
 						{
 							$this->error = $product_attribute_value->db->lasterror();
 							$this->errors[] = $this->error;
@@ -1837,6 +2078,190 @@ class Webservice
 				}
 			}
 		}
+		else if ($this->api_name == 'magento')
+		{
+			// Je force sur la dernière heure, il n'est pas judicieux de récupérer la totalité à chaque fois, surtout que la tâche cron des commandes risque de tourner toute les 5 minutes
+			if ($date_min === null) $date_min = date('Y-m-d H:i:s', strtotime('-1 hour'));
+
+			$mg_products = $this->getAll('/V1/products', array(
+				'params' => array(
+					'searchCriteria[filterGroups][0][filters][0][field]' => 'type_id'
+					,'searchCriteria[filterGroups][0][filters][0][value]' => 'configurable'
+					,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'eq' // Greater than or equal
+					,'searchCriteria[filterGroups][1][filters][0][field]' => 'updated_at'
+					,'searchCriteria[filterGroups][1][filters][0][value]' => $date_min
+					,'searchCriteria[filterGroups][1][filters][0][conditionType]' => 'gteq' // Greater than or equal
+				)
+			));
+
+			if (!empty($mg_products->items))
+			{
+				$TProdAttrGroupByMgId = ProductAttributeDolishop::getAllByMgId();
+				$TProdAttrValByMgId = ProductAttributeValueDolishop::getAllByMgId();
+
+				foreach ($mg_products->items as $item)
+				{
+					$mg_options = $this->getAll('/V1/configurable-products/'.$item->sku.'/options/all', array(
+						'params' => array()
+					));
+
+					// Récupération de tous les attributs possible (ATTENTION : tout est mélangé dans Magento)
+					$mg_attributes = $this->getAll('/V1/products/attributes', array(
+						'params' => array(
+							'searchCriteria[filterGroups][0][filters][0][field]' => 'frontend_input' // 'attribute_id'
+							,'searchCriteria[filterGroups][0][filters][0][value]' => 'select' // '1'
+							,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'eq' // Greater than or equal
+						)
+					));
+
+					$TAttributeId = array();
+					foreach ($mg_options as $mg_option)
+					{
+						$TAttributeId[$mg_option->attribute_id] = $mg_option->attribute_id;
+					}
+
+					// Création des attributs si non existant (color, size, ...)
+					foreach ($TAttributeId as $mg_eav_attribute_id)
+					{
+						foreach ($mg_attributes->items as $mg_attribute)
+						{
+							if ($mg_attribute->attribute_id == $mg_eav_attribute_id)
+							{
+								if (!isset($TProdAttrGroupByMgId[$mg_attribute->attribute_id]))
+								{
+									$product_attribute = $this->createDolProductAttribute(
+										$mg_attribute->default_frontend_label
+										,$mg_attribute->attribute_code
+										,$conf->entity
+										,$mg_attribute->position
+										,$mg_attribute->attribute_id
+									);
+
+									if ($product_attribute === false)
+									{
+										$this->error = $this->db->lasterror();
+										$this->errors[] = $this->error;
+									}
+									else
+									{
+										$TProdAttrGroupByMgId[$mg_attribute->attribute_id] = $product_attribute;
+									}
+								}
+
+								// TODO vérifier si besoin de créer les valeurs d'attribut (bleu, rouge, taille 38, ...)
+								foreach ($mg_attribute->options as $mg_option)
+								{
+									if (!empty($mg_option->value))
+									{
+										// $mg_option->value = id de l'option
+										if (!isset($TProdAttrValByMgId[$mg_option->value]))
+										{
+											$product_attribute_value = $this->createDolProductAttributeValue(
+												$mg_option->label
+												,$mg_option->label
+												,$TProdAttrGroupByMgId[$mg_attribute->attribute_id]->id
+												,$conf->entity
+												,$mg_attribute->attribute_id
+												,$mg_option->value
+											);
+
+											if ($product_attribute_value === false)
+											{
+												$this->error = $product_attribute_value->db->lasterror();
+												$this->errors[] = $this->error;
+											}
+											else
+											{
+												$TProdAttrValByPsId[$mg_option->value] = $product_attribute_value;
+											}
+										}
+									}
+								}
+
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Permet de créer un objet ProductAttribute dans Dolibarr
+	 *
+	 * @param $label
+	 * @param $ref
+	 * @param $entity
+	 * @param $rang
+	 * @param $web_id_attribute
+	 *
+	 * @return bool|ProductAttributeDolishop
+	 */
+	private function createDolProductAttribute($label, $ref, $entity, $rang, $web_id_attribute)
+	{
+		global $user;
+
+		$product_attribute = new ProductAttributeDolishop($this->db, $this->api_name);
+		$product_attribute->label = $label;
+		$product_attribute->ref = dol_string_nospecial(dol_sanitizeFileName($ref));
+		$product_attribute->entity = $entity;
+		$product_attribute->rang = $rang;
+
+		if ($this->api_name == 'prestashop') $product_attribute->ps_id_option_group = $web_id_attribute;
+		else if ($this->api_name == 'magento') $product_attribute->mg_eav_attribute_id = $web_id_attribute;
+
+		if ($product_attribute->create($user) < 0)
+		{
+			$this->error = $product_attribute->db->lasterror();
+			$this->errors[] = $this->error;
+			return false;
+		}
+
+		return $product_attribute;
+	}
+
+	/**
+	 * Permet de créer un objet ProductAttributeValue dans Dolibarr
+	 *
+	 * @param $label
+	 * @param $ref
+	 * @param $fk_product_attribute
+	 * @param $entity
+	 * @param $web_id_attribute
+	 * @param $web_id_attribute_value
+	 *
+	 * @return bool|ProductAttributeValueDolishop
+	 */
+	private function createDolProductAttributeValue($label, $ref, $fk_product_attribute, $entity, $web_id_attribute, $web_id_attribute_value)
+	{
+		global $user;
+
+		$product_attribute_value = new ProductAttributeValueDolishop($this->db, $this->api_name);
+		$product_attribute_value->value = $label;
+		$product_attribute_value->ref = dol_string_nospecial(dol_sanitizeFileName($ref));
+		$product_attribute_value->entity = $entity;
+		$product_attribute_value->fk_product_attribute = $fk_product_attribute;
+
+		if ($this->api_name == 'prestashop')
+		{
+			$product_attribute_value->ps_id_option_group = $web_id_attribute;
+			$product_attribute_value->ps_id_option_value = $web_id_attribute_value;
+		}
+		else if ($this->api_name == 'magento')
+		{
+			$product_attribute_value->mg_eav_attribute_id = $web_id_attribute;
+			$product_attribute_value->mg_eav_attribute_option_id = $web_id_attribute_value;
+		}
+
+		if ($product_attribute_value->create($user) < 0)
+		{
+			$this->error = $product_attribute_value->db->lasterror();
+			$this->errors[] = $this->error;
+			return false;
+		}
+
+		return $product_attribute_value;
 	}
 
 	private function getTProductCategory($fk_product=0, $force=false, $by='rowid')
@@ -2232,7 +2657,7 @@ class Webservice
 	{
 		global $langs,$user,$conf;
 
-		$this->from_cron_job = true;
+		self::$from_cron_job = true;
 		
 		if (empty($conf->global->DOLISHOP_SYNC_ORDERS))
 		{
@@ -2506,7 +2931,7 @@ class Webservice
 			$fk_product = DolishopTools::getDolProductId((int) $order_detail->product_id, $order_detail->product_reference->__toString(), (int) $order_detail->product_attribute_id);
 			if ($fk_product == -1)
 			{
-				if ($this->from_cron_job)
+				if (self::$from_cron_job)
 				{
 					$this->output.= $langs->trans('DolishopErrorMultipleReferenceFound', (int) $order_detail->product_id, $order_detail->product_reference->__toString())."\n";
 				}
@@ -2588,7 +3013,11 @@ class Webservice
 		$TState = \MgSalesOrderStatuses::getAllLabelByCode();
 		if (!isset($TState[$current_state])) return 0;
 
-		list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddressFromMagento($mg_order);
+		$TRes = $this->saveDolCustomerAddressFromMagento($mg_order);
+		$fk_soc = $TRes[0];
+		$fk_socpeople_delivery = $TRes[1];
+		$fk_socpeople_billing = $TRes[2];
+
 		if (empty($fk_soc) || empty($fk_socpeople_delivery) || empty($fk_socpeople_billing))
 		{
 			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
@@ -2642,11 +3071,17 @@ class Webservice
 //		$order_details = $this->getAll('order_details', array('filter[id_order]' => '['.((int) $ps_order->id).']'));
 		foreach ($mg_order->items as $mg_order_line)
 		{
+			// TODO use subtotal
+			// Si la commande contient un produit de type Bundle, alors le détail est aussi présent dans la commande
+			// l'équivalent du type Bundle dans Dolibarr serait un titre de sous total
+			if ($mg_order_line->product_type == 'bundle') continue;
+			else if ($mg_order_line->product_type == 'configurable') continue; // Petite subtilité, il faudra utiliser l'attribut "parent_item" du produit choisi pour avoir le détail du prix...
+
 			// TODO voir comment identifier s'il s'agit d'un produit décliné ou composé
 			$fk_product = DolishopTools::getDolProductId($mg_order_line->product_id, $mg_order_line->sku, 0);
 			if ($fk_product == -1)
 			{
-				if ($this->from_cron_job)
+				if (self::$from_cron_job)
 				{
 					$this->output.= $langs->trans('DolishopErrorMultipleReferenceFound', $mg_order_line->product_id, $mg_order_line->sku)."\n";
 				}
@@ -2668,15 +3103,18 @@ class Webservice
 			if ($fk_product > 0) $desc = '';
 			else $desc = $mg_order_line->name;
 
+			$obj_detail = $mg_order_line;
+			if (!empty($mg_order_line->parent_item)) $obj_detail = $mg_order_line->parent_item; // Subtilité des produits configurables
+
 			$r=$commande->addline(
 				$desc
-				,(double) $mg_order_line->price
-				,(double) $mg_order_line->qty_ordered
-				,$mg_order_line->tax_percent
+				,(double) $obj_detail->price
+				,(double) $obj_detail->qty_ordered
+				,$obj_detail->tax_percent
 				,0 // $txlocaltax1
 				,0 // $txlocaltax2
 				,$fk_product
-				,0 // $remise_percent
+				,$obj_detail->discount_percent // $remise_percent
 				,0 // $info_bits
 				,0 // $fk_remise_except
 				,'HT'
@@ -2692,6 +3130,7 @@ class Webservice
 				,'' // label
 				,array() // array_options
 			);
+
 			if ($r < 0) return -4;
 		}
 

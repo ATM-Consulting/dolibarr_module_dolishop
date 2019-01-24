@@ -90,7 +90,7 @@ DolibarrCountries=Pays Dolibarr
 DOLISHOP_AUTO_PARAM_MODULE_STOCK=Procéder au paramétrage du module stock (ceci aura pour effet de modifier les configurations du module pour correspondre au mode de fonctionnement de celui-ci)
 ModuleStockAutoConfig=Configurer le module 'stock'
 DOLISHOP_SYNC_STOCK=Activer la synchronisation des mouvements de stock (not used yet)
-
+DOLISHOP_DEFAULT_WAREHOUSE=Entrepôt par défaut
 
 DOLISHOP_TEST_CONNECTION=Tester la connexion au service web
 DolishopTestConnection=Tester la connexion
