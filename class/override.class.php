@@ -120,20 +120,34 @@ if ((float) DOL_VERSION >= 6.0)
 		 */
 		public $ps_id_option_group;
 
+		/**
+		 * api = /V1/configurable-products/:sku/options/all
+		 * @var integer
+		 */
+		public $mg_eav_attribute_id;
+
+		/** @var string */
+		public $api_name;
+
 		private static $TProdAttr;
 
 		/**
 		 * @override
 		 */
-		function __construct(\DoliDB $db)
+		function __construct(\DoliDB $db, $api_name='prestashop')
 		{
 			parent::__construct($db);
 			$this->db = $db;
+			$this->api_name = $api_name;
 		}
 
-		public function updatePsValue()
+		public function updateWebValue()
 		{
-			$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute SET ps_id_option_group = '.$this->ps_id_option_group.' WHERE rowid = '.$this->id;
+			$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute';
+			if ($this->api_name == 'prestashop') $sql.= ' SET ps_id_option_group = '.$this->ps_id_option_group;
+			else if ($this->api_name == 'magento') $sql.= ' SET mg_eav_attribute_id = '.$this->mg_eav_attribute_id;
+			$sql.= ' WHERE rowid = '.$this->id;
+
 			$resql = $this->db->query($sql);
 
 			if ($resql) return $this->id;
@@ -159,7 +173,7 @@ if ((float) DOL_VERSION >= 6.0)
 			$res = parent::create($user);
 			if ($res > 0)
 			{
-				$res = $this->updatePsValue();
+				$res = $this->updateWebValue();
 			}
 
 			if ($res > 0) $this->db->commit();
@@ -168,13 +182,14 @@ if ((float) DOL_VERSION >= 6.0)
 			return $res;
 		}
 
+		/** TODO delete, seems not used */
 		public function fetchByPsId($ps_id_option_group)
 		{
 			if (!$ps_id_option_group) {
 				return -1;
 			}
 
-			$sql = "SELECT rowid, ref, label, rang, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute WHERE ps_id_option_group = ".(int) $ps_id_option_group." AND entity IN (".getEntity('product').")";
+			$sql = "SELECT rowid, ref, label, rang, ps_id_option_group, mg_eav_attribute_id FROM ".MAIN_DB_PREFIX."product_attribute WHERE ps_id_option_group = ".(int) $ps_id_option_group." AND entity IN (".getEntity('product').")";
 
 			$query = $this->db->query($sql);
 
@@ -189,19 +204,24 @@ if ((float) DOL_VERSION >= 6.0)
 			$this->label = $result->label;
 			$this->rang = $result->rang;
 			$this->ps_id_option_group = $result->ps_id_option_group;
+			$this->mg_eav_attribute_id = $result->mg_eav_attribute_id;
 
 			return 1;
 		}
 
-		public static function getAll($byKey='', $force_reload=false, $filter_ps_id_option_group=true)
+		public static function getAll($byKey='', $force_reload=false, $filter_web_id_option_group=true, $api_name='prestashop')
 		{
 			global $db;
 
 			if (empty(self::$TProdAttr) || $force_reload)
 			{
-				$sql = "SELECT rowid, ref, label, rang, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute";
+				$sql = "SELECT rowid, ref, label, rang, ps_id_option_group, mg_eav_attribute_id FROM ".MAIN_DB_PREFIX."product_attribute";
 				$sql.= ' WHERE entity IN ('.getEntity('product').')';
-				if ($filter_ps_id_option_group) $sql.= ' AND ps_id_option_group > 0';
+				if ($filter_web_id_option_group)
+				{
+					if ($api_name == 'prestashop') $sql.= ' AND ps_id_option_group > 0';
+					else if ($api_name == 'magento') $sql.= ' AND mg_eav_attribute_id > 0';
+				}
 
 				$resql = $db->query($sql);
 
@@ -216,6 +236,7 @@ if ((float) DOL_VERSION >= 6.0)
 						$tmp->label = $result->label;
 						$tmp->rang = $result->rang;
 						$tmp->ps_id_option_group = $result->ps_id_option_group;
+						$tmp->mg_eav_attribute_id = $result->mg_eav_attribute_id;
 
 						if (!empty($byKey)) self::$TProdAttr[$tmp->{$byKey}] = $tmp;
 						else self::$TProdAttr[] = $tmp;
@@ -232,7 +253,12 @@ if ((float) DOL_VERSION >= 6.0)
 
 		public static function getAllByPsId($force_reload=false)
 		{
-			return self::getAll('ps_id_option_group', $force_reload);
+			return self::getAll('ps_id_option_group', $force_reload, true, 'prestashop');
+		}
+
+		public static function getAllByMgId($force_reload=false)
+		{
+			return self::getAll('mg_eav_attribute_id', $force_reload, true, 'magento');
 		}
 	}
 
@@ -253,20 +279,36 @@ if ((float) DOL_VERSION >= 6.0)
 		 */
 		public $ps_id_option_group;
 
+		/**
+		 * api = /V1/configurable-products/:sku/options/all => attr 'values' => attr 'value_index'
+		 * @var integer
+		 */
+		public $mg_eav_attribute_option_id;
+		/**
+		 * foreign key of llx_product_attribute(mg_eav_attribute_id)
+		 * @var integer
+		 */
+		public $mg_eav_attribute_id;
+
 		private static $TProdAttrVal;
 
 		/**
 		 * @override
 		 */
-		function __construct(\DoliDB $db)
+		function __construct(\DoliDB $db, $api_name='prestashop')
 		{
 			parent::__construct($db);
 			$this->db = $db;
+			$this->api_name = $api_name;
 		}
 
-		public function updatePsValue()
+		public function updateWebValue()
 		{
-			$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute_value SET ps_id_option_value = '.$this->ps_id_option_value.', ps_id_option_group = '.$this->ps_id_option_group.' WHERE rowid = '.$this->id;
+			$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute_value';
+			if ($this->api_name == 'prestashop') $sql.= ' SET ps_id_option_value = '.$this->ps_id_option_group.', ps_id_option_group = '.$this->ps_id_option_group;
+			else if ($this->api_name == 'magento') $sql.= ' SET mg_eav_attribute_id = '.$this->mg_eav_attribute_id.', mg_eav_attribute_option_id = '.$this->mg_eav_attribute_option_id;
+			$sql.= ' WHERE rowid = '.$this->id;
+
 			$resql = $this->db->query($sql);
 
 			if ($resql) return $this->id;
@@ -287,30 +329,24 @@ if ((float) DOL_VERSION >= 6.0)
 		 */
 		public function create(\User $user)
 		{
-			if (!$this->fk_product_attribute) {
-				return -1;
+			$this->db->begin();
+
+			$res = parent::create($user);
+			if ($res > 0)
+			{
+				$res = $this->updateWebValue();
 			}
 
-			//Ref must be uppercase
-			$this->ref = strtoupper($this->ref);
+			if ($res > 0) $this->db->commit();
+			else $this->db->rollback();
 
-			$sql = "INSERT INTO ".MAIN_DB_PREFIX."product_attribute_value (fk_product_attribute, ref, value, entity, ps_id_option_value, ps_id_option_group)
-			VALUES ('".(int) $this->fk_product_attribute."', '".$this->db->escape($this->ref)."',
-			'".$this->db->escape($this->value)."', ".(int) $this->entity.", ".(int) $this->ps_id_option_value.", ".(int) $this->ps_id_option_group.")";
+			return $res;
 
-			$query = $this->db->query($sql);
-
-			if ($query) {
-				$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX.'product_attribute_value');
-				return $this->id;
-			}
-
-			return -1;
 		}
 
 		public function fetchByPsId($ps_id_option_value)
 		{
-			$sql = "SELECT rowid, fk_product_attribute, ref, value, ps_id_option_value, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute_value WHERE ps_id_option_value = ".(int) $ps_id_option_value." AND entity IN (".getEntity('product').")";
+			$sql = "SELECT rowid, fk_product_attribute, ref, value, ps_id_option_value, ps_id_option_group, mg_eav_attribute_option_id, mg_eav_attribute_id FROM ".MAIN_DB_PREFIX."product_attribute_value WHERE ps_id_option_value = ".(int) $ps_id_option_value." AND entity IN (".getEntity('product').")";
 
 			$query = $this->db->query($sql);
 
@@ -330,19 +366,25 @@ if ((float) DOL_VERSION >= 6.0)
 			$this->value = $result->value;
 			$this->ps_id_option_value = $result->ps_id_option_value;
 			$this->ps_id_option_group = $result->ps_id_option_group;
+			$this->mg_eav_attribute_option_id = $result->mg_eav_attribute_option_id;
+			$this->mg_eav_attribute_id = $result->mg_eav_attribute_id;
 
 			return 1;
 		}
 
-		public static function getAll($byKey='', $force_reload=false, $filter_ps_id_option_value=true)
+		public static function getAll($byKey='', $force_reload=false, $filter_web_id_option_value=true, $api_name='prestashop')
 		{
 			global $db;
 
 			if (empty(self::$TProdAttrVal) || $force_reload)
 			{
-				$sql = "SELECT rowid, fk_product_attribute, ref, value, ps_id_option_value, ps_id_option_group FROM ".MAIN_DB_PREFIX."product_attribute_value";
+				$sql = "SELECT rowid, fk_product_attribute, ref, value, ps_id_option_value, ps_id_option_group, mg_eav_attribute_option_id, mg_eav_attribute_id FROM ".MAIN_DB_PREFIX."product_attribute_value";
 				$sql.= ' WHERE entity IN ('.getEntity('product').')';
-				if ($filter_ps_id_option_value) $sql.= ' AND ps_id_option_value > 0';
+				if ($filter_web_id_option_value)
+				{
+					if ($api_name == 'prestashop') $sql.= ' AND ps_id_option_value > 0';
+					else if ($api_name == 'magento') $sql.= ' AND mg_eav_attribute_option_id > 0';
+				}
 
 				$resql = $db->query($sql);
 				if ($resql)
@@ -357,6 +399,8 @@ if ((float) DOL_VERSION >= 6.0)
 						$tmp->value = $result->value;
 						$tmp->ps_id_option_value = $result->ps_id_option_value;
 						$tmp->ps_id_option_group = $result->ps_id_option_group;
+						$tmp->mg_eav_attribute_option_id = $result->mg_eav_attribute_option_id;
+						$tmp->mg_eav_attribute_id = $result->mg_eav_attribute_id;
 
 						if (!empty($byKey)) self::$TProdAttrVal[$tmp->{$byKey}] = $tmp;
 						else self::$TProdAttrVal[] = $tmp;
@@ -375,6 +419,11 @@ if ((float) DOL_VERSION >= 6.0)
 		public static function getAllByPsId($force_reload=false)
 		{
 			return self::getAll('ps_id_option_value', $force_reload);
+		}
+
+		public static function getAllByMgId($force_reload=false)
+		{
+			return self::getAll('mg_eav_attribute_option_id', $force_reload, true, 'magento');
 		}
 	}
 
