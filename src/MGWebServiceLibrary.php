@@ -179,6 +179,7 @@ class MGWebServiceLibrary
 	}
 
 	/**
+	 * Create value
 	 * @param array  $options		'resource' and other parameters
 	 * @param array  $request_opt
 	 * @return bool|\GuzzleHttp\Promise\PromiseInterface|mixed|\Psr\Http\Message\ResponseInterface
@@ -197,6 +198,13 @@ class MGWebServiceLibrary
 		return $response;
 	}
 
+	/**
+	 * Update value
+	 * @param array $options
+	 * @param array $request_opt
+	 * @return bool|\GuzzleHttp\Promise\PromiseInterface|\GuzzleHttp\Psr7\Response|mixed|\Psr\Http\Message\ResponseInterface
+	 * @throws MagentoWebserviceException
+	 */
 	public function put($options, $request_opt=array())
 	{
 		$response = $this->executeRequest('PUT', $options['resource'],  (isset($options['headers']) ? $options['headers'] : $this->headers), $options['params'], $options['body'], $request_opt);

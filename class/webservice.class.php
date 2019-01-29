@@ -1967,7 +1967,117 @@ class Webservice
 
 	private function syncDolCombinationsOptionsToMagento()
 	{
+		$TProdAttr = ProductAttributeDolishop::getAll('', true, false, $this->api_name);
+		if (empty($TProdAttr)) return 0;
 
+		$TProdAttrValue = ProductAttributeValueDolishop::getAll('', true, false, $this->api_name);
+
+		foreach ($TProdAttr as $productAttr)
+		{
+			// Get all values of object
+			$TVal = $TOption = array();
+			foreach ($TProdAttrValue as $productAttrValue)
+			{
+				if ($productAttrValue->fk_product_attribute == $productAttr->id)
+				{
+					$TVal[] = $productAttrValue;
+					$TOption[] = array(
+						'label' => $productAttrValue->value
+						,'value' => !empty($productAttrValue->mg_eav_attribute_option_id) ? $productAttrValue->mg_eav_attribute_option_id : null
+					);
+				}
+			}
+
+			$error = 0;
+
+			$body = array(
+				'attribute' => array(
+					'is_wysiwyg_enabled' => false,
+					'is_html_allowed_on_front' => true,
+					'used_for_sort_by' => false,
+					'is_filterable' => true,
+					'is_filterable_in_search' => false,
+					'is_used_in_grid' => false,
+					'is_visible_in_grid' => false,
+					'is_filterable_in_grid' => false,
+					//'position' => 'int',
+					//'apply_to' => 'string[]',
+					'is_searchable' => '0', // string
+					'is_visible_in_advanced_search' => '0', // string
+					'is_comparable' => '0', // string
+					'is_used_for_promo_rules' => '1', // string
+					'is_visible_on_front' => '0', // string
+					'used_in_product_listing' => '1', // string
+					'is_visible' => true,
+					'scope' => 'global',
+					//'extension_attributes' => '\Swagger\Client\Model\CatalogDataEavAttributeExtensionInterface',
+					'attribute_id' => !empty($productAttr->mg_eav_attribute_id) ? $productAttr->mg_eav_attribute_id : null,
+					'attribute_code' => strtolower($productAttr->ref),
+					'frontend_input' => 'select',
+					'entity_type_id' => '4', // string => correspond à "catalog_product"
+					'is_required' => false,
+					//'options' => '\Swagger\Client\Model\EavDataAttributeOptionInterface[]',
+					'options' => $TOption,
+					'is_user_defined' => true,
+					'default_frontend_label' => $productAttr->label,
+					//'frontend_labels' => '\Swagger\Client\Model\EavDataAttributeFrontendLabelInterface[]',
+					//'note' => 'string',
+					'backend_type' => 'int', // string: varchar | int | text | static
+					//'backend_model' => 'string',
+					//'source_model' => 'string', // Magento\Eav\Model\Entity\Attribute\Source\Table
+					//'default_value' => 'string',
+					'is_unique' => '0', // string
+					//'frontend_class' => 'string',
+					'validation_rules' => array(),
+					'custom_attributes' => array()
+				)
+			);
+
+			try
+			{
+				// L'update peut être capricieux, il suffit qu'un "mg_eav_attribute_id" soit manquant ou que "options" contienne des ids qui n'existe plus
+				if (!empty($productAttr->mg_eav_attribute_id))
+				{
+					$result = self::$webService->put(array(
+						'resource' => '/V1/products/attributes/'.strtolower($productAttr->ref)
+						,'body' => $body
+					));
+					//var_dump($result, $this->errors);
+				}
+				else
+				{
+					$result = self::$webService->post(array(
+						'resource' => '/V1/products/attributes'
+						,'body' => $body
+					));
+				}
+
+			}
+			catch (MGWebServiceLibrary\MagentoWebserviceException $e)
+			{
+				$error++;
+				$this->setError($e);
+			}
+
+			if ($error == 0)
+			{
+				$productAttr->mg_eav_attribute_id = $result->attribute_id;
+				$productAttr->updateWebValue();
+
+				foreach ($result->options as $mg_option)
+				{
+					foreach ($TVal as $productAttrValue)
+					{
+						if ($productAttrValue->value == $mg_option->label)
+						{
+							$productAttrValue->mg_eav_attribute_option_id = $mg_option->value;
+							$productAttrValue->mg_eav_attribute_id = $result->attribute_id;
+							$productAttrValue->updateWebValue();
+						}
+					}
+				}
+			}
+		}
 	}
 
 	/**

@@ -209,6 +209,13 @@ if ((float) DOL_VERSION >= 6.0)
 			return 1;
 		}
 
+		/**
+		 * @param string $byKey
+		 * @param bool   $force_reload
+		 * @param bool   $filter_web_id_option_group
+		 * @param string $api_name
+		 * @return ProductAttributeDolishop[]
+		 */
 		public static function getAll($byKey='', $force_reload=false, $filter_web_id_option_group=true, $api_name='prestashop')
 		{
 			global $db;
@@ -230,7 +237,7 @@ if ((float) DOL_VERSION >= 6.0)
 					self::$TProdAttr = array();
 					while ($result = $db->fetch_object($resql))
 					{
-						$tmp = new ProductAttributeDolishop($db);
+						$tmp = new ProductAttributeDolishop($db, $api_name);
 						$tmp->id = $result->rowid;
 						$tmp->ref = $result->ref;
 						$tmp->label = $result->label;
@@ -392,7 +399,7 @@ if ((float) DOL_VERSION >= 6.0)
 					self::$TProdAttrVal = array();
 					while ($result = $db->fetch_object($resql))
 					{
-						$tmp = new ProductAttributeValueDolishop($db);
+						$tmp = new ProductAttributeValueDolishop($db, $api_name);
 						$tmp->fk_product_attribute = $result->fk_product_attribute;
 						$tmp->id = $result->rowid;
 						$tmp->ref = $result->ref;
