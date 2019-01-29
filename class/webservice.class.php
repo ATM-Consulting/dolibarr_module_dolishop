@@ -792,54 +792,46 @@ class Webservice
 						,'searchCriteria[filterGroups][1][filters][0][field]' => 'updated_at'
 						,'searchCriteria[filterGroups][1][filters][0][value]' => $date_min
 						,'searchCriteria[filterGroups][1][filters][0][conditionType]' => 'gteq' // Greater than or equal
-						,'searchCriteria[currentPage]'=>1
-						,'searchCriteria[pageSize]'=>80
+//						,'searchCriteria[currentPage]'=>1
+//						,'searchCriteria[pageSize]'=>80
 					)
 				));
 
 				foreach ($mg_configurables_products->items as &$mg_product)
 				{
-					var_dump($mg_product->sku);
 					$this->saveProductFromWebProduct($mg_product, $sync_images);
-					exit;
 				}
 
-				var_dump($mg_configurables_products);exit;
-
-
+				$TProductChildToIgnore = array();
+				$sql = 'SELECT p.ref FROM '.MAIN_DB_PREFIX.'product p';
+				$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'product_attribute_combination pac ON (p.rowid = pac.fk_product_child)';
+				$resql = $this->db->query($sql);
+				if ($resql)
+				{
+					while ($row = $this->db->fetch_object($resql)) $TProductChildToIgnore[$row->ref] = $row->ref;
+				}
 
 				$mg_products = $this->getAll('/V1/products', array(
 					'params' => array(
-//						'searchCriteria[filterGroups][0][filters][0][field]' => 'type_id'
-//						,'searchCriteria[filterGroups][0][filters][0][value]' => 'configurable'
-//						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'eq' // Greater than or equal
 						'searchCriteria[filterGroups][0][filters][0][field]' => 'type_id'
-						,'searchCriteria[filterGroups][0][filters][0][value]' => 'bundle'
-						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'neq' // Greater than or equal
+						,'searchCriteria[filterGroups][0][filters][0][value]' => 'bundle,configurable'
+						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'nin' // Greater than or equal
+						,'searchCriteria[filterGroups][0][filters][0][field]' => 'sku'
+						,'searchCriteria[filterGroups][0][filters][0][value]' => implode(',', $TProductChildToIgnore)
+						,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'nin' // Greater than or equal
 						,'searchCriteria[filterGroups][1][filters][0][field]' => 'updated_at'
 						,'searchCriteria[filterGroups][1][filters][0][value]' => $date_min
 						,'searchCriteria[filterGroups][1][filters][0][conditionType]' => 'gteq' // Greater than or equal
-						,'searchCriteria[currentPage]'=>1
-						,'searchCriteria[pageSize]'=>80
+//						,'searchCriteria[currentPage]'=>1
+//						,'searchCriteria[pageSize]'=>80
 					)
 				));
 
 				if ($mg_products)
 				{
-					$TProductConfigurable = array();
 					foreach ($mg_products->items as &$mg_product)
 					{
-						if ($mg_product->type_id == 'configurable') $TProductConfigurable[] = $mg_product;
-						else
-						{
-							if ($mg_product->sku == 'MH01-XS-Black')
-							{
-								var_dump($mg_product);
-							}
-							var_dump($mg_product->sku);
-							continue; // TODO REMOVE THIS LINE
-							$this->saveProductFromWebProduct($mg_product, $sync_images);
-						}
+						$this->saveProductFromWebProduct($mg_product, $sync_images);
 					}
 				}
 
@@ -1393,8 +1385,10 @@ class Webservice
 			return -1;
 		}
 
-		if ($dol_product->id > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $dol_product->array_options['options_ps_id_product'])."\n";
-		else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $dol_product->array_options['options_ps_id_product'])."\n"; // TODO à vérifier sur une version Dolibarr 6.0, mais je pense qu'il n'est plus possible d'arriver dans ce cas l`après modification du code pour intégrer la synchro Magento
+
+		$id_boutique = ($this->api_name == 'prestashop') ? $dol_product->array_options['options_ps_id_product'] : $dol_product->array_options['options_mg_id_product'];
+		if ($dol_product->id > 0) $this->output.= $langs->trans('DolishopCronjob_SyncProductSuccess', $dol_product->ref, $id_boutique)."\n";
+		else $this->output.= $langs->trans('DolishopCronjob_SyncProductFailUpdateExtrafield', $dol_product->ref, $id_boutique)."\n"; // TODO à vérifier sur une version Dolibarr 6.0, mais je pense qu'il n'est plus possible d'arriver dans ce cas l`après modification du code pour intégrer la synchro Magento
 
 		$TCatToAdd = array();
 
@@ -1415,15 +1409,11 @@ class Webservice
 		}
 		else if ($this->api_name == 'magento')
 		{
-//			var_dump($web_product->custom_attributes[5]);exit;
-//			if (!empty($web_product->extension_attributes->category_links))
 			if (!empty($mg_category_ids))
 			{
 				$TCategory = $this->getTProductCategory(0, false, 'import_key');
-//				foreach ($web_product->extension_attributes->category_links as $mg_category_link)
 				foreach ($mg_category_ids as $mg_category_id)
 				{
-//					if (isset($TCategory[$mg_category_link->category_id])) $TCatToAdd[] = $TCategory[$mg_category_link->category_id]['id'];
 					if (isset($TCategory[$mg_category_id])) $TCatToAdd[] = $TCategory[$mg_category_id]['id'];
 				}
 			}
@@ -1604,7 +1594,8 @@ class Webservice
 
 	/**
 	 * Crée ou met à jour les combinaisons dans Dolibarr
-	 * API "combinations" accessible en GET
+	 * API Prestashop 	"combinations" accessible en GET
+	 * API Magento 		"/V1/configurable-products/:sku/children"
 	 * 
 	 * @global \Dolishop\Conf		$conf
 	 * @global \Dolishop\User		$user
@@ -1615,7 +1606,7 @@ class Webservice
 	 */
 	private function saveDolCombinationsFromWebProduct($web_product, $dol_product, $sync_images)
 	{
-		global $conf,$user,$langs;
+		global $conf,$langs;
 		
 		if (empty($conf->variants->enabled)) return 0;
 		require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductCombination.class.php';
@@ -1656,44 +1647,19 @@ class Webservice
 							$ps_id_option_group = $TProdAttrValByPsId[(int) $ps_product_option_value->id]->ps_id_option_group;
 							$sanit_features[$TProdAttrGroupByPsId[$ps_id_option_group]->id] = $TProdAttrValByPsId[(int) $ps_product_option_value->id]->id;
 						}
-						
-						$comb = new ProductCombinationDolishop($this->db);
-						$product_comb = $comb->fetchByProductCombination2ValuePairs($dol_product->id, $sanit_features);
-						if (! $product_comb)
-						{
-							$dol_product->array_options['options_ps_id_product'] = null; // Les déclinaisons ne doivent pas être rattachées directement à cet identifiant
-							$comb->ps_id_combination = (int) $ps_combination->id;
-							$res = $comb->createProductCombination($dol_product, $sanit_features, array(), false, (double) $ps_combination->price, (double) $ps_combination->weight);
-							if ($res < 0)
-							{
-								$this->error = $comb->db->lasterror();
-								$this->errors = $this->error;
-							}
-						}
-						else
-						{
-							$product_comb->variation_price_percentage = false;
-							$product_comb->variation_price = (double) $ps_combination->price;
-							$product_comb->variation_weight = (double) $ps_combination->weight;
 
-							if ($product_comb->update($user) < 0)
-							{
-								$this->error = $this->db->lasterror(); // $product_comb->db interdit car attribut en private (j'utilise celui de l'objet courrant, ça doit normalement le faire car les objets passés en paramètre sont naturellement des références)
-								$this->errors = $this->error;
-							}
-						}
+						$this->saveDolCombination($dol_product, $sanit_features, (int) $ps_combination->id, (double) $ps_combination->price, (double) $ps_combination->weight);
 					}
 				}
 			}
 		}
 		else if ($this->api_name == 'magento')
 		{
-//			$TProdAttrGroupByMgId = ProductAttributeDolishop::getAllByMgId();
+			if ($web_product->type_id != 'configurable') return 0; // avec Magento, si le type n'est pas "configurable", alors je passe
+
 			$TProdAttrGroupByRef = ProductAttributeDolishop::getAll('ref', true, true, 'magento');
 			$TProdAttrValByMgId = ProductAttributeValueDolishop::getAllByMgId();
-//			var_dump($TProdAttrGroupByMgId);
-//var_dump($TProdAttrGroupByMgId, $TProdAttrValByMgId);
-			// TODO sync Configurable
+
 			$mg_products = $this->getAll('/V1/configurable-products/'.$web_product->sku.'/children');
 
 			// Ici, pas d'attribut "items"
@@ -1714,46 +1680,48 @@ class Webservice
 				{
 					foreach ($TAttrGroupUsed as $k => $group)
 					{
-//						var_dump($TProdAttrGroupByRef[$group]->id);exit;
 						$sanit_features[$TProdAttrGroupByRef[$group]->id] = $TProdAttrValByMgId[$mg_product->custom_attributes[$k]->value]->id;
 					}
-// TODO faire la création/maj de la combinaison
-//					$comb = new ProductCombinationDolishop($this->db);
-//					$product_comb = $comb->fetchByProductCombination2ValuePairs($dol_product->id, $sanit_features);
-//					if (! $product_comb)
-//					{
-//						$dol_product->array_options['options_ps_id_product'] = null; // Les déclinaisons ne doivent pas être rattachées directement à cet identifiant
-//						$comb->ps_id_combination = (int) $ps_combination->id;
-//						$res = $comb->createProductCombination($dol_product, $sanit_features, array(), false, (double) $ps_combination->price, (double) $ps_combination->weight);
-//						if ($res < 0)
-//						{
-//							$this->error = $comb->db->lasterror();
-//							$this->errors = $this->error;
-//						}
-//					}
-//					else
-//					{
-//						$product_comb->variation_price_percentage = false;
-//						$product_comb->variation_price = (double) $ps_combination->price;
-//						$product_comb->variation_weight = (double) $ps_combination->weight;
-//
-//						if ($product_comb->update($user) < 0)
-//						{
-//							$this->error = $this->db->lasterror(); // $product_comb->db interdit car attribut en private (j'utilise celui de l'objet courrant, ça doit normalement le faire car les objets passés en paramètre sont naturellement des références)
-//							$this->errors = $this->error;
-//						}
-//					}
-					var_dump($sanit_features);
+
+					$this->saveDolCombination($dol_product, $sanit_features, $mg_product->id, (double) $mg_product->price, (double) $mg_product->weight);
 				}
 			}
-
-//			var_dump($sanit_features);
-			var_dump($mg_products[0]->sku, $mg_products[0]->custom_attributes);exit;
-
-//			var_dump('FIN', $TProductConfigurable);exit;
 		}
-		
+
 		return 1;
+	}
+
+	public function saveDolCombination(&$dol_product, &$sanit_features, $web_id_combination, $web_price, $web_weight)
+	{
+		global $user;
+
+		$comb = new ProductCombinationDolishop($this->db, $this->api_name);
+		$product_comb = $comb->fetchByProductCombination2ValuePairs($dol_product->id, $sanit_features);
+		if (! $product_comb)
+		{
+			if ($this->api_name == 'prestashop') $dol_product->array_options['options_ps_id_product'] = null; // Les déclinaisons ne doivent pas être rattachées directement à cet identifiant
+			else if ($this->api_name == 'magento') $dol_product->array_options['options_mg_id_product'] = null; // Les déclinaisons ne doivent pas être rattachées directement à cet identifiant
+
+			$comb->mg_id_combination = $web_id_combination; // Pour Magento, cette valeur n'a pas vraiment de valeur
+			$res = $comb->createProductCombination($dol_product, $sanit_features, array(), false, $web_price, $web_weight);
+			if ($res < 0)
+			{
+				$this->error = $comb->db->lasterror();
+				$this->errors = $this->error;
+			}
+		}
+		else
+		{
+			$product_comb->variation_price_percentage = false;
+			$product_comb->variation_price = $web_price;
+			$product_comb->variation_weight = $web_weight;
+
+			if ($product_comb->update($user) < 0)
+			{
+				$this->error = $this->db->lasterror(); // $product_comb->db interdit car attribut en private (j'utilise celui de l'objet courrant, ça doit normalement le faire car les objets passés en paramètre sont naturellement des références)
+				$this->errors = $this->error;
+			}
+		}
 	}
 	
 	/**

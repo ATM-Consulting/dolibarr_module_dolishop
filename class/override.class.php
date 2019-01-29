@@ -440,18 +440,26 @@ if ((float) DOL_VERSION >= 6.0)
 		 */
 		public $ps_id_combination;
 
+		/** @var integer */
+		public $mg_id_combination;
+
 		/**
 		 * @override
 		 */
-		function __construct(\DoliDB $db)
+		function __construct(\DoliDB $db, $api_name='prestashop')
 		{
 			parent::__construct($db);
 			$this->db = $db;
+			$this->api_name = $api_name;
 		}
 
-		public function updatePsValue()
+		public function updateWebValue()
 		{
-			$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute_combination SET ps_id_combination = '.$this->ps_id_combination.' WHERE rowid = '.$this->id;
+			$sql = 'UPDATE '.MAIN_DB_PREFIX.'product_attribute_combination';
+			if ($this->api_name == 'prestashop') $sql.= ' SET ps_id_combination = '.$this->ps_id_combination;
+			else if ($this->api_name == 'magento') $sql.= ' SET mg_id_combination = '.$this->mg_id_combination;
+			$sql.= ' WHERE rowid = '.$this->id;
+
 			$resql = $this->db->query($sql);
 
 			if ($resql) return $this->id;
@@ -481,7 +489,7 @@ if ((float) DOL_VERSION >= 6.0)
 					if (!empty($o))
 					{
 						$this->id = $o->rowid;
-						$res = $this->updatePsValue();
+						$res = $this->updateWebValue();
 					}
 				}
 			}
@@ -500,12 +508,13 @@ if ((float) DOL_VERSION >= 6.0)
 			$res = parent::fetchByFkProductChild($fk_child);
 			if ($res)
 			{
-				$sql = "SELECT ps_id_combination FROM ".MAIN_DB_PREFIX."product_attribute_combination WHERE rowid = ".$this->id;
+				$sql = "SELECT ps_id_combination, mg_id_combination FROM ".MAIN_DB_PREFIX."product_attribute_combination WHERE rowid = ".$this->id;
 				$resql = $this->db->query($sql);
 				if ($resql)
 				{
 					$o = $this->db->fetch_object($resql);
 					$this->ps_id_combination = $o->ps_id_combination;
+					$this->mg_id_combination = $o->mg_id_combination;
 				}
 				else return -1;
 			}
@@ -522,7 +531,7 @@ if ((float) DOL_VERSION >= 6.0)
 		 */
 		public function fetchAllByFkProductParent($fk_product_parent)
 		{
-			$sql = 'SELECT pac.rowid, pac.fk_product_parent, pac.fk_product_child, pac.variation_price, pac.variation_price_percentage, pac.variation_weight, pac.ps_id_combination';
+			$sql = 'SELECT pac.rowid, pac.fk_product_parent, pac.fk_product_child, pac.variation_price, pac.variation_price_percentage, pac.variation_weight, pac.ps_id_combination, pac.mg_id_combination';
 			$sql.= ', p.ref';
 			$sql.= ' FROM '.MAIN_DB_PREFIX.'product_attribute_combination pac';
 			$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'product p ON (p.rowid = pac.fk_product_child)';
@@ -547,6 +556,7 @@ if ((float) DOL_VERSION >= 6.0)
 				$tmp->variation_price_percentage = $result->variation_price_percentage;
 				$tmp->variation_weight = $result->variation_weight;
 				$tmp->ps_id_combination = $result->ps_id_combination;
+				$tmp->mg_id_combination = $result->mg_id_combination;
 
 				$return[] = $tmp;
 			}

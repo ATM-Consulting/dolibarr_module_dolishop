@@ -41,6 +41,7 @@ $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_value ADD COLUMN mg_
 $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_value ADD COLUMN mg_eav_attribute_id integer');
 
 $db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_combination ADD COLUMN ps_id_combination integer');
+$db->query('ALTER TABLE '.MAIN_DB_PREFIX.'product_attribute_combination ADD COLUMN mg_id_combination integer');
 
 
 $o=new MgSalesOrderStatuses($db);
