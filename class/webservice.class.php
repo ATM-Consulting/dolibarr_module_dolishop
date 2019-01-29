@@ -747,8 +747,8 @@ class Webservice
 		if ($direction == 'dolibarr2website')
 		{
 			$this->syncDolCombinationsOptions();
-			
-			$TProductId = DolishopTools::getTProductIdToSync();
+
+			$TProductId = DolishopTools::getTProductIdToSync($date_min);
 			$this->updateWebProducts($TProductId, $sync_images);
 		}
 		else // website2dolibarr
@@ -927,16 +927,6 @@ class Webservice
 			global $conf;
 
 			if (empty($dol_product->array_options)) $dol_product->fetch_optionals();
-			if (!empty($dol_product->array_options['options_ps_id_product']))
-			{
-//				$opt = array('resource' => 'products', 'filter[id]' => '['.$dol_product->array_options['options_ps_id_product'].']');
-//				$alt_opt = array('resource' => 'products', 'filter[reference]' => '['.$dol_product->ref.']');
-			}
-			else
-			{
-//				$opt = array('resource' => 'products', 'filter[reference]' => '['.$dol_product->ref.']');
-//				$alt_opt = array();
-			}
 
 			$mg_product = $this->getOne('/V1/products', $dol_product->ref);
 			if (!$mg_product) $mg_product = new \stdClass();
@@ -2042,7 +2032,6 @@ class Webservice
 						'resource' => '/V1/products/attributes/'.strtolower($productAttr->ref)
 						,'body' => $body
 					));
-					//var_dump($result, $this->errors);
 				}
 				else
 				{
@@ -4043,7 +4032,7 @@ class DolishopTools
 	 * @global Conf $conf
 	 * @return array
 	 */
-	public static function getTProductIdToSync()
+	public static function getTProductIdToSync($date_min=null)
 	{
 		global $conf,$db;
 		
@@ -4054,10 +4043,11 @@ class DolishopTools
 		$sql = 'SELECT DISTINCT p.rowid FROM '.MAIN_DB_PREFIX.'product p';
 		if (!empty($conf->variants->enabled)) $sql.= ' LEFT JOIN '.MAIN_DB_PREFIX.'product_attribute_combination comb ON (p.rowid = comb.fk_product_child)';
 		$sql.= ' INNER JOIN '.MAIN_DB_PREFIX.'categorie_product cp ON (cp.fk_product = p.rowid)'; // restriction par tags/categories
-		$sql.= ' WHERE fk_product_type = '.\Product::TYPE_PRODUCT;
+		$sql.= ' WHERE fk_product_type = '.\Product::TYPE_PRODUCT; // TODO à voir car magento permet de créer des produits de type "virtual" pour l'équivalence d'un service
 		$sql.= ' AND cp.fk_categorie IN ('.$conf->global->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR.')';
 		if (!empty($conf->variants->enabled)) $sql.= ' AND comb.fk_product_child IS NULL';
-		
+		if (!empty($date_min)) $sql.= ' AND p.tms >= \''.$date_min.'\'';
+
 		$resql = $db->query($sql);
 		if ($resql)
 		{
