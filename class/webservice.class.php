@@ -105,7 +105,9 @@ class Webservice
 
 				$now = dol_now();
 				$Tab = unserialize($conf->global->DOLISHOP_MAGENTO_ADMIN_TOKEN);
-				if (empty($Tab) || $Tab['expiration_time'] <= $now)
+
+				$ten_minutes = 600; // Pour forcer la génération d'un nouveau token si celui si arrive à terme
+				if (empty($Tab) || $Tab['expiration_time'] <= $now - $ten_minutes)
 				{
 					try {
 						$token = self::$webService->getToken();
@@ -113,7 +115,7 @@ class Webservice
 						{
 							$Tab = array(
 								'token' => $token
-								,'life_time' => 3600 * 4 // default life time is 4 hours TODO get it from REST call
+								,'life_time' => 3600 * 4 // default life time is 4 hours TODO get it from REST call or set as conf
 								,'expiration_time' => strtotime('+4 hours', $now)
 							);
 
@@ -1631,7 +1633,7 @@ class Webservice
 
 		$dol_product = new \Product($this->db);
 
-		// TODO attention magento c'est par la ref bien que l'id soit synchro
+		// attention, avec Magento, c'est par la ref et non par l'id (bien qu'il soit sauvegardé)
 		$fk_product = DolishopTools::getDolProductId($web_product_id, $ref);
 		if ($fk_product == -1)
 		{
@@ -2103,6 +2105,10 @@ class Webservice
 		}
 	}
 
+	/**
+	 * Permet de créer tous les types d'attribut existants dans Dolibarr pour faire des variantes vers Magento
+	 * @return int
+	 */
 	private function syncDolCombinationsOptionsToMagento()
 	{
 		$TProdAttr = ProductAttributeDolishop::getAll('', true, false, $this->api_name);
@@ -3278,7 +3284,7 @@ class Webservice
 			return -2;
 		}
 
-		// TODO Ajout contact livraison / facturation
+		// Ajout contact livraison / facturation
 		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY) && $fk_socpeople_delivery > 0) $commande->add_contact($fk_socpeople_delivery, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_DELIVERY, 'external');
 		if (!empty($conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING) && $fk_socpeople_billing > 0) $commande->add_contact($fk_socpeople_billing, $conf->global->DOLISHOP_EXTERNAL_TYPE_FOR_CONTACT_BILLING, 'external');
 
@@ -3292,7 +3298,6 @@ class Webservice
 			if ($mg_order_line->product_type == 'bundle') continue;
 			else if ($mg_order_line->product_type == 'configurable') continue; // Petite subtilité, il faudra utiliser l'attribut "parent_item" du produit choisi pour avoir le détail du prix...
 
-			// TODO voir comment identifier s'il s'agit d'un produit décliné ou composé
 			$fk_product = DolishopTools::getDolProductId($mg_order_line->product_id, $mg_order_line->sku, 0);
 			if ($fk_product == -1)
 			{
@@ -3310,7 +3315,7 @@ class Webservice
 			}
 			else if ($fk_product == 0 && !empty($conf->global->DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS))
 			{
-				// TODO ici aussi voir comment récupérer l'info s'il s'agit d'un produit décliné ou composé
+				// TODO voir comment récupérer l'info s'il s'agit d'un produit décliné pour pouvoir le rattacher au parent
 //				var_dump($mg_order_line);exit;
 				$fk_product = $this->createProductFromWebProductId($mg_order_line->sku, 0);
 			}
