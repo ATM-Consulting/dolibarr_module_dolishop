@@ -1659,7 +1659,7 @@ class Webservice
 		$dol_product->weight_units = $weight_units;
 
 		$dol_product->fk_product_type = $fk_product_type;
-		$dol_product->fk_default_warehouse = $conf->global->DOLISHOP_DEFAULT_WAREHOUSE;
+		$dol_product->fk_default_warehouse = $conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID;
 
 		if (!empty($dol_product->id)) $res = $dol_product->update($dol_product->id, $user);
 		else
@@ -1684,7 +1684,7 @@ class Webservice
 	{
 		global $user,$conf;
 
-		if (empty($conf->global->DOLISHOP_DEFAULT_WAREHOUSE)) return 0;
+		if (empty($conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID)) return 0;
 
 		if ($this->api_name == 'prestashop')
 		{
@@ -1700,7 +1700,7 @@ class Webservice
 				require_once DOL_DOCUMENT_ROOT .'/product/stock/class/mouvementstock.class.php';
 
 				$movementstock=new \MouvementStock($this->db);
-				$result=$movementstock->_create($user,$dol_product->id,$conf->global->DOLISHOP_DEFAULT_WAREHOUSE,$mg_stock->qty,0,0,'Init Magento','');
+				$result=$movementstock->_create($user,$dol_product->id,$conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID,$mg_stock->qty,0,0,'Init Magento','');
 
 				if ($result >= 0)
 				{

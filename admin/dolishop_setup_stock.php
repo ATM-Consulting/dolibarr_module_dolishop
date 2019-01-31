@@ -189,22 +189,6 @@ print ajax_constantonoff('DOLISHOP_SYNC_STOCK');
 print '</form></div>';
 print '</td></tr>';
 
-$var=!$var;
-print '<tr '.$bc[$var].'>';
-print '<td class="fieldrequired">'.$langs->trans('DOLISHOP_DEFAULT_WAREHOUSE');
-print '</td>';
-print '<td align="center">&nbsp;</td>';
-print '<td align="right">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_DEFAULT_WAREHOUSE">';
-$formproduct = new FormProduct($db);
-print $formproduct->selectWarehouses($conf->global->DOLISHOP_DEFAULT_WAREHOUSE, 'DOLISHOP_DEFAULT_WAREHOUSE', '', 1);
-print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
-print '</form>';
-print '</td></tr>';
-print '</td></tr>';
-
 print '</table>';
 
 dol_fiche_end();
