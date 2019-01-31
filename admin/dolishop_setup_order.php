@@ -297,50 +297,54 @@ print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'
 print '</form>';
 print '</td></tr>';
 
-
-$var=!$var;
-print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
 if ($dolishop->api_name == 'prestashop')
 {
+	$var=!$var;
+	print '<tr '.$bc[$var].'>';
+	print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING');
 	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC').'</small>';
-}
-else if ($dolishop->api_name == 'magento')
-{
+	print '</td>';
+	print '<td align="center">&nbsp;</td>';
+	print '<td align="right">';
+	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+	print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+	print '<input type="hidden" name="action" value="set_DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING">';
+	print Form::selectarray('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING', $TOrderState, $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING, 1, 0, 0, '', 0, 0, 0, '', 'minwidth200 maxwidth300', 1);
+	print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+	print '</form>';
+	print '</td></tr>';
 
-}
-print '</td>';
-print '<td align="center">&nbsp;</td>';
-print '<td align="right">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING">';
-print Form::selectarray('DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING', $TOrderState, $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING, 1, 0, 0, '', 0, 0, 0, '', 'minwidth200 maxwidth300', 1);
-print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
-print '</form>';
-print '</td></tr>';
-
-$var=!$var;
-print '<tr '.$bc[$var].'>';
-print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED');
-if ($dolishop->api_name == 'prestashop')
-{
+	$var=!$var;
+	print '<tr '.$bc[$var].'>';
+	print '<td>'.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED');
 	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED_DESC').'</small>';
+	print '</td>';
+	print '<td align="center">&nbsp;</td>';
+	print '<td align="right">';
+	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+	print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+	print '<input type="hidden" name="action" value="set_DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED">';
+	print Form::selectarray('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED', $TOrderState, $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED, 1, 0, 0, '', 0, 0, 0, '', 'minwidth200 maxwidth300', 1);
+	print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+	print '</form>';
+	print '</td></tr>';
 }
 else if ($dolishop->api_name == 'magento')
 {
-
+	$var=!$var;
+	print '<tr '.$bc[$var].'>';
+	print '<td>'.$langs->trans('DOLISHOP_CREATE_WEB_INVOICE');
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_CREATE_WEB_INVOICE_DESC').'</small>';
+	print '</td>';
+	print '<td align="center">&nbsp;</td>';
+	print '<td align="right">';
+	print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+	print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+	print '<input type="hidden" name="action" value="set_DOLISHOP_CREATE_WEB_INVOICE">';
+	print ajax_constantonoff('DOLISHOP_CREATE_WEB_INVOICE');
+	print '</form></div>';
+	print '</td></tr>';
 }
-print '</td>';
-print '<td align="center">&nbsp;</td>';
-print '<td align="right">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="set_DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED">';
-print Form::selectarray('DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED', $TOrderState, $conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED, 1, 0, 0, '', 0, 0, 0, '', 'minwidth200 maxwidth300', 1);
-print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
-print '</form>';
-print '</td></tr>';
 
 print '</table>';
 

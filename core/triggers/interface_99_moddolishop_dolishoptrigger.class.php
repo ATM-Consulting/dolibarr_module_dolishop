@@ -215,7 +215,34 @@ class InterfaceDolishoptrigger
 				if ($res > 0) setEventMessage($langs->trans('DolishopWebOrderSetAsDelivered'));
 			}
 		}
-		
+		else if ($action == 'STOCK_MOUVEMENT')
+		{
+			// MAJ stock exemple
+//				if (!empty($mg_product->extension_attributes->stock_item->item_id))
+//				{
+//					$mg_stock = self::$webService->put(array(
+//						'resource' => '/V1/products/'.$mg_product->sku.'/stockItems/'.$mg_product->extension_attributes->stock_item->item_id
+//						,'body' => array('stock_item' => $mg_product->extension_attributes->stock_item)
+//					));
+//					var_dump($mg_stock);exit;
+//				}
+		}
+		else if ($action == 'BILL_VALIDATE')
+		{
+			if (!empty($object->array_options['options_web_id_order']) && empty($object->array_options['options_web_id_invoice']))
+			{
+				if (empty($object->array_options)) $object->fetch_optionals();
+				if ($object->array_options['options_web_id_order'] > 0)
+				{
+					dol_include_once('/dolishop/class/webservice.class.php');
+					$dolishop = new Dolishop\Webservice($db);
+					$res = $dolishop->createWebInvoice($object);
+					if ($res > 0) setEventMessage($langs->trans('DolishopWebInvoiceCreated'));
+				}
+			}
+		}
+
+
         if ($action == 'USER_LOGIN') {
             dol_syslog(
                 "Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ". id=" . $object->id

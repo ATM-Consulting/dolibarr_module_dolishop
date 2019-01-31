@@ -72,6 +72,9 @@ DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING=Valider une expédition Dolibarr pa
 DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC=La ressource <b>orders</b> doit être accessible en <b>PUT</b> et la ressource <b>order_carriers</b> en <b>GET / PUT / POST</b>
 DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED=Classer une commande Dolibarr comme livrée, passera la commande de votre boutique au statut (vide pour désactiver) :
 DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED_DESC=La ressource <b>orders</b> doit être accessible en <b>PUT</b>
+DOLISHOP_CREATE_WEB_INVOICE=Valider une facture issue d'une commande de votre boutique créera la facture sur votre boutique
+DOLISHOP_CREATE_WEB_INVOICE_DESC=Ceci implique uniquement les commandes provenant de votre boutique
+
 WebCarriersAssociations=Associations des méthodes d'expédition
 WebCarriersAssociationsHelp=La ressource <b>carriers</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les méthodes d'expédition de votre boutique avec celles de Dolibarr
 WebCarriersAssociationsHelpMg=Le dictionnaire "%s" doit être renseigné pour faire correspondre les codes avec ceux de Magento depuis le menu Accueil > Configuration > Dictionnaires > %1$s
@@ -145,12 +148,13 @@ DolishopAddPsProductImagesSuccess=Image ajoutée sur votre boutique Prestashop
 DolishopDeletePsProductImagesSuccess=Image supprimée de votre boutique Prestashop
 DolishopWebOrderSetAsShipped=Commande boutique mis à jour comme expédié
 DolishopWebOrderSetAsDelivered=Commande boutique mis à jour comme livrée
+DolishopWebInvoiceCreated=Facture boutique créée
 
 ### CRONJOB
 DolishopCronjob_SyncProductSuccess=[%s] synchronisé avec l'identifiant boutique [%s]
 DolishopCronjob_SyncProductFailUpdateExtrafield=Échec : [%s] => identifiant boutique retourné [%s]
 DolishopCronjob_SyncProductError=Erreur : message retour [%s]
-DolishopCronjob_ErrorSyncCustomersAndAdresses=Impossible de créer la fiche client (vérifiez les droits côté Prestashop)
+DolishopCronjob_ErrorSyncCustomersAndAdresses=Impossible de créer la fiche client (vérifiez les droits côté %s)
 DolishopCronjob_SyncProductCombinationSuccess=Déclinaison OK : [%s]
 DolishopCronjob_SyncProductCombinationFail=Échec déclinaison : [%s]
 DolishopCronjob_SyncProductCombinationErrorAttributeMissing=Erreur déclinaison : le produit [%s] ne parvient pas à créer l'option portant l'id [%s]
@@ -163,3 +167,6 @@ DolishopNewOrderCreated=Nouvelle commande %s créée portant la référence clie
 DolishopShippingCosts=Frais d'expédition
 DolishopSyncProductsIsDisabled=La configuration de synchronisation des produits est désactivée
 DolishopSyncOrdersIsDisabled=La configuration de synchronisation des commandes est désactivée
+
+
+DiscountCodeUsed=Code promo utilisé: %s (%s)

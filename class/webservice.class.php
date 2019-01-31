@@ -1079,16 +1079,6 @@ class Webservice
 
 				$mg_product->extension_attributes->stock_item->qty = $dol_product->stock_reel; // stock_theorique
 				$mg_product->extension_attributes->stock_item->is_in_stock = ($dol_product->stock_reel > 0) ? true : false;
-
-				// MAJ stock exemple
-//				if (!empty($mg_product->extension_attributes->stock_item->item_id))
-//				{
-//					$mg_stock = self::$webService->put(array(
-//						'resource' => '/V1/products/'.$mg_product->sku.'/stockItems/'.$mg_product->extension_attributes->stock_item->item_id
-//						,'body' => array('stock_item' => $mg_product->extension_attributes->stock_item)
-//					));
-//					var_dump($mg_stock);exit;
-//				}
 			}
 //			var_dump($mg_product->extension_attributes->stock_item);exit;
 
@@ -1573,6 +1563,8 @@ class Webservice
 	private function saveProductImageFromWebProduct($dol_product, $web_product)
 	{
 		global $conf;
+
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 
 		if (! empty($conf->product->enabled)) $upload_dir = $conf->product->multidir_output[$dol_product->entity].'/'.get_exdir(0, 0, 0, 0, $dol_product, 'product').dol_sanitizeFileName($dol_product->ref);
 		elseif (! empty($conf->service->enabled)) $upload_dir = $conf->service->multidir_output[$dol_product->entity].'/'.get_exdir(0, 0, 0, 0, $dol_product, 'product').dol_sanitizeFileName($dol_product->ref);
@@ -2879,7 +2871,7 @@ class Webservice
 		global $langs,$user,$conf;
 
 		self::$from_cron_job = true;
-		
+
 		if (empty($conf->global->DOLISHOP_SYNC_ORDERS))
 		{
 			$this->outpout = $langs->trans('DolishopSyncOrdersIsDisabled');
@@ -3104,10 +3096,14 @@ class Webservice
 
 		$commande->ref_client = $ps_order->reference->__toString();
 
-		list($fk_soc, $fk_socpeople_delivery, $fk_socpeople_billing) = $this->saveDolCustomerAddressFromPrestashop((int) $ps_order->id_customer, (int) $ps_order->id_address_delivery, (int) $ps_order->id_address_invoice);
+		$TRes = $this->saveDolCustomerAddressFromPrestashop((int) $ps_order->id_customer, (int) $ps_order->id_address_delivery, (int) $ps_order->id_address_invoice);
+		$fk_soc = $TRes[0];
+		$fk_socpeople_delivery = $TRes[1];
+		$fk_socpeople_billing = $TRes[2];
+
 		if (empty($fk_soc) || empty($fk_socpeople_delivery) || empty($fk_socpeople_billing))
 		{
-			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
+			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses', $this->api_name);
 			return -1;
 		}
 
@@ -3241,7 +3237,7 @@ class Webservice
 
 		if (empty($fk_soc) || empty($fk_socpeople_delivery) || empty($fk_socpeople_billing))
 		{
-			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses');
+			$this->output.= $langs->trans('DolishopCronjob_ErrorSyncCustomersAndAdresses', $this->api_name);
 			return -1;
 		}
 
@@ -3251,7 +3247,10 @@ class Webservice
 		$commande->socid = $fk_soc;
 		$commande->date = strtotime($mg_order->updated_at);
 		$commande->date_commande = $commande->date;
+
 		$commande->note_private = ''; // TODO à voir avec la ressource "messages"
+		if (!empty($mg_order->coupon_code)) $commande->note_private = $langs->trans('DiscountCodeUsed', $mg_order->coupon_code, $mg_order->base_discount_amount);
+
 		if (!empty($mg_order->status_histories))
 		{
 			foreach($mg_order->status_histories as $commentaire)
@@ -3348,7 +3347,7 @@ class Webservice
 				,null
 				,0 // pa_ht
 				,'' // label
-				,array() // array_options
+				,array('options_mg_item_id' => $mg_order_line->item_id) // array_options
 			);
 
 			if ($r < 0) return -4;
@@ -3393,7 +3392,8 @@ class Webservice
 	{
 		global $user;
 
-		$fk_soc = DolishopTools::getSociete($web_id_customer);
+		$fk_soc = DolishopTools::getSociete($web_id_customer, $email);
+
 		$societe = new \Societe($this->db);
 		if ($fk_soc > 0) $societe->fetch($fk_soc);
 
@@ -3421,7 +3421,7 @@ class Webservice
 		else
 		{
 			$societe->array_options['options_web_id_customer'] = $web_id_customer;
-			$societe->create($user);
+			if ($societe->create($user) <= 0) return false;
 		}
 
 		return $societe;
@@ -3483,12 +3483,15 @@ class Webservice
 
 	private function saveDolCustomerAddressFromMagento(&$mg_order)
 	{
+		global $conf;
 		if ($mg_order->customer_gender == 1) $civility_id = 'MR';
 		else if ($mg_order->customer_gender == 2) $civility_id = 'MME';
 		else $civility_id = '';
 
 // TODO faire la gestion d'erreur si les create societe/contact ne fonctionnent pas
-		$societe = $this->saveSociete($mg_order->customer_id, dolGetFirstLastname($mg_order->customer_firstname, $mg_order->customer_lastname), $mg_order->customer_email, $mg_order->customer_firstname, $mg_order->customer_lastname, $civility_id, $conf->entity);
+		if (!empty($mg_order->customer_id))	$societe = $this->saveSociete($mg_order->customer_id, dolGetFirstLastname($mg_order->customer_firstname, $mg_order->customer_lastname), $mg_order->customer_email, $mg_order->customer_firstname, $mg_order->customer_lastname, $civility_id, $conf->entity);
+		// Commande en mode anonyme (sans connexion)
+		else $societe = $this->saveSociete(0, dolGetFirstLastname($mg_order->billing_address->firstname, $mg_order->billing_address->lastname), $mg_order->customer_email, $mg_order->billing_address->firstname, $mg_order->billing_address->lastname, $civility_id, $conf->entity);
 
 		$contact_billing = $this->saveDolContact(
 			$societe
@@ -3708,10 +3711,134 @@ class Webservice
 					
 			return 1;
 		}
+		else if ($this->api_name == 'magento')
+		{
+			$error = 0;
+			$body = array(
+				'items' => array()
+			);
+
+			require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
+
+			foreach ($expedition->lines as $line)
+			{
+				$commandedet = new \OrderLine($this->db);
+				$commandedet->fetch($line->fk_origin_line);
+				if (empty($commandedet->id)) $commandedet->id = $commandedet->rowid; // <= 8.0
+				$commandedet->fetch_optionals();
+
+				if ($commandedet->array_options['options_mg_item_id'] > 0)
+				{
+					$body['items'][] = array(
+						'extension_attributes' => array()
+						,'order_item_id' => $commandedet->array_options['options_mg_item_id'] // Si cette valeur est vide il sera impossible de faire une expedition
+						,'qty' => $line->qty_shipped
+					);
+				}
+			}
+
+			try
+			{
+				$mg_shipping_id = self::$webService->post(array(
+					'resource' => '/V1/order/'.$web_id_order.'/ship'
+					,'body' => $body
+				));
+			}
+			catch (MGWebServiceLibrary\MagentoWebserviceException $e)
+			{
+				$error++;
+				$this->setError($e);
+			}
+
+			if (!$error)
+			{
+				$expedition->array_options['options_web_id_order_carrier'] = $mg_shipping_id;
+				$expedition->updateExtraField('web_id_order_carrier');
+
+				return $mg_shipping_id;
+			}
+
+			return -1;
+		}
 		
 		return 0;
 	}
-	
+
+	/**
+	 * @param Facture $object
+	 */
+	public function createWebInvoice($object)
+	{
+		if ($this->api_name == 'prestashop')
+		{
+			// TODO ...
+		}
+		else if ($this->api_name == 'magento')
+		{
+			$error = 0;
+			$body = array(
+				'items' => array()
+			);
+
+
+			// /V1/order/{orderId}/invoice
+
+//			$apiInstance = new \Swagger\Client\Api\SalesInvoiceOrderV1Api(
+//			// If you want use custom http client, pass your client which implements `GuzzleHttp\ClientInterface`.
+//			// This is optional, `GuzzleHttp\Client` will be used as default.
+//				new \GuzzleHttp\Client()
+//			);
+//			$order_id = 56; // int |
+//			$body = new \Swagger\Client\Model\Body77(); // \Swagger\Client\Model\Body77 |
+//
+//			try {
+//				$result = $apiInstance->salesInvoiceOrderV1ExecutePost($order_id, $body);
+//				print_r($result);
+//			} catch (Exception $e) {
+//				echo 'Exception when calling SalesInvoiceOrderV1Api->salesInvoiceOrderV1ExecutePost: ', $e->getMessage(), PHP_EOL;
+//			}
+
+
+			foreach ($object->lines as $line)
+			{
+				if (empty($line->array_options)) $line->fetch_optionals();
+
+				if ($line->array_options['options_mg_item_id'] > 0)
+				{
+					$body['items'][] = array(
+						'extension_attributes' => array()
+						,'order_item_id' => $line->array_options['options_mg_item_id'] // Si cette valeur est vide il sera impossible de faire une expedition
+						,'qty' => $line->qty
+					);
+				}
+			}
+			//var_dump($object->array_options['web_id_order'], $body);exit;
+			try
+			{
+				$mg_invoice_id = self::$webService->post(array(
+					'resource' => '/V1/order/'.$object->array_options['options_web_id_order'].'/invoice'
+					,'body' => $body
+				));
+			}
+			catch (MGWebServiceLibrary\MagentoWebserviceException $e)
+			{
+				$error++;
+				$this->setError($e);
+			}
+
+			if (!$error)
+			{
+				$object->array_options['options_web_id_invoice'] = $mg_invoice_id;
+				$object->updateExtraField('web_id_invoice');
+
+				return $mg_invoice_id;
+			}
+
+			return -1;
+		}
+
+		return 0;
+	}
 	
 	public function setWebOrderAsDelivered($web_id_order)
 	{
@@ -4014,18 +4141,19 @@ class Webservice
 
 class DolishopTools
 {
-	public static function getSociete($web_id_customer)
+	public static function getSociete($web_id_customer, $email='')
 	{
 		global $db;
-		
-		if ($web_id_customer <= 0) return 0;
-		
-		$sql = 'SELECT fk_object FROM '.MAIN_DB_PREFIX.'societe_extrafields WHERE web_id_customer = '.$web_id_customer;
+
+		if (!empty($web_id_customer)) $sql = 'SELECT fk_object AS fk_soc FROM '.MAIN_DB_PREFIX.'societe_extrafields WHERE web_id_customer = '.$web_id_customer;
+		else if (!empty($email)) $sql = 'SELECT rowid AS fk_soc FROM '.MAIN_DB_PREFIX.'societe WHERE email = \''.$db->escape($email).'\'';
+		else return 0;
+
 		$resql = $db->query($sql);
 		if ($resql)
 		{
 			$obj = $db->fetch_object($resql);
-			if (!empty($obj->fk_object)) return $obj->fk_object;
+			if (!empty($obj->fk_soc)) return $obj->fk_soc;
 			else return 0;
 		}
 		else exit($db->lasterror());

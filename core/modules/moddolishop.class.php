@@ -371,7 +371,21 @@ class moddolishop extends DolibarrModules
 		$pos = 0;
 		$extrafield->addExtraField('web_id_order', 'ID commande boutique', 'int', $this->numero.$pos, 10, 'commande', 0, 0, '', '', 0, '', -1, 0);
 		$pos+=10;
-		
+
+		$pos = 0;
+		$extrafield->addExtraField('mg_item_id', 'Magento item id', 'int', $this->numero.$pos, 10, 'commandedet', 0, 0, '', '', 0, '', 0, 0);
+		$pos+=10;
+
+		$pos = 0;
+		$extrafield->addExtraField('mg_item_id', 'Magento original item id', 'int', $this->numero.$pos, 10, 'facturedet', 0, 0, '', '', 0, '', 0, 0);
+		$pos+=10;
+
+		$pos = 0;
+		$extrafield->addExtraField('web_id_order', 'ID commande boutique origine', 'int', $this->numero.$pos, 10, 'facture', 0, 0, '', '', 0, '', -1, 0);
+		$pos+=10;
+		$extrafield->addExtraField('web_id_invoice', 'ID facture boutique', 'int', $this->numero.$pos, 10, 'facture', 0, 0, '', '', 0, '', -1, 0);
+		$pos+=10;
+
 		$pos = 0;
 		$extrafield->addExtraField('web_id_order_carrier', 'ID expédition boutique', 'int', $this->numero.$pos, 10, 'expedition', 0, 0, '', '', 0, '', -1, 0);
 		$pos+=10;
