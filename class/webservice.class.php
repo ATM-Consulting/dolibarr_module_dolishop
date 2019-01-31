@@ -919,7 +919,7 @@ class Webservice
 	}
 
 	// TODO à finaliser
-	private function syncProductToMagento($fk_product, $sync_images=false)
+	private function syncProductToMagento($fk_product, $sync_images=false, $TCategory=array(), $fk_comb=0, $dol_parent_product=null)
 	{
 		$dol_product = new \Product($this->db);
 		if ($dol_product->fetch($fk_product) > 0)
@@ -928,6 +928,7 @@ class Webservice
 
 			if (empty($dol_product->array_options)) $dol_product->fetch_optionals();
 
+			// TODO peut etre faut il faire un test sur l'extrafield "mg_id_product"
 			$mg_product = $this->getOne('/V1/products', $dol_product->ref);
 			if (!$mg_product) $mg_product = new \stdClass();
 //			$response = $this->getOne('/V1/products', '24-MB01');
@@ -935,8 +936,12 @@ class Webservice
 //			var_dump($mg_product);
 //			exit;
 
+			$TChildCombinationId = array();
+			if (!empty($conf->variants->enabled)) $TChildCombinationId = DolishopTools::getAllChildProductCombinationId($dol_product->id);
+
 //			$mg_product['id'] = isset($data['id']) ? $data['id'] : null;
 //			$mg_product['sku'] = $dol_product->ref;
+//			$mg_product->sku = str_replace('_', '-', $dol_product->ref);
 			$mg_product->sku = $dol_product->ref;
 //			$mg_product['name'] = $dol_product->label;
 			$mg_product->name = $dol_product->label;
@@ -949,7 +954,9 @@ class Webservice
 //			$mg_product['visibility'] = ($dol_product->status > 0 ? 4 : 1); // 1 = Non visible individuellement; 4 = Catalogue, recherche (2 = Catalogue; 3 = Rechercher)
 			$mg_product->visibility = ($dol_product->status > 0 ? 4 : 1); // 1 = Non visible individuellement; 4 = Catalogue, recherche (2 = Catalogue; 3 = Rechercher)
 //			$mg_product['type_id'] = 'simple';
-			$mg_product->type_id = 'simple'; // simple, bundle, virtual
+
+			if (!empty($TChildCombinationId)) $mg_product->type_id = 'configurable';
+			else $mg_product->type_id = 'simple'; // simple, bundle, virtual
 //			$mg_product['created_at'] = isset($data['created_at']) ? $data['created_at'] : null;
 //			$mg_product['updated_at'] = isset($data['updated_at']) ? $data['updated_at'] : null;
 			$coef = 1;
@@ -974,7 +981,7 @@ class Webservice
 				$mg_product->custom_attributes[] = array('attribute_code' => 'short_description', 'value' => DolishopTools::trunc($dol_product->description, $conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT, true, false));
 			}
 
-			$TCategory = $this->getTProductCategory($dol_product->id);
+			if (empty($TCategory)) $TCategory = $this->getTProductCategory($dol_product->id);
 			if (is_array($TCategory))
 			{
 				$TCatForMagento = array();
@@ -986,14 +993,102 @@ class Webservice
 
 				$mg_product->custom_attributes[] = array('attribute_code' => 'category_ids', 'value' => $TCatForMagento);
 			}
+/*
+			$TProdAttrValById = ProductAttributeValueDolishop::getAll('id', false, true, $this->api_name);
+			$TProdAttrById = ProductAttributeDolishop::getAll('id', false, true, $this->api_name);
 
+			require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductCombination2ValuePair.class.php';
 
-//			'custom_attributes' => array(
-//			array( 'attribute_code' => 'category_ids', 'value' => ["42","41","32"] ),
-//			array( 'attribute_code' => 'description', 'value' => 'Simple Description' ),
-//			array( 'attribute_code' => 'short_description', 'value' => 'Simple  Short Description' ),
-//		)
-//var_dump($mg_product);exit;
+			$prodcomb = new ProductCombinationDolishop($this->db);
+			$TComb = $prodcomb->fetchAllByFkProductParent($dol_product->id);
+
+			$TProdAttr = array();
+
+			foreach ($TComb as $comb)
+			{
+				$comb2val = new \ProductCombination2ValuePair($this->db);
+				$TValuePair = $comb2val->fetchByFkCombination($comb->id);
+
+				foreach ($TValuePair as $pair)
+				{
+					$TProdAttr[$TProdAttrById[$pair->fk_prod_attr]->mg_eav_attribute_id][] = $TProdAttrValById[$pair->fk_prod_attr_val]->mg_eav_attribute_option_id;
+				}
+
+			}
+
+			$mg_product->configurable_product_options = array();
+			$i=0;
+			foreach ($TProdAttr as $attribute_id => $TValueIndex)
+			{
+				$mg_product->configurable_product_options[$i] = array(
+					'attribute_id' => $attribute_id
+					,'label'=> 'Lorem'
+					,'position'=> $i
+					,'values' => array()
+				);
+
+				foreach ($TValueIndex as $value_index)
+				{
+					$mg_product->configurable_product_options[$i]['values'][] = array('value_index' => $value_index);
+				}
+
+				$i++;
+			}
+			$mg_product->configurable_product_links = array(2070);*/
+
+			// There is a variant
+			if (!empty($fk_comb) && !empty($conf->variants->enabled))
+			{
+				require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductCombination2ValuePair.class.php';
+
+				$prodcomb = new ProductCombinationDolishop($this->db);
+				$res = $prodcomb->fetch($fk_comb);
+				if ($res <= 0) return -1; // fetch error
+
+				// Pas besoin, la fiche de la variante embarque déjà l'augmentation
+//				$mg_product->price += $prodcomb->variation_price;
+//				$mg_product->weight += $prodcomb->variation_weight;
+
+				$TProdAttrValById = ProductAttributeValueDolishop::getAll('id', false, true, $this->api_name);
+				$TProdAttrById = ProductAttributeDolishop::getAll('id', false, true, $this->api_name);
+
+				$comb2val = new \ProductCombination2ValuePair($this->db);
+				$TValuePair = $comb2val->fetchByFkCombination($prodcomb->id);
+				if (!is_array($TValuePair)) return -2; // error
+
+				$mg_product->extension_attributes = array();
+				$mg_product->extension_attributes['configurable_product_options'] = array();
+
+//				 Si des identifiants sont manquants, la synchro ne fonctionnera pas
+				foreach ($TValuePair as $i => $valuePair)
+				{
+					$mg_product->custom_attributes[] = array('attribute_code' => strtolower($TProdAttrById[$valuePair->id]->ref), 'value' => $TProdAttrValById[$valuePair->fk_prod_attr_val]->mg_eav_attribute_option_id);
+				}
+
+			}
+
+			// L'init stock fonctionne uniquement sur la création
+			if (!empty($conf->global->DOLISHOP_SYNC_STOCK))
+			{
+				if (empty($mg_product->extension_attributes->stock_item->item_id))
+				{
+					$mg_product->extension_attributes->stock_item = new \stdClass();
+				}
+
+				$mg_product->extension_attributes->stock_item->qty = $dol_product->stock_reel; // stock_theorique
+				$mg_product->extension_attributes->stock_item->is_in_stock = ($dol_product->stock_reel > 0) ? true : false;
+
+				// MAJ stock exemple
+//				if (!empty($mg_product->extension_attributes->stock_item->item_id))
+//				{
+//					$mg_stock = self::$webService->put(array(
+//						'resource' => '/V1/products/'.$mg_product->sku.'/stockItems/'.$mg_product->extension_attributes->stock_item->item_id
+//						,'body' => array('stock_item' => $mg_product->extension_attributes->stock_item)
+//					));
+//					var_dump($mg_stock);exit;
+//				}
+			}
+//			var_dump($mg_product->extension_attributes->stock_item);exit;
 
 			$error = 0;
 			try {
@@ -1040,8 +1135,58 @@ class Webservice
 					foreach ($TFileInfo as $info) $TFileName[] = $info['name'];
 
 					$res = $this->saveImages($dol_product, $TFileName, $dir);
-
 				}
+
+				// TODO sync les variantes s'il y en a... Avec Magento il faut les considérer comme des fiches produits puis faire un appel pour faire la liaison
+				// @see https://devdocs.magento.com/guides/v2.3/rest/tutorials/configurable-product/define-config-product-options.htmls
+				//if ($res > 0) $this->saveWebCombinationsFromDolProduct($ps_product_return, $dol_product);
+				foreach ($TChildCombinationId as $fk_child => $fk_comb)
+				{
+					$this->syncProductToMagento($fk_child, $sync_images, $TCategory, $fk_comb, $dol_product);
+
+
+					// TODO add link
+				}
+
+/*
+				if ($dol_parent_product !== null)
+				{
+					$body = array(
+						'option' => array(
+							'product_sku' => $dol_parent_product->ref
+							,'title' => $dol_product->label
+							,'type' => 'field'
+							,'sort_order' => 1
+							,'is_require' => false
+							,'price' => $mg_product->price
+							,'price_type' => 'fixed'
+							,'sku' => $mg_product->sku
+//							,'max_characters' => 15
+						)
+					);
+//					var_dump($body);
+
+					$result = self::$webService->post(array(
+						'resource' => '/V1/products/options'
+						,'body' => $body
+					));
+//					var_dump($result);
+//					exit('FFIINN');
+
+					$body = array(
+						'childSku' => $mg_product->sku
+					);
+
+					$result = self::$webService->post(array(
+						'resource' => '/V1/configurable-products/'.$dol_parent_product->ref.'/child'
+						,'body' => $body
+					));
+
+					var_dump($result);
+//					exit;
+				}*/
+
+
 			}
 
 		}
@@ -1850,6 +1995,9 @@ class Webservice
 		else if ($this->api_name == 'magento')
 		{
 			$this->syncDolCombinationsOptionsToMagento();
+			// Je force les reload ici, car j'en aurai besoin dans le parcours de la synchro des produits
+			ProductAttributeValueDolishop::getAll('id', true, true, $this->api_name);
+			ProductAttributeDolishop::getAll('id', true, true, $this->api_name);
 		}
 	}
 
@@ -4103,4 +4251,24 @@ class DolishopTools
 		
 		return !empty($upload_dirold) ? $upload_dirold : $upload_dir;
 	}
+
+	public static function getAllChildProductCombinationId($fk_parent)
+	{
+		global $db;
+
+		$TChildId = array();
+		$sql = 'SELECT pac.fk_product_child, pac.rowid';
+		$sql.= ' FROM '.MAIN_DB_PREFIX.'product_attribute_combination pac';
+		$sql.= ' WHERE pac.fk_product_parent = '.$fk_parent;
+
+		$resql = $db->query($sql);
+		if ($resql)
+		{
+			while ($row = $db->fetch_object($resql)) $TChildId[$row->fk_product_child] = $row->rowid;
+		}
+		else exit($db->lasterror());
+
+		return $TChildId;
+	}
+
 }

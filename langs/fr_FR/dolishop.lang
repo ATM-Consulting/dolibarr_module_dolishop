@@ -140,7 +140,7 @@ DolishopErrorMultipleReferenceFound=Erreur : plusieurs produits dolibarr trouvé
 ### MESG SUCCESS
 DolishopTestConnectionSuccess=Connexion à votre boutique [%s] réussie
 DolishopSyncPsConfSuccess=Configuration récupérée
-DolishopSyncPsProductSuccess=Produit Prestashop mis à jour
+DolishopSyncWebProductSuccess=Produit %s mis à jour
 DolishopAddPsProductImagesSuccess=Image ajoutée sur votre boutique Prestashop
 DolishopDeletePsProductImagesSuccess=Image supprimée de votre boutique Prestashop
 DolishopWebOrderSetAsShipped=Commande boutique mis à jour comme expédié

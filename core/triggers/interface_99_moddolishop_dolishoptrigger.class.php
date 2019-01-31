@@ -121,8 +121,31 @@ class InterfaceDolishoptrigger
         // Users
 
 		// TODO voir si je retire l'automatisation de la synchro pour le faire via un bouton sur la fiche produit
-		if ($action == 'PRODUCT_CREATE' || $action == 'PRODUCT_MODIFY' || ($action == 'PRODUCT_SET_MULTILANGS' && GETPOST('action') == 'vedit') )
+		if (/*$action == 'PRODUCT_CREATE' || */$action == 'PRODUCT_MODIFY' || ($action == 'PRODUCT_SET_MULTILANGS' && GETPOST('action') == 'vedit') )
 		{
+			if ($action == 'PRODUCT_MODIFY' && ($match = preg_grep('/^addvariant_[0-9]+$/', array_keys($_SESSION))) )
+			{
+				$index = current($match);
+				$TVariant = $_SESSION[$index];
+
+				$TMoreForLabel = array();
+				foreach ($TVariant as $variant)
+				{
+					$Tab = explode(':', $variant);
+
+					$prodattrval = new ProductAttributeValue($db);
+					$prodattrval->fetch($Tab[1]);
+
+					$TMoreForLabel[] = $prodattrval->value;
+//					var_dump($prodattr, $prodattrval);exit;
+				}
+
+				// SO ugly but no choice (this was write in 8.0)
+				$object->fetch($object->id);
+				$object->label.= ' ('.implode(', ', $TMoreForLabel).')';
+				$object->update($object->id, $user, true);
+			}
+
 			if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS) && $object->fk_product_type == Product::TYPE_PRODUCT)
 			{
 				dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
@@ -155,7 +178,7 @@ class InterfaceDolishoptrigger
 
 							$dolishop->updateWebProducts(array($object->id));
 							if (!Dolishop\Webservice::$from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
-							else setEventMessage($langs->trans('DolishopSyncPsProductSuccess'));
+							else setEventMessage($langs->trans('DolishopSyncWebProductSuccess', $dolishop->api_name));
 						}
 					}
 				}
