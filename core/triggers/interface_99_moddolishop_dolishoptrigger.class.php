@@ -146,6 +146,7 @@ class InterfaceDolishoptrigger
 				$object->update($object->id, $user, true);
 			}
 
+			// TODO le test sur le type de produit est il vraiment justifié ?
 			if (!empty($conf->global->DOLISHOP_SYNC_PRODUCTS) && $object->fk_product_type == Product::TYPE_PRODUCT)
 			{
 				dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
@@ -187,18 +188,24 @@ class InterfaceDolishoptrigger
 		
 		if ($action == 'SHIPPING_VALIDATE' && !empty($conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING))
 		{
-			dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
-			
-			if ($object->origin == 'commande' && $object->origin_id > 0)
+			if (
+				(!empty($conf->global->DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING) && (empty($conf->global->DOLISHOP_API_NAME) || $conf->global->DOLISHOP_API_NAME == 'prestashop'))
+				|| (!empty($conf->global->DOLISHOP_CREATE_WEB_SHIPPING) && $conf->global->DOLISHOP_API_NAME == 'magento')
+			)
 			{
-				$commande = new Commande($this->db);
-				$commande->fetch($object->origin_id);
-				if ($commande->array_options['options_web_id_order'] > 0)
+				dol_syslog("Trigger '" . $this->name . "' for action '$action' launched by " . __FILE__ . ":".__LINE__." . id=" . $object->id);
+
+				if ($object->origin == 'commande' && $object->origin_id > 0)
 				{
-					dol_include_once('/dolishop/class/webservice.class.php');
-					$dolishop = new Dolishop\Webservice($db);
-					$res = $dolishop->setWebOrderAsShipped($commande->array_options['options_web_id_order'], $object);
-					if ($res > 0) setEventMessage($langs->trans('DolishopWebOrderSetAsShipped'));
+					$commande = new Commande($this->db);
+					$commande->fetch($object->origin_id);
+					if ($commande->array_options['options_web_id_order'] > 0)
+					{
+						dol_include_once('/dolishop/class/webservice.class.php');
+						$dolishop = new Dolishop\Webservice($db);
+						$res = $dolishop->setWebOrderAsShipped($commande->array_options['options_web_id_order'], $object);
+						if ($res > 0) setEventMessage($langs->trans('DolishopWebOrderSetAsShipped'));
+					}
 				}
 			}
 		}
@@ -215,17 +222,20 @@ class InterfaceDolishoptrigger
 				if ($res > 0) setEventMessage($langs->trans('DolishopWebOrderSetAsDelivered'));
 			}
 		}
-		else if ($action == 'STOCK_MOUVEMENT')
+		else if ($action == 'STOCK_MOVEMENT')
 		{
-			// MAJ stock exemple
-//				if (!empty($mg_product->extension_attributes->stock_item->item_id))
-//				{
-//					$mg_stock = self::$webService->put(array(
-//						'resource' => '/V1/products/'.$mg_product->sku.'/stockItems/'.$mg_product->extension_attributes->stock_item->item_id
-//						,'body' => array('stock_item' => $mg_product->extension_attributes->stock_item)
-//					));
-//					var_dump($mg_stock);exit;
-//				}
+			if (!empty($conf->global->DOLISHOP_SYNC_STOCK))
+			{
+				dol_include_once('/dolishop/class/webservice.class.php');
+				$dolishop = new Dolishop\Webservice($db, $from_product_card);
+
+				if (Dolishop\DolishopTools::checkProductCategoriesD2P($object->product_id))
+				{
+					$dolishop->stockMovementToWebProduct($object);
+					if (!Dolishop\Webservice::$from_cron_job && !empty($dolishop->error)) setEventMessage($dolishop->error, 'errors');
+					//else setEventMessage($langs->trans('DolishopSyncWebProductSuccess', $dolishop->api_name));
+				}
+			}
 		}
 		else if ($action == 'BILL_VALIDATE')
 		{

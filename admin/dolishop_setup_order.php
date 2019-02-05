@@ -333,6 +333,20 @@ else if ($dolishop->api_name == 'magento')
 {
 	$var=!$var;
 	print '<tr '.$bc[$var].'>';
+	print '<td>'.$langs->trans('DOLISHOP_CREATE_WEB_SHIPPING');
+	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_CREATE_WEB_SHIPPING_DESC').'</small>';
+	print '</td>';
+	print '<td align="center">&nbsp;</td>';
+	print '<td align="right">';
+	print '<div class="notopnoleft"><form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+	print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+	print '<input type="hidden" name="action" value="set_DOLISHOP_CREATE_WEB_SHIPPING">';
+	print ajax_constantonoff('DOLISHOP_CREATE_WEB_SHIPPING');
+	print '</form></div>';
+	print '</td></tr>';
+
+	$var=!$var;
+	print '<tr '.$bc[$var].'>';
 	print '<td>'.$langs->trans('DOLISHOP_CREATE_WEB_INVOICE');
 	print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_CREATE_WEB_INVOICE_DESC').'</small>';
 	print '</td>';

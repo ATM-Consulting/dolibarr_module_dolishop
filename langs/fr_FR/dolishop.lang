@@ -72,6 +72,8 @@ DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING=Valider une expédition Dolibarr pa
 DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC=La ressource <b>orders</b> doit être accessible en <b>PUT</b> et la ressource <b>order_carriers</b> en <b>GET / PUT / POST</b>
 DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED=Classer une commande Dolibarr comme livrée, passera la commande de votre boutique au statut (vide pour désactiver) :
 DOLISHOP_UPDATE_WEB_ORDER_ON_CLOSE_AS_DELIVERED_DESC=La ressource <b>orders</b> doit être accessible en <b>PUT</b>
+DOLISHOP_CREATE_WEB_SHIPPING=Valider une expédition issue d'une commande de votre boutique créera l'expédition sur votre boutique
+DOLISHOP_CREATE_WEB_SHIPPING_DESC=Ceci déclanchera la mise à jour du statut de la commande sur votre boutique
 DOLISHOP_CREATE_WEB_INVOICE=Valider une facture issue d'une commande de votre boutique créera la facture sur votre boutique
 DOLISHOP_CREATE_WEB_INVOICE_DESC=Ceci implique uniquement les commandes provenant de votre boutique
 

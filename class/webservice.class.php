@@ -34,6 +34,8 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 
 class Webservice
 {
+	public static $cache = array();
+
 	/** @var PSWebServiceLibrary\PrestaShopWebservice|MGWebServiceLibrary\MGWebServiceLibrary|null $webService */
 	private static $webService = null;
 
@@ -286,10 +288,13 @@ class Webservice
 	 * @param int|string	$id
 	 * @param array			$more_opt
 	 * @param bool			$children
+	 * @param bool			$force
 	 * @return bool|PSWebServiceLibrary\SimpleXMLElement|\GuzzleHttp\Promise\PromiseInterface|mixed|\Psr\Http\Message\ResponseInterface
 	 */
-	public function getOne($resource_name, $id, $more_opt=array(), $children=true)
+	public function getOne($resource_name, $id, $more_opt=array(), $children=true, $force=false)
     {
+    	if (!$force && !empty(self::$cache[$resource_name][$id])) return self::$cache[$resource_name][$id];
+
 		if ($this->api_name == 'prestashop') $opt = array('resource' => $resource_name, 'id' => $id);
 		else if ($this->api_name == 'magento') $opt = array('resource' => $resource_name.'/'.$id);
 
@@ -302,6 +307,8 @@ class Webservice
 			$result = self::$webService->get($opt);
 
 			if ($this->api_name == 'prestashop' && $children) return $result->children();
+
+			self::$cache[$resource_name][$id] = $result;
 
 			return $result;
 		} catch (PSWebServiceLibrary\PrestaShopWebserviceException $e) {
@@ -781,7 +788,7 @@ class Webservice
 				 * =downloadable = produit
 				 */
 				// TODO REMOVE NEXT LINE
-				$date_min = '2018-11-06 11:00:00';
+//				$date_min = '2018-11-06 11:00:00';
 
 				$mg_configurables_products = $this->getAll('/V1/products', array(
 					'params' => array(
@@ -1077,10 +1084,13 @@ class Webservice
 					$mg_product->extension_attributes->stock_item = new \stdClass();
 				}
 
-				$mg_product->extension_attributes->stock_item->qty = $dol_product->stock_reel; // stock_theorique
-				$mg_product->extension_attributes->stock_item->is_in_stock = ($dol_product->stock_reel > 0) ? true : false;
+				// Nécessaire pour charger le stock theorique
+				$dol_product->load_stock('warehouseopen');
+
+				$mg_product->extension_attributes->stock_item->qty = $dol_product->stock_theorique; // stock_reel
+				$mg_product->extension_attributes->stock_item->is_in_stock = ($dol_product->stock_theorique > 0) ? true : false;
+//				var_dump($mg_product->extension_attributes->stock_item);exit;
 			}
-//			var_dump($mg_product->extension_attributes->stock_item);exit;
 
 			$error = 0;
 			try {
@@ -1182,6 +1192,58 @@ class Webservice
 			}
 
 		}
+	}
+
+	/**
+	 *
+	 * @param MouvementStock $mouvement
+	 */
+	public function stockMovementToWebProduct($mouvement)
+	{
+		require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+
+		$product = new \Product($this->db);
+		if ($product->fetch($mouvement->product_id) > 0 && !empty($product->array_options['options_mg_id_product']))
+		{
+			try
+			{
+				$mg_product = $this->getOne('/V1/products', $product->ref);
+				// MAJ stock exemple
+				if (!empty($mg_product->extension_attributes->stock_item->item_id))
+				{
+					$mg_product->extension_attributes->stock_item->qty += $mouvement->qty;
+
+					$mg_stock = self::$webService->put(array(
+						'resource' => '/V1/products/'.$mg_product->sku.'/stockItems/'.$mg_product->extension_attributes->stock_item->item_id
+						,'body' => array('stock_item' => $mg_product->extension_attributes->stock_item)
+					));
+				}
+				else
+				{
+					$mg_product->extension_attributes->stock_item = new \stdClass();
+
+					// Nécessaire pour charger le stock theorique
+					$product->load_stock('warehouseopen');
+
+					// stock_reel
+					$qty = $product->stock_theorique + $mouvement->qty;
+
+					$mg_product->extension_attributes->stock_item->qty = $qty;
+					$mg_product->extension_attributes->stock_item->is_in_stock = ($qty > 0) ? true : false;
+	//				var_dump($mg_product->extension_attributes->stock_item);exit;
+
+					$mg_product_res = self::$webService->put(array(
+						'resource' => '/V1/products/'.$mg_product->sku
+						,'body' => array('product' => $mg_product)
+					));
+
+				}
+			} catch (MGWebServiceLibrary\MagentoWebserviceException $e) {
+				$this->setError($e);
+//				var_dump($mg_product->sku, $this->error);exit;
+			}
+		}
+
 	}
 
 	/**
@@ -2904,7 +2966,7 @@ class Webservice
 		{
 			// Autremement on récupère uniquement les commandes de la demi heure passée
 			if (!is_numeric($minutes)) $minutes = 30;
-			$date_min = date('Y-m-d H:i:s', strtotime('-'.$minutes.' minutes'));
+			$date_min = date('Y-m-d H:i:s', strtotime('-'.$minutes.' minutes')); // WARNING: possibilité d'avoir 1 heure de décalage entre la BDD Dolibarr et Magento
 		}
 		
 		require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
@@ -3868,6 +3930,10 @@ class Webservice
 				$error++;
 				$this->setError($e);
 			}
+		}
+		else if ($this->api_name == 'magento')
+		{
+			// Rien à faire ici, le statut est mis à jour en automatique sur création/validation d'expédition
 		}
 		
 		if ($error) return -2;
