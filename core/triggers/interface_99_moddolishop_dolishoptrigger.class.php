@@ -121,7 +121,11 @@ class InterfaceDolishoptrigger
         // Users
 
 		// TODO voir si je retire l'automatisation de la synchro pour le faire via un bouton sur la fiche produit
-		if (/*$action == 'PRODUCT_CREATE' || */$action == 'PRODUCT_MODIFY' || ($action == 'PRODUCT_SET_MULTILANGS' && GETPOST('action') == 'vedit') )
+		if (
+			($action == 'PRODUCT_CREATE' && GETPOST('action') == 'add') // Sur création venant de la fiche et non pas par un script
+			|| ($action == 'PRODUCT_MODIFY')
+			|| ($action == 'PRODUCT_SET_MULTILANGS' && GETPOST('action') == 'vedit')
+		)
 		{
 			if ($action == 'PRODUCT_MODIFY' && ($match = preg_grep('/^addvariant_[0-9]+$/', array_keys($_SESSION))) )
 			{
@@ -169,10 +173,10 @@ class InterfaceDolishoptrigger
 						$dolishop = new Dolishop\Webservice($db, $from_product_card);
 
 						// Si je proviens du formulaire de création/édition
-						$TCategory = GETPOST('categories');
+						$TCategory = GETPOST('categories', 'array');
 						if (
-							( !empty($TCategory) && array_intersect($TCategory, $dolishop->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR) )
-							|| ( empty($TCategory) && Dolishop\DolishopTools::checkProductCategoriesD2P($object->id) )
+							($from_product_card && !empty($TCategory) && array_intersect($TCategory, $dolishop->DOLISHOP_SYNC_PRODUCTS_CATEGORIES_FROM_DOLIBARR) )
+							|| (!$from_product_card && empty($TCategory) && Dolishop\DolishopTools::checkProductCategoriesD2P($object->id) )
 						) {
 //						$dolishop->syncCategoriesD2W();
 							$dolishop->syncDolCombinationsOptions();

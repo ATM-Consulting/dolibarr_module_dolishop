@@ -939,11 +939,13 @@ class Webservice
 
 			// TODO peut etre faut il faire un test sur l'extrafield "mg_id_product"
 			$mg_product = $this->getOne('/V1/products', $dol_product->ref);
-			if (!$mg_product) $mg_product = new \stdClass();
-//			$response = $this->getOne('/V1/products', '24-MB01');
-
-//			var_dump($mg_product);
-//			exit;
+			if (!$mg_product)
+			{
+				// IGNORE ERROR
+				$this->error = '';
+				unset($this->errors[0]);
+				$mg_product = new \stdClass();
+			}
 
 			$TChildCombinationId = array();
 			if (!empty($conf->variants->enabled)) $TChildCombinationId = DolishopTools::getAllChildProductCombinationId($dol_product->id);
