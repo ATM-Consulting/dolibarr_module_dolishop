@@ -1212,6 +1212,7 @@ class Webservice
 				if (!empty($mg_product->extension_attributes->stock_item->item_id))
 				{
 					$mg_product->extension_attributes->stock_item->qty += $mouvement->qty;
+					$mg_product->extension_attributes->stock_item->is_in_stock = ($mg_product->extension_attributes->stock_item->qty > 0) ? true : false;
 
 					$mg_stock = self::$webService->put(array(
 						'resource' => '/V1/products/'.$mg_product->sku.'/stockItems/'.$mg_product->extension_attributes->stock_item->item_id
