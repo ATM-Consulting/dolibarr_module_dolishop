@@ -3532,6 +3532,7 @@ class Webservice
 			,$mg_order->billing_address->postcode
 			,$mg_order->billing_address->city
 			,$mg_order->billing_address->telephone
+			,$mg_order->billing_address->email
 			,strtotime($mg_order->customer_dob)
 			,\DolCountry::getIdFromCode($mg_order->billing_address->country_id)
 			,1
@@ -3553,6 +3554,7 @@ class Webservice
 				,$address_delivery->postcode
 				,$address_delivery->city
 				,$address_delivery->telephone
+				,$address_delivery->email
 				,strtotime($mg_order->customer_dob)
 				,\DolCountry::getIdFromCode($address_delivery->country_id)
 				,1
@@ -3582,7 +3584,7 @@ class Webservice
 	 * @param int			$priv
 	 * @return \Contact
 	 */
-	private function saveDolContact(&$societe, $web_id_address, $lastname, $firstname, $address, $zip, $town, $phone_pro, $birthday_timestamp, $country_id, $statut = 1, $priv = 0)
+	private function saveDolContact(&$societe, $web_id_address, $lastname, $firstname, $address, $zip, $town, $phone_pro, $email, $birthday_timestamp, $country_id, $statut = 1, $priv = 0)
 	{
 		global $user;
 
@@ -3596,7 +3598,7 @@ class Webservice
 		$contact->firstname = $firstname;
 		$contact->civility_id = $societe->civility_id;
 		$contact->address = is_array($address) ? implode("\n", $address) : $address;
-		$contact->email = $societe->email;
+		$contact->email = empty($email) ? $societe->email : $email;
 		$contact->zip = $zip;
 		$contact->town = $town;
 		$contact->phone_pro = $phone_pro;
@@ -3613,7 +3615,6 @@ class Webservice
 			$contact->statut = $statut;
 			$contact->priv = $priv;
 			$contact->socid = $societe->id;	// fk_soc
-			$contact->array_options['options_web_id_address'] = $web_id_address;
 			$result = $contact->create($user);
 		}
 
