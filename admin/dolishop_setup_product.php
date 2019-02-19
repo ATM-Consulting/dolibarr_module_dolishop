@@ -116,6 +116,17 @@ else if ($action == 'SyncCategoriesW2D')
 	header('Location: '.$_SERVER['PHP_SELF']);
 	exit;
 }
+else if ($action == 'saveMgAttributeAsDictionnary')
+{
+	$mg_attribute = $dolishop->getOne('/V1/products/attributes',  GETPOST('mg_custom_attribute'));
+	if ($mg_attribute)
+	{
+		$res = mgCustomAttributeDictionary::createDictionnary($mg_attribute->attribute_code, 'Magento (attr produit) : '.$mg_attribute->default_frontend_label, $mg_attribute->options);
+		mgCustomAttributeDictionary::createExtrafield($mg_attribute->default_frontend_label, $mg_attribute->attribute_code, 'mg_');
+		header('Location: '.$_SERVER['PHP_SELF']);
+		exit;
+	}
+}
 
 /******/
 //$dolishop = new Dolishop\Dolishop($db);
@@ -367,25 +378,47 @@ print '</div>';
 print '</form>';
 print '</div>'; // fichehalfleft
 
-/*
-print '<div class="fichehalfright">';
-print '<div class="ficheaddleft">';
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
-print '<input type="hidden" name="action" value="save_countries" />';
-print '<table class="noborder" width="100%" style="margin-bottom:5px;">';
-print '<tr class="liste_titre">';
-print '<td colspan="2">'.$langs->trans('WebCountriesAssociations').'</td>'."\n";
-print '<td>'.$langs->trans('DolibarrCountries').'</td>'."\n";
-print '</tr>';
+if ($dolishop->api_name == 'magento')
+{
+	$mg_attributes = $dolishop->getAll('/V1/products/attributes', array(
+		'params' => array(
+			'searchCriteria[filterGroups][0][filters][0][field]' => 'frontend_input' // 'attribute_id'
+			,'searchCriteria[filterGroups][0][filters][0][value]' => 'select' // '1'
+			,'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'eq' // equal
+		)
+	));
 
+	print '<div class="fichehalfright">';
+	print '<div class="ficheaddleft">';
+	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+	print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+	print '<input type="hidden" name="action" value="saveMgAttributeAsDictionnary" />';
+	print '<table class="noborder" width="100%" style="margin-bottom:5px;">';
+	print '<tr class="liste_titre">';
+	print '<td>'.$form->textwithpicto($langs->trans('MgCustomProductAttribute'), $langs->trans('MgCustomProductAttributeHelp')).'</td>'."\n";
+	print '<td></td>'."\n";
+	print '</tr>';
 
-print '</table>';
-print '<div class="center"><input class="button" value="'.$langs->trans('Save').'" type="submit"></div>';
-print '</form>';
-print '</div>'; // ficheaddleft
-print '</div>'; // fichehalfright
-*/
+	print '<tr>';
+	print '<td>';
+	$TCode=array();
+	foreach ($mg_attributes->items as $item)
+	{
+		$TCode[$item->attribute_code] = $item->default_frontend_label;
+	}
+	print Form::selectarray('mg_custom_attribute', $TCode, '', 0, 0, 0, '', 0, 0, 0, '', 'minwidth300', 1);
+	print '</td>';
+	print '<td>';
+	print '<input class="button" value="'.$langs->trans('DolishopMgSaveAsDictionnary').'" type="submit">';
+	print '</td>';
+	print '</tr>';
+
+	print '</table>';
+	print '</form>';
+	print '</div>'; // ficheaddleft
+	print '</div>'; // fichehalfright
+}
+
 
 llxFooter();
 

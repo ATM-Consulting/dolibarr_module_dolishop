@@ -185,6 +185,24 @@ class moddolishop extends DolibarrModules
 			)												// Condition to show each dictionary
         );
 
+		dol_include_once('/dolishop/class/dictionaries.class.php');
+		$TAddictionalDict = mgCustomAttributeDictionary::getAdditionalDictionaries();
+		if (!empty($TAddictionalDict))
+		{
+			foreach ($TAddictionalDict as $table => $info)
+			{
+				$this->dictionaries['tabname'][] = $info['tabname'];
+				$this->dictionaries['tablib'][] = $info['tablib'];
+				$this->dictionaries['tabsql'][] = $info['tabsql'];
+				$this->dictionaries['tabsqlsort'][] = $info['tabsqlsort'];
+				$this->dictionaries['tabfield'][] = $info['tabfield'];
+				$this->dictionaries['tabfieldvalue'][] = $info['tabfieldvalue'];
+				$this->dictionaries['tabfieldinsert'][] = $info['tabfieldinsert'];
+				$this->dictionaries['tabrowid'][] = $info['tabrowid'];
+				$this->dictionaries['tabcond'][] = eval('return '. $info['tabcond'].';');
+			}
+		}
+
 
         // Boxes
 		// Add here list of php file(s) stored in core/boxes that contains class to show a box.

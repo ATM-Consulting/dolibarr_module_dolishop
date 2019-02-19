@@ -951,20 +951,12 @@ class Webservice
 			if (!empty($conf->variants->enabled)) $TChildCombinationId = DolishopTools::getAllChildProductCombinationId($dol_product->id);
 
 //			$mg_product['id'] = isset($data['id']) ? $data['id'] : null;
-//			$mg_product['sku'] = $dol_product->ref;
-//			$mg_product->sku = str_replace('_', '-', $dol_product->ref);
 			$mg_product->sku = $dol_product->ref;
-//			$mg_product['name'] = $dol_product->label;
 			$mg_product->name = $dol_product->label;
-//			$mg_product['attribute_set_id'] = 4; // 4 is id of Default attribute set here
 			$mg_product->attribute_set_id = 4; // 4 is id of Default attribute set here
-//			$mg_product['price'] = $dol_product->price;
 			$mg_product->price = $dol_product->price;
-//			$mg_product['status'] = $dol_product->status;
 			$mg_product->status = $dol_product->status;
-//			$mg_product['visibility'] = ($dol_product->status > 0 ? 4 : 1); // 1 = Non visible individuellement; 4 = Catalogue, recherche (2 = Catalogue; 3 = Rechercher)
 			$mg_product->visibility = ($dol_product->status > 0 ? 4 : 1); // 1 = Non visible individuellement; 4 = Catalogue, recherche (2 = Catalogue; 3 = Rechercher)
-//			$mg_product['type_id'] = 'simple';
 
 			if (!empty($TChildCombinationId)) $mg_product->type_id = 'configurable';
 			else $mg_product->type_id = 'simple'; // simple, bundle, virtual
@@ -978,19 +970,33 @@ class Webservice
 //			}
 //			$mg_product['weight'] = $dol_product->weight * $coef;
 			$mg_product->weight = $dol_product->weight * $coef;
-//			$mg_product['extension_attributes'] = isset($data['extension_attributes']) ? $data['extension_attributes'] : null;
-//			$mg_product['product_links'] = isset($data['product_links']) ? $data['product_links'] : null;
-//			$mg_product['options'] = isset($data['options']) ? $data['options'] : null;
 
-
-//			$mg_product['tier_prices'] = isset($data['tier_prices']) ? $data['tier_prices'] : null;
-//			$mg_product['custom_attributes'] = isset($data['custom_attributes']) ? $data['custom_attributes'] : null;
-			$mg_product->custom_attributes = array();
-			$mg_product->custom_attributes[] = array('attribute_code' => 'description', 'value' => $dol_product->description);
-			if (!empty($conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT))
+			$TIntersec = array();
+			if (!empty($mg_product->custom_attributes))
 			{
-				$mg_product->custom_attributes[] = array('attribute_code' => 'short_description', 'value' => DolishopTools::trunc($dol_product->description, $conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT, true, false));
+				$extrafields = new \ExtraFields($this->db);
+				$extralabels=$extrafields->fetch_name_optionals_label('product');
+
+				foreach ($mg_product->custom_attributes as &$custom_attribute)
+				{
+					if (isset($extralabels['mg_'.$custom_attribute->attribute_code]))
+					{
+						$TIntersec[] = $custom_attribute->attribute_code;
+					}
+				}
+
 			}
+
+			$mg_product->custom_attributes = array();
+
+			foreach ($TIntersec as $index)
+			{
+				$mg_product->custom_attributes[] = array('attribute_code' => $index, 'value' => $dol_product->array_options['options_mg_'.$index]);
+			}
+
+			$mg_product->custom_attributes[] = array('attribute_code' => 'description', 'value' => $dol_product->description);
+			if (!empty($conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT)) $mg_product->custom_attributes[] = array('attribute_code' => 'short_description', 'value' => DolishopTools::trunc($dol_product->description, $conf->global->DOLISHOP_STORE_TRUNC_DESCRIPTION_SHORT, true, false));
+
 
 			if (empty($TCategory)) $TCategory = $this->getTProductCategory($dol_product->id);
 			if (is_array($TCategory))
@@ -1004,48 +1010,7 @@ class Webservice
 
 				$mg_product->custom_attributes[] = array('attribute_code' => 'category_ids', 'value' => $TCatForMagento);
 			}
-/*
-			$TProdAttrValById = ProductAttributeValueDolishop::getAll('id', false, true, $this->api_name);
-			$TProdAttrById = ProductAttributeDolishop::getAll('id', false, true, $this->api_name);
 
-			require_once DOL_DOCUMENT_ROOT.'/variants/class/ProductCombination2ValuePair.class.php';
-
-			$prodcomb = new ProductCombinationDolishop($this->db);
-			$TComb = $prodcomb->fetchAllByFkProductParent($dol_product->id);
-
-			$TProdAttr = array();
-
-			foreach ($TComb as $comb)
-			{
-				$comb2val = new \ProductCombination2ValuePair($this->db);
-				$TValuePair = $comb2val->fetchByFkCombination($comb->id);
-
-				foreach ($TValuePair as $pair)
-				{
-					$TProdAttr[$TProdAttrById[$pair->fk_prod_attr]->mg_eav_attribute_id][] = $TProdAttrValById[$pair->fk_prod_attr_val]->mg_eav_attribute_option_id;
-				}
-
-			}
-
-			$mg_product->configurable_product_options = array();
-			$i=0;
-			foreach ($TProdAttr as $attribute_id => $TValueIndex)
-			{
-				$mg_product->configurable_product_options[$i] = array(
-					'attribute_id' => $attribute_id
-					,'label'=> 'Lorem'
-					,'position'=> $i
-					,'values' => array()
-				);
-
-				foreach ($TValueIndex as $value_index)
-				{
-					$mg_product->configurable_product_options[$i]['values'][] = array('value_index' => $value_index);
-				}
-
-				$i++;
-			}
-			$mg_product->configurable_product_links = array(2070);*/
 
 			// There is a variant
 			if (!empty($fk_comb) && !empty($conf->variants->enabled))

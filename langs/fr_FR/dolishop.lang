@@ -91,6 +91,9 @@ DolishopConfNotSaveYet=Configuration non enregistrée
 WebCountriesAssociations=Pays actifs de votre boutique
 WebCountriesAssociationsHelp=La ressource <b>countries</b> doit être accessible en <b>GET</b><br />Ce tableau vous permettra de faire correspondre les pays de votre boutique avec ceux de Dolibarr
 DolibarrCountries=Pays Dolibarr
+MgCustomProductAttribute=Attributs produit Magento
+MgCustomProductAttributeHelp=Permet de créer ou mettre à jour un extrafield de type liste issue d'une table (dictionnaire)
+DolishopMgSaveAsDictionnary=Sauvegarder
 
 DOLISHOP_AUTO_PARAM_MODULE_STOCK=Procéder au paramétrage du module stock (ceci aura pour effet de modifier les configurations du module pour correspondre au mode de fonctionnement de celui-ci)
 ModuleStockAutoConfig=Configurer le module 'stock'

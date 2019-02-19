@@ -6,6 +6,94 @@ if (!class_exists('SeedObject'))
 	require_once __DIR__.'/../config.php';
 }
 
+class mgCustomAttributeDictionary extends SeedObject
+{
+	public static $prefix_table = 'c_';
+	public $table_element;
+
+	public static function createExtrafield($label, $code_attribute, $prefix='')
+	{
+		global $db;
+
+		$search = $prefix.$code_attribute;
+
+		$extrafields = new ExtraFields($db);
+		$extralabels=$extrafields->fetch_name_optionals_label('product');
+
+		if (!isset($extralabels[$search]))
+		{
+			$index = self::$prefix_table.$code_attribute.':label:value::active=1';
+			$extrafields->addExtraField($search, $label, 'sellist', 201, '', 'product', 0, 0, '', array('options' => array($index => null)), 0, '');
+		}
+	}
+
+	public static function createDictionnary($table, $label, $options)
+	{
+		global $db,$conf,$user;
+
+		$o = new mgCustomAttributeDictionary($db);
+		$o->table_element = self::$prefix_table.$table;
+		$o->init_db_by_vars();
+
+		$Tab = self::getAdditionalDictionaries();
+		if (!isset($Tab[$o->table_element]))
+		{
+			$Tab[$o->table_element] = array(
+				'tabname' => MAIN_DB_PREFIX.$o->table_element
+				,'tablib' => $label
+				,'tabsql' => 'SELECT f.rowid as rowid, f.value, f.label, f.entity, f.active FROM '.MAIN_DB_PREFIX.$o->table_element.' as f'
+				,'tabsqlsort' => 'value ASC'
+				,'tabfield' => 'value,label'
+				,'tabfieldvalue' => 'value,label'
+				,'tabfieldinsert' => 'value,label,entity'
+				,'tabrowid' => 'rowid'
+				,'tabcond' => '$conf->dolishop->enabled && $conf->global->DOLISHOP_API_NAME == \'magento\''
+			);
+			dolibarr_set_const($db, 'DOLISHOP_MG_CUSTOM_ATTRIBUTES_DICTIONNARIES', json_encode($Tab), 'chaine', 0, '', $conf->entity);
+		}
+
+		foreach ($options as $option)
+		{
+			if (empty($option->value)) continue;
+			$o->id = '';
+			$o->fetchBy($option->value, 'value');
+			if (empty($o->id))
+			{
+				$o->value = $option->value;
+				$o->active = 1;
+				$o->entity = $conf->entity;
+			}
+			$o->label = $option->label;
+
+			$o->create($user);
+		}
+	}
+
+	public static function getAdditionalDictionaries()
+	{
+		global $conf;
+
+		if (empty($conf->global->DOLISHOP_MG_CUSTOM_ATTRIBUTES_DICTIONNARIES)) return array();
+
+		return json_decode($conf->global->DOLISHOP_MG_CUSTOM_ATTRIBUTES_DICTIONNARIES, true);
+	}
+
+	public function __construct(DoliDB $db)
+	{
+		parent::__construct($db);
+
+		$this->fields=array(
+			'value'=>array('type'=>'string','index'=>true)
+			,'label'=>array('type'=>'string')
+			,'active'=>array('type'=>'integer','index'=>true) // date, integer, string, float, array, text
+			,'entity'=>array('type'=>'integer','index'=>true)
+		);
+
+		$this->init();
+	}
+
+}
+
 /**
  * Class DolCountry Mirror of llx_c_country dictionary
  */
