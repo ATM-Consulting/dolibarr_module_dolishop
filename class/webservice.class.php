@@ -3604,7 +3604,10 @@ class Webservice
 		$contact->phone_pro = $phone_pro;
 		$contact->birthday = $birthday_timestamp;
 		$contact->country_id = $country_id;
-//		$contact->state_id          = $societe->state_id;
+//		$contact->state_id = $societe->state_id;
+
+		// Tjr mettre à jour cette valeur, car si l'adresse a été créée depuis un compte annonyme, il n'y aura pas d'id de base
+		$contact->array_options['options_web_id_address'] = $web_id_address;
 
 		if (!empty($contact->id))
 		{
