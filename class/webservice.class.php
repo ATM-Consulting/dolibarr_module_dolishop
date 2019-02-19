@@ -4223,7 +4223,11 @@ class DolishopTools
 		{
 			$obj = $db->fetch_object($resql);
 			if (!empty($obj->fk_soc)) return $obj->fk_soc;
-			else return 0;
+			else
+			{
+				if ($web_id_customer > 0) return self::getSociete(0, $email); // Si la recherche par l'identifiant donne rien, alors j'essaye avec l'adresse email (il peut s'agir d'un client ayant passé des commandes en annonyme par le passé et qui a créé un compte)
+				else return 0;
+			}
 		}
 		else exit($db->lasterror());
 	}
