@@ -42,6 +42,9 @@ class Webservice
 	/** @var \DoliDB $db */
 	public $db;
 
+	/** @var \User $user */
+	public $user;
+
 	public $api_name = 'prestashop';
 	
 	private $url;
@@ -80,9 +83,10 @@ class Webservice
 
 	public function __construct($db, $from_product_card=false)
 	{
-		global $conf,$langs;
+		global $conf,$langs,$user;
 
 		$this->db = $db;
+		$this->user = $user;
 		$this->from_product_card = $from_product_card;
 		$langs->load('dolishop@dolishop');
 
@@ -436,8 +440,7 @@ class Webservice
 
 	/**
 	 * Méthode qui upload count($TFileName) image(s) vers Prestashop pour un produit Dolibarr déjà synchonisé
-	 * 
-	 * @global User $user
+	 *
 	 * @param Product	$dol_product
 	 * @param array		$TFileName
 	 * @param string	$dir
@@ -445,8 +448,6 @@ class Webservice
 	 */
 	public function saveImages(&$dol_product, $TFileName, $dir, $savingdocmask='')
 	{
-		global $user;
-
 		if ($this->api_name == 'prestashop')
 		{
 			if (empty(self::$ps_configuration['PS_IMAGES_MIME_TYPES']['products'])) return 0;
@@ -476,7 +477,7 @@ class Webservice
 					if ($ecm->id > 0 && $ps_id_image_return != $ecm->ps_id_image)
 					{
 						$ecm->ps_id_image = $ps_id_image_return;
-						$ecm->update($user);
+						$ecm->update($this->user);
 					}
 				}
 			}
@@ -510,7 +511,7 @@ class Webservice
 					if ($ecm->id > 0 && $mg_id_image_return != $ecm->mg_id_image)
 					{
 						$ecm->mg_id_image = $mg_id_image_return;
-						$ecm->update($user);
+						$ecm->update($this->user);
 					}
 //				}
 			}
@@ -743,13 +744,13 @@ class Webservice
 		require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/categories/class/categorie.class.php';
 
-		$user = new \User($this->db);
-		if ($user->fetch($fk_user) <= 0 || $user->statut == 0)
+		$this->user = new \User($this->db);
+		if ($this->user->fetch($fk_user) <= 0 || $this->user->statut == 0)
 		{
 			$this->output = $langs->trans('DolishopParameterUserIdNotFound');
 			return 1;
 		}
-		$user->getrights();
+		$this->user->getrights();
 
 		if ($sync_images) require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 
@@ -1443,8 +1444,7 @@ class Webservice
 	 * Ce charge de crééer les produit dans Dolibarr
 	 * Si le module "variants" est actif, alors les déclinaisons sont synchro aussi
 	 * 
-	 * @global \Dolishop\Conf $conf
-	 * @global \Dolishop\User $user
+	 * @global \Conf $conf
 	 * @global \Translate	$langs $langs
 	 * @param type $web_product
 	 * @param type $sync_images
@@ -1651,7 +1651,7 @@ class Webservice
 
 	private function saveProduct($web_product_id, $ref, $label='', $description='', $multilangs=array(), $price=0, $tva_tx=0, $status=1, $seuil_stock_alerte=null, $length = null, $width = null, $height = null, $length_units = null, $weight = null, $weight_units = null, $fk_product_type=0)
 	{
-		global $langs,$user,$conf;
+		global $langs,$conf;
 
 		$dol_product = new \Product($this->db);
 
@@ -1691,10 +1691,10 @@ class Webservice
 		$dol_product->fk_product_type = $fk_product_type;
 		$dol_product->fk_default_warehouse = $conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID;
 
-		if (!empty($dol_product->id)) $res = $dol_product->update($dol_product->id, $user);
+		if (!empty($dol_product->id)) $res = $dol_product->update($dol_product->id, $this->user);
 		else
 		{
-			$res = $dol_product->create($user);
+			$res = $dol_product->create($this->user);
 			$dol_product->entity = $conf->entity;
 			if ($res > 0 && !empty($conf->global->DOLISHOP_SYNC_STOCK))
 			{
@@ -1712,7 +1712,7 @@ class Webservice
 	 */
 	private function initStockFromWebProduct($dol_product, $web_product_id, $ref)
 	{
-		global $user,$conf;
+		global $conf;
 
 		if (empty($conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID)) return 0;
 
@@ -1730,7 +1730,7 @@ class Webservice
 				require_once DOL_DOCUMENT_ROOT .'/product/stock/class/mouvementstock.class.php';
 
 				$movementstock=new \MouvementStock($this->db);
-				$result=$movementstock->_create($user,$dol_product->id,$conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID,$mg_stock->qty,0,0,'Init Magento','');
+				$result=$movementstock->_create($this->user,$dol_product->id,$conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID,$mg_stock->qty,0,0,'Init Magento','');
 
 				if ($result >= 0)
 				{
@@ -1756,8 +1756,8 @@ class Webservice
 	 * API Prestashop 	"combinations" accessible en GET
 	 * API Magento 		"/V1/configurable-products/:sku/children"
 	 * 
-	 * @global \Dolishop\Conf		$conf
-	 * @global \Dolishop\User		$user
+	 * @global \Conf				$conf
+	 * @global \Translate			$langs
 	 * @param \SimpleXmlElement		$web_product
 	 * @param \Product				$dol_product
 	 * @param boolean				$sync_images
@@ -1852,8 +1852,6 @@ class Webservice
 
 	public function saveDolCombination(&$dol_product, &$sanit_features, $web_id_combination, $web_price, $web_weight)
 	{
-		global $user;
-
 		$comb = new ProductCombinationDolishop($this->db, $this->api_name);
 		$product_comb = $comb->fetchByProductCombination2ValuePairs($dol_product->id, $sanit_features);
 		if (! $product_comb)
@@ -1875,7 +1873,7 @@ class Webservice
 			$product_comb->variation_price = $web_price;
 			$product_comb->variation_weight = $web_weight;
 
-			if ($product_comb->update($user) < 0)
+			if ($product_comb->update($this->user) < 0)
 			{
 				$this->error = $this->db->lasterror(); // $product_comb->db interdit car attribut en private (j'utilise celui de l'objet courrant, ça doit normalement le faire car les objets passés en paramètre sont naturellement des références)
 				$this->errors = $this->error;
@@ -2252,9 +2250,7 @@ class Webservice
 	 *
 	 * @var string	$date_min	Date formated Y-m-d H:i:s (utile que pour une synchro via magento qui ne permet pas d'obtenir une liste simple des atributs de déclinaison sans passer la une fiche produit)
 	 *
-	 * @global \User $user
 	 * @global \Conf $conf
-	 * @global \User $user
 	 */
 	private function syncWebCombinationsOptions($date_min=null)
 	{
@@ -2443,8 +2439,6 @@ class Webservice
 	 */
 	private function createDolProductAttribute($label, $ref, $entity, $rang, $web_id_attribute)
 	{
-		global $user;
-
 		$product_attribute = new ProductAttributeDolishop($this->db, $this->api_name);
 		$product_attribute->label = $label;
 		$product_attribute->ref = dol_string_nospecial(dol_sanitizeFileName($ref));
@@ -2454,7 +2448,7 @@ class Webservice
 		if ($this->api_name == 'prestashop') $product_attribute->ps_id_option_group = $web_id_attribute;
 		else if ($this->api_name == 'magento') $product_attribute->mg_eav_attribute_id = $web_id_attribute;
 
-		if ($product_attribute->create($user) < 0)
+		if ($product_attribute->create($this->user) < 0)
 		{
 			$this->error = $product_attribute->db->lasterror();
 			$this->errors[] = $this->error;
@@ -2478,8 +2472,6 @@ class Webservice
 	 */
 	private function createDolProductAttributeValue($label, $ref, $fk_product_attribute, $entity, $web_id_attribute, $web_id_attribute_value)
 	{
-		global $user;
-
 		$product_attribute_value = new ProductAttributeValueDolishop($this->db, $this->api_name);
 		$product_attribute_value->value = $label;
 		$product_attribute_value->ref = dol_string_nospecial(dol_sanitizeFileName($ref));
@@ -2497,7 +2489,7 @@ class Webservice
 			$product_attribute_value->mg_eav_attribute_option_id = $web_id_attribute_value;
 		}
 
-		if ($product_attribute_value->create($user) < 0)
+		if ($product_attribute_value->create($this->user) < 0)
 		{
 			$this->error = $product_attribute_value->db->lasterror();
 			$this->errors[] = $this->error;
@@ -2716,7 +2708,7 @@ class Webservice
 
 		}
 	}
-	
+
 	public function getCategoriesFullArboFromWeb()
 	{
 		global $conf;
@@ -2792,7 +2784,7 @@ class Webservice
 
 	private function syncCategoriesW2D_create(&$web_fullarbo, $fk_parent=0, $force_create=false)
 	{
-		global $user,$conf;
+		global $conf;
 
 		foreach ($web_fullarbo as $web_cat)
 		{
@@ -2816,7 +2808,7 @@ class Webservice
 				$dol_cat->fk_parent = $fk_parent;
 
 				$dol_cat->type = \Categorie::TYPE_PRODUCT;
-				if ($dol_cat->create($user) > 0)
+				if ($dol_cat->create($this->user) > 0)
 				{
 					$fk_parent_for_children = $dol_cat->id;
 					$force_create_for_children = true;
@@ -2898,7 +2890,7 @@ class Webservice
 	
 	public function rsyncOrders($fk_user, $minutes=30, $date_min='')
 	{
-		global $langs,$user,$conf;
+		global $langs,$conf;
 
 		self::$from_cron_job = true;
 
@@ -2908,13 +2900,13 @@ class Webservice
 			return 0;
 		}
 		
-		$user = new \User($this->db);
-		if ($user->fetch($fk_user) <= 0 || $user->statut == 0)
+		$this->user = new \User($this->db);
+		if ($this->user->fetch($fk_user) <= 0 || $this->user->statut == 0)
 		{
 			$this->output = $langs->trans('DolishopParameterUserIdNotFound');
 			return 1;
 		}
-		$user->getrights();
+		$this->user->getrights();
 		
 		if ($this->api_name == 'prestashop' && empty($conf->global->DOLISHOP_SYNC_WEB_ORDER_STATES))
 		{
@@ -3021,7 +3013,7 @@ class Webservice
 	
 	public function createDolOrder($web_order)
 	{
-		global $user,$langs,$conf;
+		global $langs,$conf;
 		
 		$error = 0;
 		
@@ -3040,7 +3032,7 @@ class Webservice
 //		$this->debugXml($web_order);
 		if (!$error && $fk_commande > 0)
 		{
-			$res = $commande->valid($user);
+			$res = $commande->valid($this->user);
 			if ($res < 0) $error++;
 			else
 			{
@@ -3074,7 +3066,7 @@ class Webservice
 
 			if (!class_exists('Facture')) require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 			$facture = new \Facture($this->db);
-			$res = $facture->createFromOrder($commande, $user);
+			$res = $facture->createFromOrder($commande, $this->user);
 			if ($res <= 0)
 			{
 				$error++;
@@ -3087,7 +3079,7 @@ class Webservice
 
 			if ($conf->global->DOLISHOP_STATUS_TO_CREATE_INVOICE === '1')
 			{
-				$res = $facture->validate($user, '', $conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID);
+				$res = $facture->validate($this->user, '', $conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID);
 				if ($res <= 0)
 				{
 					$error++;
@@ -3113,7 +3105,7 @@ class Webservice
 	 */
 	private function createDolOrderFromPrestashop(&$commande, $ps_order)
 	{
-		global $conf,$langs,$user;
+		global $conf,$langs;
 
 		$error = 0;
 
@@ -3159,7 +3151,7 @@ class Webservice
 //		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
 		$commande->multicurrency_tx = (double) $ps_order->conversion_rate;
 
-		if ($commande->create($user) < 0)
+		if ($commande->create($this->user) < 0)
 		{
 			$error++;
 			$this->error = $langs->trans('DolishopErrorOrderCreate', $ps_order->reference, $commande->db->lasterror());
@@ -3251,7 +3243,7 @@ class Webservice
 	 */
 	private function createDolOrderFromMagento(&$commande, $mg_order)
 	{
-		global $conf,$langs,$user;
+		global $conf,$langs;
 
 		$error = 0;
 
@@ -3306,7 +3298,7 @@ class Webservice
 //		$commande->multicurrency_code = GETPOST('multicurrency_code', 'alpha');
 		$commande->multicurrency_tx = (double) $mg_order->base_to_order_rate; // TODO à déterminer si c'est bien la bonne valeur, autrement il y a l'attribut "base_currency_code" (ex: EUR)
 
-		if ($commande->create($user) < 0)
+		if ($commande->create($this->user) < 0)
 		{
 			$this->error = $langs->trans('DolishopErrorOrderCreate', $mg_order->increment_id, $commande->db->lasterror());
 			$this->errors[] = $this->error;
@@ -3420,8 +3412,6 @@ class Webservice
 	 */
 	private function saveSociete($web_id_customer, $name, $email, $firstname='', $lastname='', $civility_id='MR', $entity=1, $code_client='auto', $status=1, $client=1, $fournisseur=0, $tva_assuj=1, $typent_id = 8, $default_lang='')
 	{
-		global $user;
-
 		$fk_soc = DolishopTools::getSociete($web_id_customer, $email);
 
 		$societe = new \Societe($this->db);
@@ -3446,12 +3436,12 @@ class Webservice
 
 		if (!empty($societe->id))
 		{
-			$societe->update('', $user);
+			$societe->update('', $this->user);
 		}
 		else
 		{
 			$societe->array_options['options_web_id_customer'] = $web_id_customer;
-			if ($societe->create($user) <= 0) return false;
+			if ($societe->create($this->user) <= 0) return false;
 		}
 
 		return $societe;
@@ -3586,8 +3576,6 @@ class Webservice
 	 */
 	private function saveDolContact(&$societe, $web_id_address, $lastname, $firstname, $address, $zip, $town, $phone_pro, $email, $birthday_timestamp, $country_id, $statut = 1, $priv = 0)
 	{
-		global $user;
-
 		if (!class_exists('\Contact')) require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
 
 		$contact = new \Contact($this->db);
@@ -3611,14 +3599,14 @@ class Webservice
 
 		if (!empty($contact->id))
 		{
-			$result = $contact->update($contact->id, $user);
+			$result = $contact->update($contact->id, $this->user);
 		}
 		else
 		{
 			$contact->statut = $statut;
 			$contact->priv = $priv;
 			$contact->socid = $societe->id;	// fk_soc
-			$result = $contact->create($user);
+			$result = $contact->create($this->user);
 		}
 
 		return $contact;
@@ -3626,7 +3614,7 @@ class Webservice
 	
 	private function createDolExpeditionDraft(\Commande &$commande, \SimpleXMLElement $web_order_carrier)
 	{
-		global $user,$conf;
+		global $conf;
 		
 		if (!class_exists('\Expedition')) require_once DOL_DOCUMENT_ROOT.'/expedition/class/expedition.class.php';
 		
@@ -3656,7 +3644,7 @@ class Webservice
 		
 		$expedition->array_options['options_web_id_order_carrier'] = (int) $web_order_carrier->id;
 		
-		$res = $expedition->create($user);
+		$res = $expedition->create($this->user);
 		return $res;
 	}
 	
