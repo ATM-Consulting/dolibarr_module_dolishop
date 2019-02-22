@@ -3578,15 +3578,22 @@ class Webservice
 	{
 		if (!class_exists('\Contact')) require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
 
+		// Clean params
+		$address = is_array($address) ? implode("\n", $address) : $address;
+		$email = empty($email) ? $societe->email : $email;
+		$lastname = trim($lastname);
+		$firstname = trim($firstname);
+		$phone_pro = trim($phone_pro);
+
 		$contact = new \Contact($this->db);
-		$fk_socpeople = DolishopTools::getContact($web_id_address);
+		$fk_socpeople = DolishopTools::getContact($web_id_address, $societe->id, $lastname, $firstname, $address, $zip, $town, $phone_pro, $email, $birthday_timestamp, $country_id);
 		if ($fk_socpeople > 0) $contact->fetch($fk_socpeople);
 
 		$contact->name = $lastname;
 		$contact->firstname = $firstname;
 		$contact->civility_id = $societe->civility_id;
-		$contact->address = is_array($address) ? implode("\n", $address) : $address;
-		$contact->email = empty($email) ? $societe->email : $email;
+		$contact->address = $address;
+		$contact->email = $email;
 		$contact->zip = $zip;
 		$contact->town = $town;
 		$contact->phone_pro = $phone_pro;
@@ -4188,14 +4195,46 @@ class DolishopTools
 		}
 		else exit($db->lasterror());
 	}
-	
-	public static function getContact($web_id_address)
+
+	/**
+	 * @global \DoliDB $db
+	 * @param        $web_id_address
+	 * @param int    $socid
+	 * @param string $lastname
+	 * @param string $firstname
+	 * @param string $address
+	 * @param string $zip
+	 * @param string $town
+	 * @param string $phone_pro
+	 * @param string $email
+	 * @param string $birthday_timestamp
+	 * @param string $country_id
+	 * @return int
+	 */
+	public static function getContact($web_id_address, $socid=0, $lastname='', $firstname='', $address='', $zip='', $town='', $phone_pro='', $email='', $birthday_timestamp='', $country_id='')
 	{
 		global $db;
 		
-		if ($web_id_address <= 0) return 0;
-		
-		$sql = 'SELECT fk_object FROM '.MAIN_DB_PREFIX.'socpeople_extrafields WHERE web_id_address = '.$web_id_address;
+		if ($web_id_address > 0)
+		{
+			$sql = 'SELECT fk_object FROM '.MAIN_DB_PREFIX.'socpeople_extrafields WHERE web_id_address = '.$web_id_address;
+		}
+		else
+		{
+			$sql = 'SELECT rowid AS fk_object FROM '.MAIN_DB_PREFIX.'socpeople';
+			$sql.= ' WHERE fk_soc = '.$socid;
+			$sql.= ' AND lastname = "'.$db->escape($lastname).'"';
+			$sql.= ' AND firstname = "'.$db->escape($firstname).'"';
+			$sql.= ' AND address = "'.$db->escape($address).'"';
+			$sql.= ' AND zip = "'.$db->escape($zip).'"';
+			$sql.= ' AND town = "'.$db->escape($town).'"';
+			$sql.= ' AND phone = "'.$db->escape($phone_pro).'"';
+			$sql.= ' AND email = "'.$db->escape($email).'"';
+			if (!empty($birthday_timestamp)) $sql.= ' AND birthday = "'.date('Y-m-d', $birthday_timestamp).'"';
+			else $sql.= ' AND birthday IS NULL';
+			$sql.= ' AND fk_pays = '.$country_id;
+		}
+
 		$resql = $db->query($sql);
 		if ($resql)
 		{
