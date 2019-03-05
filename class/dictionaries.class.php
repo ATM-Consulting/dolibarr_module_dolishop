@@ -377,9 +377,9 @@ class MgPaymentMethod extends SeedObject
 		$o = new MgPaymentMethod($db);
 		$o->entity = $conf->entity;
 		$o->code = 'banktransfer';
-		$o->libelle = 'Bank Transfer Paymen';
+		$o->libelle = 'Bank Transfer Payment';
 		$o->type = 2;
-		$o->active = 0;
+		$o->active = 1;
 		$o->create($user);
 
 		$o = new MgPaymentMethod($db);
@@ -387,7 +387,7 @@ class MgPaymentMethod extends SeedObject
 		$o->code = 'cashondelivery';
 		$o->libelle = 'Cash on Delivery';
 		$o->type = 2;
-		$o->active = 0;
+		$o->active = 1;
 		$o->create($user);
 
 		$o = new MgPaymentMethod($db);
@@ -395,7 +395,7 @@ class MgPaymentMethod extends SeedObject
 		$o->code = 'purchaseorder';
 		$o->libelle = 'Purchase Order';
 		$o->type = 2;
-		$o->active = 0;
+		$o->active = 1;
 		$o->create($user);
 
 		$o = new MgPaymentMethod($db);
@@ -403,7 +403,7 @@ class MgPaymentMethod extends SeedObject
 		$o->code = 'free';
 		$o->libelle = 'Zero Subtotal Checkout';
 		$o->type = 2;
-		$o->active = 0;
+		$o->active = 1;
 		$o->create($user);
 
 	}
@@ -544,7 +544,7 @@ class MgPaymentMethod extends SeedObject
 	 * @param bool $notrigger  false=launch triggers after, true=disable triggers
 	 * @return int             <0 if KO, >0 if OK
 	 */
-	public function deleteCommon(User $user, $notrigger = false)
+	public function deleteCommon(User $user, $notrigger = false, $forcechilddeletion = 0)
 	{
 		$error=0;
 

@@ -241,9 +241,9 @@ class InterfaceDolishoptrigger
 				}
 			}
 		}
-		else if ($action == 'BILL_VALIDATE')
+		else if ($action == 'BILL_VALIDATE' && !empty($conf->global->DOLISHOP_CREATE_WEB_INVOICE))
 		{
-			if (!empty($object->array_options['options_web_id_order']) && empty($object->array_options['options_web_id_invoice']))
+			if (!$object->validate_from_dolishop && !empty($object->array_options['options_web_id_order']) && empty($object->array_options['options_web_id_invoice']))
 			{
 				if (empty($object->array_options)) $object->fetch_optionals();
 				if ($object->array_options['options_web_id_order'] > 0)

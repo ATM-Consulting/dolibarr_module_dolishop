@@ -67,6 +67,12 @@ DOLISHOP_DEFAULT_ID_SHIPPING_SERVICE=Produit/Service à utiliser pour les frais 
 DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS=Lors de l'import des lignes de commande, créer une fiche produit dans Dolibarr plutôt qu'une ligne libre si besoin
 DOLISHOP_SYNC_WEB_PRODUCT_IF_NOT_EXISTS_DESC=La ressource <b>products</b> doit être accessible en <b>GET</b>
 DOLISHOP_STATUS_TO_CREATE_INVOICE=Créer dans la foulée une facture au statut (vide pour désactiver) :
+DOLISHOP_STATUS_TO_CREATE_INVOICE_DESC=Si vous optez pour le statut "Validée", le paiement sera récupéré s'il en existe un
+DolishopDraft=Brouillon
+DolishopValidate=Validée
+DOLISHOP_DEFAULT_ACCOUNT_ID=Compte à utiliser pour les règlements issues de la récupration des commandes
+DOLISHOP_DEFAULT_ACCOUNT_ID_DESC=Uniquement si vous avez opté pour le statut "Validée" à la configuration précédente, vous pouvez aussi laisser cette configuration à vide pour que vos facture soient validées et restent sans paiements
+
 DOLISHOP_DEFAULT_WAREHOUSE_ID=Définir l'entrepôt par défaut (certaine commande de votre boutique implique la création d'une expédition, elle sera au statut brouillon dans Dolibarr)
 DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING=Valider une expédition Dolibarr passera la commande de votre boutique au statut (vide pour désactiver) :
 DOLISHOP_UPDATE_WEB_ORDER_ON_CREATE_SHIPPING_DESC=La ressource <b>orders</b> doit être accessible en <b>PUT</b> et la ressource <b>order_carriers</b> en <b>GET / PUT / POST</b>
@@ -175,3 +181,4 @@ DolishopSyncOrdersIsDisabled=La configuration de synchronisation des commandes e
 
 
 DiscountCodeUsed=Code promo utilisé: %s (%s)
+DolishopPaymentFromMagento=Paiement issue de la commande Magento : %s

@@ -2990,14 +2990,10 @@ class Webservice
 			}
 
 			$mg_orders = $this->getAll('/V1/orders', $options);
-
 			if ($mg_orders)
 			{
 				foreach ($mg_orders->items as $mg_order)
 				{
-					// TODO remove condition
-//					if ( $mg_order->increment_id != '000000004' ) continue;
-
 					if (!DolishopTools::checkOrderExist($mg_order->increment_id))
 					{
 						$this->createDolOrder($mg_order);
@@ -3024,12 +3020,8 @@ class Webservice
 		if ($this->api_name == 'prestashop') $fk_commande = $this->createDolOrderFromPrestashop($commande, $web_order);
 		else if ($this->api_name == 'magento') $fk_commande = $this->createDolOrderFromMagento($commande, $web_order);
 
-//		var_dump($fk_commande, $this->errors, $commande);
-//	exit;
-
 		if ($fk_commande < 0) $error++;
 
-//		$this->debugXml($web_order);
 		if (!$error && $fk_commande > 0)
 		{
 			$res = $commande->valid($this->user);
@@ -3048,7 +3040,7 @@ class Webservice
 				}
 				else if ($this->api_name == 'magento')
 				{
-					// TODO gestion des expéditions ...?
+					// Gestion des expéditions géré sur la validation d'une exp dans Dolibarr
 				}
 			}
 		}
@@ -3079,6 +3071,7 @@ class Webservice
 
 			if ($conf->global->DOLISHOP_STATUS_TO_CREATE_INVOICE === '1')
 			{
+				$facture->validate_from_dolishop = true; // Pour ne pas lancer le comportement côté trigger sur BILL_VALIDATE avec la conf DOLISHOP_CREATE_WEB_INVOICE
 				$res = $facture->validate($this->user, '', $conf->global->DOLISHOP_DEFAULT_WAREHOUSE_ID);
 				if ($res <= 0)
 				{
@@ -3089,6 +3082,8 @@ class Webservice
 					$this->db->rollback();
 					return -3;
 				}
+
+				$this->setInvoicePayment($facture, $web_order);
 			}
 		}
 
@@ -3096,6 +3091,42 @@ class Webservice
 		$this->output.= $langs->trans('DolishopNewOrderCreated', $commande->ref, $commande->ref_client)."\n";
 
 		return $commande->id;
+	}
+
+	/**
+	 * @param \Facture	$facture
+	 * @param $web_order
+	 */
+	private function setInvoicePayment($facture, $web_order)
+	{
+		global $conf,$langs;
+
+		if ($this->api_name == 'prestashop')
+		{
+			// TODO
+		}
+		elseif ($this->api_name == 'magento')
+		{
+			if (!empty($web_order->payment->amount_paid) && !empty($facture->mode_reglement_id) && $conf->global->DOLISHOP_DEFAULT_ACCOUNT_ID > 0)
+			{
+				require_once DOL_DOCUMENT_ROOT.'/compta/paiement/class/paiement.class.php';
+
+				$paiement = new \Paiement($this->db);
+				$paiement->datepaye = strtotime($web_order->updated_at); // date de la commande (j'ai pas de date de facturation)
+				$paiement->amounts = array($facture->id => $web_order->payment->amount_paid);   // Array with all payments dispatching with invoice id
+				// $web_order->order_currency_code != $conf->currency
+//				$paiement->multicurrency_amounts = $multicurrency_amounts;   // Array with all payments dispatching
+				$paiement->paiementid = $facture->mode_reglement_id;
+				$paiement->num_paiement = '';
+				$paiement->note = $langs->trans('DolishopPaymentFromMagento', $web_order->increment_id);
+				$paiement_id = $paiement->create($this->user, 0);
+				if ($paiement_id > 0)
+				{
+					$label='(CustomerInvoicePayment)';
+					$paiement->addPaymentToBank($this->user,'payment',$label, $conf->global->DOLISHOP_DEFAULT_ACCOUNT_ID,'','');
+				}
+			}
+		}
 	}
 
 	/**
@@ -3284,7 +3315,9 @@ class Webservice
 		$commande->note_public = '';
 
 //		$commande->cond_reglement_id = GETPOST('cond_reglement_id');
-//		$commande->mode_reglement_id = GETPOST('mode_reglement_id'); // TODO * => $mg_order->payment->method (ex: banktransfer)
+//		$commande->mode_reglement_id = GETPOST('mode_reglement_id'); // $mg_order->payment->method (ex: banktransfer)
+		$mode_reglement_id = dol_getIdFromCode($commande->db, $mg_order->payment->method, 'c_paiement');
+		if (!empty($mode_reglement_id) && $mode_reglement_id > 0) $commande->mode_reglement_id = $mode_reglement_id;
 //		$commande->fk_account = GETPOST('fk_account', 'int'); // TODO peut être une conf global
 //		$commande->availability_id = GETPOST('availability_id'); // Delai de livraison
 //		$commande->demand_reason_id = GETPOST('demand_reason_id'); // Channel => dictionnaire llx_c_input_reason (Origines des propales/commandes)

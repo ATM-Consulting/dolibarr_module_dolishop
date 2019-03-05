@@ -286,16 +286,33 @@ print '</td></tr>';
 $var=!$var;
 print '<tr '.$bc[$var].'>';
 print '<td>'.$langs->trans('DOLISHOP_STATUS_TO_CREATE_INVOICE');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_STATUS_TO_CREATE_INVOICE_DESC').'</small>';
 print '</td>';
 print '<td align="center">&nbsp;</td>';
 print '<td align="right">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 print '<input type="hidden" name="action" value="set_DOLISHOP_STATUS_TO_CREATE_INVOICE">';
-print Form::selectarray('DOLISHOP_STATUS_TO_CREATE_INVOICE', array(Facture::STATUS_DRAFT => $langs->trans('Draft'), Facture::STATUS_VALIDATED => $langs->trans('Validate')), $conf->global->DOLISHOP_STATUS_TO_CREATE_INVOICE, 1, 0, 0, 'minwidth200 maxwidth300', 0, 0, array(), '', 'minwidth200 maxwidth300', 1);
+print Form::selectarray('DOLISHOP_STATUS_TO_CREATE_INVOICE', array(Facture::STATUS_DRAFT => $langs->trans('DolishopDraft'), Facture::STATUS_VALIDATED => $langs->trans('DolishopValidate')), $conf->global->DOLISHOP_STATUS_TO_CREATE_INVOICE, 1, 0, 0, 'minwidth200 maxwidth300', 0, 0, array(), '', 'minwidth200 maxwidth300', 1);
 print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
 print '</form>';
 print '</td></tr>';
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_DEFAULT_ACCOUNT_ID');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_DEFAULT_ACCOUNT_ID_DESC').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_DEFAULT_ACCOUNT_ID">';
+$form->select_comptes($conf->global->DOLISHOP_DEFAULT_ACCOUNT_ID,'DOLISHOP_DEFAULT_ACCOUNT_ID',0,'',2);
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+
 
 if ($dolishop->api_name == 'prestashop')
 {
