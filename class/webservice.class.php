@@ -3318,6 +3318,7 @@ class Webservice
 //		$commande->mode_reglement_id = GETPOST('mode_reglement_id'); // $mg_order->payment->method (ex: banktransfer)
 		$mode_reglement_id = dol_getIdFromCode($commande->db, $mg_order->payment->method, 'c_paiement');
 		if (!empty($mode_reglement_id) && $mode_reglement_id > 0) $commande->mode_reglement_id = $mode_reglement_id;
+		elseif ($conf->global->DOLISHOP_DEFAULT_MODE_REGLEMENT_ID > 0) $commande->mode_reglement_id = $conf->global->DOLISHOP_DEFAULT_MODE_REGLEMENT_ID;
 //		$commande->fk_account = GETPOST('fk_account', 'int'); // TODO peut être une conf global
 //		$commande->availability_id = GETPOST('availability_id'); // Delai de livraison
 //		$commande->demand_reason_id = GETPOST('demand_reason_id'); // Channel => dictionnaire llx_c_input_reason (Origines des propales/commandes)

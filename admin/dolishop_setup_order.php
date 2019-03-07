@@ -308,7 +308,23 @@ print '<td align="right">';
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
 print '<input type="hidden" name="action" value="set_DOLISHOP_DEFAULT_ACCOUNT_ID">';
-$form->select_comptes($conf->global->DOLISHOP_DEFAULT_ACCOUNT_ID,'DOLISHOP_DEFAULT_ACCOUNT_ID',0,'',2);
+$form->select_comptes($conf->global->DOLISHOP_DEFAULT_ACCOUNT_ID,'DOLISHOP_DEFAULT_ACCOUNT_ID',0,'',1);
+print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
+print '</form>';
+print '</td></tr>';
+
+
+$var=!$var;
+print '<tr '.$bc[$var].'>';
+print '<td>'.$langs->trans('DOLISHOP_DEFAULT_MODE_REGLEMENT_ID');
+print '<br><small>'.$img_warning.$langs->trans('DOLISHOP_DEFAULT_MODE_REGLEMENT_ID_DESC').'</small>';
+print '</td>';
+print '<td align="center">&nbsp;</td>';
+print '<td align="right">';
+print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$_SESSION['newtoken'].'">';
+print '<input type="hidden" name="action" value="set_DOLISHOP_DEFAULT_MODE_REGLEMENT_ID">';
+$form->select_types_paiements($conf->global->DOLISHOP_DEFAULT_MODE_REGLEMENT_ID, 'DOLISHOP_DEFAULT_MODE_REGLEMENT_ID');
 print '<input type="submit" class="butAction" value="'.$langs->trans("Modify").'">';
 print '</form>';
 print '</td></tr>';
