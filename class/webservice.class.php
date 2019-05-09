@@ -2712,8 +2712,10 @@ class Webservice
 	public function getCategoriesFullArboFromWeb()
 	{
 		global $conf;
-		
-		if ($this->api_name == 'prestashop')
+
+        $id_category_root = !empty($conf->global->DOLISHOP_STORE_ROOT_CATEGORY_ID) ? $conf->global->DOLISHOP_STORE_ROOT_CATEGORY_ID : 2;
+
+        if ($this->api_name == 'prestashop')
 		{
 			$ps_categories = $this->getAll('categories', array(
 				'display' => '[id,id_parent,id_shop_default,name,description]'
@@ -2725,7 +2727,7 @@ class Webservice
 			if ($ps_categories)
 			{
 				$ps_categories = json_decode(json_encode($ps_categories->children()), true); // Cast array
-				$ps_fullarbo = $this->constructFullTree($ps_categories['category'], 2);
+				$ps_fullarbo = $this->constructFullTree($ps_categories['category'], $id_category_root);
 				return $ps_fullarbo;
 			}
 		}
@@ -2734,7 +2736,7 @@ class Webservice
 			$mg_categories = $this->getAll('/V1/categories', array(
 				'return_as_array' => true
 				,'params' => array(
-					'rootCategoryId' => 2 // 1 = root, 2 default cat (both seems no deletable)
+					'rootCategoryId' => $id_category_root // 1 = root, 2 default cat (both seems no deletable)
 //					,'depth' => 10
 				)
 			));
