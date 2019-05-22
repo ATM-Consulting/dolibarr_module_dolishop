@@ -3446,39 +3446,48 @@ class Webservice
 	 * @param int    $typent_id			8 = Particulier
 	 * @param string $default_lang		en_US, fr_FR ...
 	 */
-	private function saveSociete($web_id_customer, $name, $email, $firstname='', $lastname='', $civility_id='MR', $entity=1, $code_client='auto', $status=1, $client=1, $fournisseur=0, $tva_assuj=1, $typent_id = 8, $default_lang='')
+	private function saveSociete($web_id_customer, $name, $email, $firstname='', $lastname='', $civility_id='MR', $entity=1, $code_client='auto', $status=1, $client=1, $fournisseur=0, $tva_assuj=1, $typent_id = 8, $default_lang='', $billing_address=null)
 	{
-		$fk_soc = DolishopTools::getSociete($web_id_customer, $email);
+	    global $conf;
+
+	    if (!empty($conf->global->DOLISHOP_USE_BILLING_ADDRESS_TO_SEARCH_COMPANY))
+        {
+            $fk_soc = DolishopTools::getSocieteFST($billing_address, $web_id_customer, $email);
+        }
+		else $fk_soc = DolishopTools::getSociete($web_id_customer, $email);
 
 		$societe = new \Societe($this->db);
 		if ($fk_soc > 0) $societe->fetch($fk_soc);
 
-		$societe->name = $name;
-		$societe->email = $email;
-		$societe->firstname = $firstname;
-		$societe->name_bis = $lastname;
-		$societe->civility_id = $civility_id;
-		$societe->status = $status;
-		$societe->client = $client;
-		$societe->code_client = $code_client;
-		$societe->fournisseur = $fournisseur;
+        if (!empty($societe->id) && empty($conf->global->DOLISHOP_DO_NOT_UPDATE_THIRDPARTY_IF_FOUND) || empty($societe->id))
+        {
+            $societe->name = $name;
+            $societe->email = $email;
+            $societe->firstname = $firstname;
+            $societe->name_bis = $lastname;
+            $societe->civility_id = $civility_id;
+            $societe->status = $status;
+            $societe->client = $client;
+            $societe->code_client = $code_client;
+            $societe->fournisseur = $fournisseur;
 
-		$societe->tva_assuj = $tva_assuj;
-		$societe->typent_id = $typent_id; // Particulier // TODO mettre en conf module ?
-		$societe->typent_code = dol_getIdFromCode($this->db, $societe->typent_id, 'c_typent', 'id', 'code');	// Force typent_code too so check in verify() will be done on new type
+            $societe->tva_assuj = $tva_assuj;
+            $societe->typent_id = $typent_id; // Particulier // TODO mettre en conf module ?
+            $societe->typent_code = dol_getIdFromCode($this->db, $societe->typent_id, 'c_typent', 'id', 'code');	// Force typent_code too so check in verify() will be done on new type
 
-		$societe->entity = $entity;
-		$societe->default_lang = $default_lang;
+            $societe->entity = $entity;
+            $societe->default_lang = $default_lang;
 
-		if (!empty($societe->id))
-		{
-			$societe->update('', $this->user);
-		}
-		else
-		{
-			$societe->array_options['options_web_id_customer'] = $web_id_customer;
-			if ($societe->create($this->user) <= 0) return false;
-		}
+            if (!empty($societe->id))
+            {
+                $societe->update('', $this->user);
+            }
+            else
+            {
+                $societe->array_options['options_web_id_customer'] = $web_id_customer;
+                if ($societe->create($this->user) <= 0) return false;
+            }
+        }
 
 		return $societe;
 	}
@@ -3545,7 +3554,7 @@ class Webservice
 		else $civility_id = '';
 
 // TODO faire la gestion d'erreur si les create societe/contact ne fonctionnent pas
-		if (!empty($mg_order->customer_id))	$societe = $this->saveSociete($mg_order->customer_id, dolGetFirstLastname($mg_order->customer_firstname, $mg_order->customer_lastname), $mg_order->customer_email, $mg_order->customer_firstname, $mg_order->customer_lastname, $civility_id, $conf->entity);
+		if (!empty($mg_order->customer_id))	$societe = $this->saveSociete($mg_order->customer_id, dolGetFirstLastname($mg_order->customer_firstname, $mg_order->customer_lastname), $mg_order->customer_email, $mg_order->customer_firstname, $mg_order->customer_lastname, $civility_id, $conf->entity, 'auto', 1, 1, 0, 1, 8, '', $mg_order->billing_address);
 		// Commande en mode anonyme (sans connexion)
 		else $societe = $this->saveSociete(0, dolGetFirstLastname($mg_order->billing_address->firstname, $mg_order->billing_address->lastname), $mg_order->customer_email, $mg_order->billing_address->firstname, $mg_order->billing_address->lastname, $civility_id, $conf->entity);
 
@@ -4231,6 +4240,26 @@ class DolishopTools
 		}
 		else exit($db->lasterror());
 	}
+
+    public static function getSocieteFST($billing_address, $web_id_customer, $email)
+    {
+        global $db;
+
+        if (!empty($billing_address->company) && !empty($billing_address->postcode))
+        {
+            $sql = 'SELECT rowid AS fk_soc FROM '.MAIN_DB_PREFIX.'societe WHERE nom = \''.$db->escape(trim($billing_address->company)).'\' AND zip = \''.$db->escape(trim($billing_address->postcode)).'\'';
+
+            $resql = $db->query($sql);
+            if ($resql)
+            {
+                $obj = $db->fetch_object($resql);
+                if (!empty($obj->fk_soc)) return $obj->fk_soc;
+            }
+            else exit($db->lasterror());
+        }
+
+        return self::getSociete($web_id_customer, $email);
+    }
 
 	/**
 	 * @global \DoliDB $db
